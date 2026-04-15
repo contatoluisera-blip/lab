@@ -4,13 +4,6 @@ import OpenAI from 'openai';
 
 export const maxDuration = 300; // Allow functions to run for up to 5 minutes
 
-const apifyClient = new ApifyClient({
-  token: process.env.APIFY_API_TOKEN,
-});
-
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
 
 const SYSTEM_PROMPT = `You are a senior Instagram profile analyst specialized in commercial profile evaluation for advertising decisions.
 
@@ -58,6 +51,14 @@ You MUST respond with a JSON object matching this exact schema:
 
 export async function POST(request: Request) {
   try {
+    const apifyClient = new ApifyClient({
+      token: process.env.APIFY_API_TOKEN,
+    });
+
+    const openai = new OpenAI({
+      apiKey: process.env.OPENAI_API_KEY,
+    });
+
     const body = await request.json();
     let { handle, platform, niche, goal } = body;
 
