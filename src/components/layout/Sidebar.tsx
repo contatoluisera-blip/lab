@@ -15,7 +15,8 @@ import {
   Trophy,
   Users,
   CreditCard,
-  Settings
+  Settings,
+  Lock
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -26,8 +27,8 @@ const MENU_ITEMS = [
   { name: 'Calculadora de Orçamento', href: '/dashboard/calculator', icon: Calculator },
   { name: 'Gerador de Propostas', href: '/dashboard/proposal', icon: FileText },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },
-  { name: 'Desafios', href: '/dashboard/challenges', icon: Trophy },
-  { name: 'Colaboração', href: '/dashboard/collaboration', icon: Users },
+  { name: 'Desafios', href: '/dashboard/challenges', icon: Trophy, comingSoon: true },
+  { name: 'Colaboração', href: '/dashboard/collaboration', icon: Users, comingSoon: true },
   { name: 'Planos e Faturamento', href: '/dashboard/billing', icon: CreditCard },
   { name: 'Configurações', href: '/dashboard/settings', icon: Settings },
 ];
@@ -52,16 +53,26 @@ export function Sidebar() {
           return (
             <Link
               key={item.name}
-              href={item.href}
+              href={item.comingSoon ? '#' : item.href}
               className={cn(
                 "flex items-center gap-3 px-3 py-2.5 rounded-xl transition-all group relative",
                 isActive 
                   ? "bg-brand-emerald/10 text-brand-emerald glow-border" 
-                  : "text-gray-400 hover:text-gray-100 hover:bg-white/5"
+                  : "text-gray-400 hover:text-gray-100 hover:bg-white/5",
+                item.comingSoon && "opacity-50 grayscale-[0.5] cursor-default"
               )}
+              onClick={(e) => item.comingSoon && e.preventDefault()}
             >
               <item.icon className={cn("w-5 h-5", isActive ? "text-brand-mint" : "opacity-70 group-hover:opacity-100")} />
               <span className="text-sm font-medium">{item.name}</span>
+              {item.comingSoon && (
+                <div className="ml-auto flex items-center gap-1.5 px-2 py-0.5 rounded-md bg-white/5 border border-white/10 group-hover:bg-white/10 transition-colors">
+                  <Lock className="w-3 h-3 text-gray-500" />
+                  <span className="text-[10px] text-gray-300 font-medium whitespace-nowrap">
+                    Em breve
+                  </span>
+                </div>
+              )}
             </Link>
           );
         })}
