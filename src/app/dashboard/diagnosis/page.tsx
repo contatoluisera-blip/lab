@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, ShieldAlert, LineChart, BadgeDollarSign, ShieldCheck, Landmark, FileDown } from 'lucide-react';
+import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
@@ -12,8 +12,7 @@ import { collection, addDoc } from 'firebase/firestore';
 
 export default function DiagnosisPage() {
   const [handle, setHandle] = useState('');
-  const [niche, setNiche] = useState('');
-  const [goal, setGoal] = useState('crescimento');
+  const [tipoPerfil, setTipoPerfil] = useState('criador');
   
   const [loading, setLoading] = useState(false);
   const [loadingPdf, setLoadingPdf] = useState(false);
@@ -35,31 +34,29 @@ export default function DiagnosisPage() {
       const response = await fetch('/api/tools/diagnosis', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle, niche, goal })
+        body: JSON.stringify({ handle, tipo_perfil: tipoPerfil })
       });
       
       const resData = await response.json();
       
       if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao processar dados via Inteligência.');
+        throw new Error(resData.error || 'Falha ao processar dados via API.');
       }
       
       setResult(resData.data);
 
-      // Injeção Automática no Banco de Dados Firestore
       if (user && resData.data) {
         try {
           await addDoc(collection(db, 'diagnoses'), {
              userId: user.uid,
              handle: handle.trim().replace('@',''),
-             niche,
-             goal,
+             tipoPerfil,
              resultado_json: resData.data,
-             nota_final: resData.data.nota_final_publicitaria_0_100 || 0,
+             nota_final: resData.data.notaGeral || 0,
              createdAt: new Date().toISOString()
           });
         } catch (dbErr) {
-          console.error("Falha ao salvar no banco de dados Firestore:", dbErr);
+          console.error("Falha ao salvar no Firestore:", dbErr);
         }
       }
 
@@ -76,7 +73,6 @@ export default function DiagnosisPage() {
 
     setLoadingPdf(true);
     try {
-      // Configuracao do html-to-image (muito superior para CSS modernos e filtros que o html2canvas falha)
       const imgData = await htmlToImage.toPng(reportElement, { 
         backgroundColor: '#0a0a0a',
         pixelRatio: 2
@@ -93,32 +89,45 @@ export default function DiagnosisPage() {
       });
       
       pdf.addImage(imgData, 'PNG', 0, 0, img.width, img.height);
-      pdf.save(`Avaliacao_B2B_${handle.replace('@', '')}.pdf`);
+      pdf.save(`Diagnostico_${handle.replace('@', '')}.pdf`);
     } catch (err: any) {
-      console.error("Erro na criacao do PDF:", err);
-      setError(`Falha ao gerar PDF: ${err.message || 'Erro de renderização'}`);
+      setError(`Falha ao gerar PDF: ${err.message}`);
     } finally {
       setLoadingPdf(false);
     }
+  };
+
+  const getScoreColor = (score: number) => {
+    if (score >= 80) return 'text-emerald-400 border-emerald-400';
+    if (score >= 60) return 'text-brand-jade border-brand-jade';
+    if (score >= 40) return 'text-amber-400 border-amber-400';
+    return 'text-red-400 border-red-400';
+  };
+  
+  const getScoreBg = (score: number) => {
+    if (score >= 80) return 'bg-emerald-500/10';
+    if (score >= 60) return 'bg-brand-jade/10';
+    if (score >= 40) return 'bg-amber-500/10';
+    return 'bg-red-500/10';
   };
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-24">
       {/* Header */}
       <div className="flex flex-col gap-2">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-teal-400 text-sm font-medium w-fit mb-2">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-jade text-sm font-medium w-fit mb-2">
           <ScanSearch className="w-4 h-4" />
-          <span>Inteligência Comercial B2B</span>
+          <span>Inteligência Analítica</span>
         </div>
         <div className="flex justify-between items-end">
           <div>
-            <h1 className="text-3xl font-bold text-white tracking-tight">Avaliação Publicitária do Perfil</h1>
-            <p className="text-gray-400">Leitura tática para identificar maturidade B2B de potenciais agênciados.</p>
+            <h1 className="text-3xl font-bold text-white tracking-tight">Diagnóstico de Perfil</h1>
+            <p className="text-gray-400">Auditoria automatizada baseada em métricas puras, constância e engajamento.</p>
           </div>
           {result && (
             <Button 
                 onClick={downloadPDF} 
-                className="bg-emerald-500/20 text-emerald-400 hover:bg-emerald-500 hover:text-black border border-emerald-500/50"
+                className="bg-brand-jade/20 text-brand-jade hover:bg-brand-jade hover:text-white border border-brand-jade/50"
                 disabled={loadingPdf}
              >
                <FileDown className="w-4 h-4 mr-2" />
@@ -134,8 +143,8 @@ export default function DiagnosisPage() {
         <div className="lg:col-span-1 space-y-6">
           <GlassCard glow className="p-6 sticky top-24">
             <h2 className="text-xl font-semibold text-white mb-6 flex items-center gap-2">
-              <Activity className="w-5 h-5 text-teal-400" />
-              Executar Busca
+              <Activity className="w-5 h-5 text-brand-jade" />
+              Nova Varredura
             </h2>
             
             {error && (
@@ -147,171 +156,197 @@ export default function DiagnosisPage() {
             <div className="space-y-5">
               <div>
                 <label className="block text-sm font-medium text-gray-300 mb-2">Seu @ no Instagram</label>
-                <input 
-                  type="text" 
-                  value={handle}
-                  onChange={(e) => setHandle(e.target.value)}
-                  placeholder="ex: lucasfraga" 
-                  className="w-full glass-input"
-                />
+                <div className="relative">
+                  <AtSign className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                  <input 
+                    type="text" 
+                    value={handle}
+                    onChange={(e) => setHandle(e.target.value)}
+                    placeholder="lucasfraga" 
+                    className="w-full glass-input pl-10"
+                  />
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Tipo de Perfil</label>
+                <select value={tipoPerfil} onChange={e=>setTipoPerfil(e.target.value)} className="w-full glass-input text-sm">
+                  <option value="criador">Criador / Influenciador</option>
+                  <option value="negocio">Negócio Local / Marca</option>
+                </select>
               </div>
 
               <div className="pt-4">
                 <Button 
-                  className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(45,212,191,0.3)] bg-gradient-to-r from-teal-500/20 to-teal-400/10 text-teal-300 border border-teal-500/30 hover:bg-teal-500 hover:text-black hover:shadow-[0_0_20px_rgba(45,212,191,0.6)]"
+                  className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(6,95,70,0.3)] bg-gradient-to-r from-brand-jade to-emerald-600 text-white hover:shadow-[0_0_20px_rgba(6,95,70,0.6)]"
                   onClick={handleGenerate}
                   disabled={loading}
                 >
                   {loading ? (
                     <span className="flex items-center gap-2 justify-center">
-                      <Sparkles className="w-4 h-4 animate-spin" /> Auditando Perfil...
+                      <Sparkles className="w-4 h-4 animate-spin" /> Auditando...
                     </span>
                   ) : (
                     <span className="flex items-center gap-2 justify-center">
-                      <ScanSearch className="w-4 h-4" /> Realizar Auditoria
+                      <ScanSearch className="w-4 h-4" /> Auditar Perfil
                     </span>
                   )}
                 </Button>
-                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Isso pode levar de 20 a 50 segundos dependendo da fila de raspagem...</p>}
+                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Extraindo publicações e calculando engajamento (30s)...</p>}
               </div>
             </div>
           </GlassCard>
         </div>
 
-        {/* Output Panel MASSIVE V2 SCHEMA */}
+        {/* Output Panel */}
         <div className="lg:col-span-3">
           {!result ? (
-            <GlassCard className="h-full min-h-[400px] flex flex-col items-center justify-center opacity-50">
-              <ScanSearch className="w-16 h-16 text-teal-400/30 mb-4" />
+            <GlassCard className="h-full min-h-[400px] flex flex-col items-center justify-center opacity-50 border-white/5">
+              <Target className="w-16 h-16 text-brand-jade/30 mb-4" />
               <p className="text-gray-400 font-medium text-center px-8">
-                Aguardando execução...
+                Insira o @ do perfil para rodar o algoritmo determinístico de maturidade.
               </p>
             </GlassCard>
           ) : (
             
             <div id="pdf-report-content" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-transparent rounded-3xl p-2 pb-6">
               
-              {/* Top Banner Analytics */}
-              <GlassCard glow className="p-6 border-teal-500/30">
-                <div className="flex flex-col md:flex-row gap-6 items-start md:items-center">
-                  <div className="flex-shrink-0 relative">
-                    <div className="w-28 h-28 rounded-full neo-glass flex items-center justify-center border-4 border-teal-500 shadow-[0_0_40px_rgba(45,212,191,0.4)]">
-                      <span className="text-4xl font-bold text-white">{result.nota_final_publicitaria_0_100}</span>
+              {/* Score Header */}
+              <GlassCard glow className="p-8 border-white/10 relative overflow-hidden">
+                <div className="absolute top-0 right-0 w-64 h-64 bg-brand-jade/5 rounded-bl-full -z-10 blur-3xl"></div>
+                
+                <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
+                  
+                  {/* Big Number */}
+                  <div className="flex-shrink-0 flex flex-col items-center">
+                    <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center shadow-lg ${getScoreColor(result.notaGeral)} ${getScoreBg(result.notaGeral)}`}>
+                      <span className="text-5xl font-bold">{result.notaGeral}</span>
                     </div>
+                    <span className="text-sm font-bold uppercase tracking-widest mt-4 text-gray-300">{result.classificacao}</span>
                   </div>
-                  <div className="flex-1">
-                    <div className="flex items-center justify-between mb-2">
-                       <h3 className="text-2xl font-bold text-teal-400">@{result.perfil.username} <span className="text-gray-500 text-lg font-normal">({result.perfil.nome})</span></h3>
-                       {result.perfil.verificado && <CheckCircle className="w-5 h-5 text-blue-400" />}
-                    </div>
-                    <p className="text-gray-300 font-mono text-sm mb-4 leading-relaxed bg-black/30 p-4 border border-white/5 rounded-xl">
-                      {result.resumo_executivo_final}
-                    </p>
-                    <div className="flex flex-wrap gap-2 text-xs font-semibold">
-                      <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-gray-300">{result.perfil.seguidores} Seguidores</span>
-                      <span className="px-3 py-1 bg-white/5 border border-white/10 rounded-md text-gray-300">{result.perfil.quantidade_posts} Posts Analisados</span>
-                      <span className="px-3 py-1 bg-emerald-500/10 border border-emerald-500/20 rounded-md text-emerald-400">{result.perfil.nicho_provavel}</span>
-                      <span className="px-3 py-1 bg-amber-500/10 border border-amber-500/20 rounded-md text-amber-400">{result.perfil.tipo_de_perfil}</span>
+
+                  <div className="flex-1 text-center md:text-left">
+                    <h3 className="text-2xl font-bold text-white mb-1">@{handle.replace('@', '')}</h3>
+                    <p className="text-brand-jade text-sm font-medium mb-4">Confiança da Análise: {result.confianca}%</p>
+                    
+                    <div className="bg-black/30 border border-white/5 p-5 rounded-2xl">
+                      <p className="text-gray-300 text-sm leading-relaxed italic">
+                        "{result.resumoExecutivo}"
+                      </p>
                     </div>
                   </div>
                 </div>
               </GlassCard>
 
-              {/* Diagnosis Grid Matrix */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                
-                {/* Atratividade Comercial & Brand Safety */}
-                <GlassCard className="p-6 border-white/5 flex flex-col gap-4 relative overflow-hidden">
-                  <div className="absolute top-0 right-0 p-4 opacity-5">
-                    <BadgeDollarSign className="w-24 h-24 text-teal-400" />
-                  </div>
-                  <h4 className="font-bold text-white flex items-center gap-2 relative z-10"><Target className="w-4 h-4 text-teal-400" /> Atratividade & Brand Safety</h4>
-                  <div className="bg-[#121212] p-4 rounded-xl text-sm border border-white/5 relative z-10">
-                    <span className="text-teal-500 block mb-1">Nota Atratividade: {result.notas.atratividade_para_publicidade}/10</span>
-                    <p className="text-gray-300 mb-3">{result.atratividade_publicitaria.nivel_geral}</p>
-                    <p className="text-gray-400 italic text-xs">{result.atratividade_publicitaria.analise}</p>
-                  </div>
-                  <div className="bg-[#121212] p-4 rounded-xl text-sm border border-white/5 relative z-10">
-                    <span className="text-emerald-500 block mb-1 flex items-center gap-2"><ShieldCheck className="w-4 h-4" /> Segurança de Marca: {result.notas.seguranca_de_marca}/10</span>
-                    <p className="text-gray-300 text-xs">{result.ambiente_de_conteudo_para_marcas.brand_safety_aparente}</p>
-                  </div>
-                  
-                  {/* Sensibilidade Politica Módulo */}
-                  {result.sensibilidade_politica.classificacao !== "no visible political connotation" && result.sensibilidade_politica.classificacao !== "sem conotação política observável" && (
-                    <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-xl text-sm relative z-10 mt-2">
-                       <span className="text-amber-400 block mb-1 flex items-center gap-2 font-bold"><Landmark className="w-4 h-4" /> Aviso de Conotação ({result.sensibilidade_politica.nota_0_10}/10)</span>
-                       <p className="text-amber-200/80 text-xs italic">{result.sensibilidade_politica.impacto_para_marcas}</p>
-                    </div>
-                  )}
+              {/* Principais Números */}
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <GlassCard className="p-4 border-white/5 text-center">
+                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Seguidores</p>
+                  <p className="text-xl font-bold text-white">{(result.metricas.seguidores).toLocaleString('pt-BR')}</p>
                 </GlassCard>
-
-                {/* Engajamento & Maturidade */}
-                <GlassCard className="p-6 border-white/5 flex flex-col gap-4">
-                  <h4 className="font-bold text-white flex items-center gap-2"><LineChart className="w-4 h-4 text-teal-400" /> Maturidade Estrutural</h4>
-                  <div className="bg-[#121212] p-4 rounded-xl text-sm border border-white/5">
-                    <span className="text-teal-500 block mb-1">Métricas Gerais ({result.notas.maturidade_comercial_do_perfil}/10)</span>
-                    <p className="text-gray-300 mb-3">{result.metricas_gerais.maturidade_aparente} — {result.metricas_gerais.volume_estrutural}</p>
-                    <p className="text-gray-400 italic text-xs">{result.metricas_gerais.leitura_estrategica}</p>
-                  </div>
-                  
-                  {/* Consistência */}
-                  <div className="bg-[#121212] p-4 rounded-xl text-sm border border-white/5">
-                    <span className="text-gray-400 block mb-1 font-bold flex gap-2 justify-between">
-                      Volume e Fidelidade 
-                      <span className="text-teal-500 font-normal">{result.notas.consistencia_de_postagem}/10</span>
-                    </span>
-                    <p className="text-emerald-400/80 mb-2">{result.frequencia_e_consistencia.confiabilidade_para_campanhas}</p>
-                    <p className="text-gray-300 text-xs">{result.frequencia_e_consistencia.analise}</p>
-                  </div>
+                <GlassCard className="p-4 border-white/5 text-center">
+                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Posts Analisados</p>
+                  <p className="text-xl font-bold text-white">{result.metricas.postsAnalisados}</p>
+                  <p className="text-[10px] text-gray-600 mt-1">Últimos 12 meses</p>
                 </GlassCard>
-                
+                <GlassCard className="p-4 border-white/5 text-center">
+                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Eng. Robusto</p>
+                  <p className="text-xl font-bold text-brand-jade">{result.metricas.engajamentoRobusto}</p>
+                </GlassCard>
+                <GlassCard className="p-4 border-white/5 text-center">
+                  <p className="text-xs text-gray-500 uppercase font-bold mb-1">Posts / Semana</p>
+                  <p className="text-xl font-bold text-white">{result.metricas.postsPorSemana}</p>
+                </GlassCard>
               </div>
 
-              {/* Táticas de Batalha (Fortalezas e Gargalos Comerciais) */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                 {/* Fortalezas Comerciais */}
-                 <GlassCard className="p-6 border-emerald-500/20">
-                   <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                     <CheckCircle className="w-5 h-5 text-emerald-400" /> Argumentos de Venda
-                   </h4>
-                   <ul className="space-y-3">
-                     {result.pontos_fortes_comerciais.map((p:string, i:number) => (
-                       <li key={i} className="flex gap-2 text-sm text-gray-300"><span className="text-emerald-400">-</span> {p}</li>
-                     ))}
-                   </ul>
-                 </GlassCard>
-                 
-                 {/* Fragilidades Comerciais */}
-                 <GlassCard className="p-6 border-amber-500/20">
-                   <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
-                     <AlertTriangle className="w-5 h-5 text-amber-400" /> Gargalos de Fechamento B2B
-                   </h4>
-                   <ul className="space-y-3">
-                     {result.gargalos_para_fechamento_de_publicidades.map((f:string, i:number) => (
-                       <li key={i} className="flex gap-2 text-sm text-gray-300"><span className="text-amber-400">-</span> {f}</li>
-                     ))}
-                   </ul>
-                 </GlassCard>
-              </div>
-
-              {/* Roadmap Comercial */}
-              <GlassCard glow className="p-6 border-white/10">
-                <h4 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
-                  <ShieldAlert className="w-5 h-5 text-teal-400" /> Plano de Ação (Atratividade de Marca)
+              {/* Sub-Scores Matrix */}
+              <GlassCard className="p-6 border-white/5">
+                <h4 className="text-lg font-bold text-white mb-6 flex items-center gap-2">
+                  <LineChart className="w-5 h-5 text-brand-jade" /> Notas por Área
                 </h4>
-                <div className="space-y-4">
-                  {result.recomendacoes_priorizadas.map((rec: any, i: number) => (
-                    <div key={i} className="bg-[#0f0f0f]/80 p-5 rounded-2xl border border-white/5 border-l-4 border-l-teal-500">
-                      <div className="flex gap-3 items-center mb-2">
-                        <span className="w-6 h-6 rounded-md bg-teal-500 text-black font-bold flex flex-col justify-center items-center text-xs">{rec.prioridade}</span>
-                        <h5 className="font-bold text-white">{rec.acao}</h5>
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-6">
+                  {[
+                    { label: 'Completude', score: result.notasBlocos.completude, title: 'Setup do Perfil', desc: 'Avalia a presença de recursos vitais como foto, bio otimizada, links e categoria.' },
+                    { label: 'Posicionamento', score: result.notasBlocos.posicionamento, title: 'Clareza e CTAs', desc: 'Mede o grau de especialização, uso inteligente do nome e chamadas para ação.' },
+                    { label: 'Constância', score: result.notasBlocos.constancia, title: 'Frequência e Ritmo', desc: 'Analisa a regularidade e o intervalo das postagens ao longo dos últimos 12 meses.' },
+                    { label: 'Engajamento', score: result.notasBlocos.engajamento, title: 'Resposta vs Meta', desc: 'Compara as interações reais (curtidas e comentários) com o esperado pelo seu tamanho.' },
+                    { label: 'Conteúdo', score: result.notasBlocos.conteudo, title: 'Mix de Formatos', desc: 'Verifica a variação e priorização de formatos dinâmicos de alto alcance como Reels.' },
+                    { label: 'Comentários', score: result.notasBlocos.comentarios, title: 'Tom e Conversação', desc: 'Mede a qualidade das conversas geradas, além de apenas "palminhas".' },
+                  ].map(b => (
+                    <div key={b.label} className={`p-4 rounded-xl border ${getScoreBg(b.score)} border-white/5 relative group`}>
+                      <div className="flex justify-between items-end mb-2">
+                        <span className="text-sm font-bold text-white" title={b.desc}>{b.label}</span>
+                        <span className={`text-lg font-bold ${getScoreColor(b.score).split(' ')[0]}`}>{b.score}</span>
                       </div>
-                      <p className="text-sm text-gray-400 pl-9 mb-2"><strong>Motivo:</strong> {rec.motivo}</p>
-                      <p className="text-sm text-emerald-400/80 pl-9 border-t border-white/5 pt-2 mt-2"><strong>Impacto Publicitário Acumulado:</strong> {rec.impacto_esperado}</p>
+                      <div className="w-full bg-black/40 h-1.5 rounded-full overflow-hidden">
+                        <div className={`h-full ${getScoreColor(b.score).split(' ')[0].replace('text-', 'bg-')}`} style={{ width: `${b.score}%` }}></div>
+                      </div>
+                      <div className="mt-3">
+                        <p className="text-xs text-gray-300 font-medium mb-1">{b.title}</p>
+                        <p className="text-[10px] text-gray-500 leading-relaxed">{b.desc}</p>
+                      </div>
                     </div>
                   ))}
                 </div>
               </GlassCard>
+
+              {/* Recomendações */}
+              {result.recomendacoes.length > 0 && (
+                <GlassCard className="p-6 border-amber-500/20">
+                  <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2">
+                    <AlertTriangle className="w-5 h-5 text-amber-400" /> Oportunidades de Melhoria
+                  </h4>
+                  <div className="space-y-3">
+                    {result.recomendacoes.map((rec: any, i: number) => (
+                      <div key={i} className="flex gap-3 items-start bg-black/20 p-4 rounded-lg border border-white/5">
+                        <AlertCircle className="w-4 h-4 text-amber-400 mt-0.5 shrink-0" />
+                        <div>
+                          <p className="text-sm font-bold text-gray-200 mb-1">{rec.area}</p>
+                          <p className="text-sm text-gray-400">{rec.txt}</p>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* Top Posts & Patterns */}
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                 {/* Top Post */}
+                 <GlassCard className="p-6 border-brand-jade/20">
+                   <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                     <TrendingUp className="w-4 h-4 text-brand-jade" /> Melhor Post (Relativo)
+                   </h4>
+                   {result.topPost ? (
+                     <div className="space-y-3 text-sm">
+                       <p className="text-gray-400">Data: <span className="text-white">{result.topPost.data}</span></p>
+                       <p className="text-gray-400">Tipo: <span className="text-white">{result.topPost.tipo}</span></p>
+                       <p className="text-gray-400">Engajamento: <span className="text-brand-jade font-bold">{result.topPost.engajamento}</span></p>
+                       <p className="mt-2 text-xs text-gray-500 break-all"><a href={result.topPost.url.includes('http') ? result.topPost.url : `https://instagram.com/p/${result.topPost.url}`} target="_blank" rel="noreferrer" className="underline hover:text-brand-jade">Ver Publicação</a></p>
+                     </div>
+                   ) : (
+                     <p className="text-sm text-gray-500">Dados insuficientes.</p>
+                   )}
+                 </GlassCard>
+                 
+                 {/* Insights Adicionais */}
+                 <GlassCard className="p-6 border-white/5">
+                   <h4 className="text-sm font-bold text-white mb-4 flex items-center gap-2">
+                     <Target className="w-4 h-4 text-blue-400" /> Padrões Analíticos
+                   </h4>
+                   <div className="space-y-4">
+                     <div>
+                       <p className="text-xs text-gray-500 uppercase mb-1">Dependência Viral (Concentração)</p>
+                       <p className="text-sm text-gray-200 font-bold">{result.metricas.concentracaoViral}</p>
+                       <p className="text-xs text-gray-400 mt-1">Acima de 50% indica que o perfil é carregado por 1 único post viral.</p>
+                     </div>
+                     <div>
+                       <p className="text-xs text-gray-500 uppercase mb-1">Domínio de Vídeo (Reels)</p>
+                       <p className="text-sm text-gray-200 font-bold">{result.metricas.pctReels} dos posts</p>
+                     </div>
+                   </div>
+                 </GlassCard>
+              </div>
               
             </div>
           )}

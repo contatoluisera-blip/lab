@@ -16,7 +16,8 @@ import {
   Users,
   CreditCard,
   Settings,
-  Lock
+  Lock,
+  Briefcase
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -26,6 +27,7 @@ const MENU_ITEMS = [
   { name: 'Simulador de Produção', href: '/dashboard/simulator', icon: Clapperboard },
   { name: 'Calculadora de Orçamento', href: '/dashboard/calculator', icon: Calculator },
   { name: 'Gerador de Propostas', href: '/dashboard/proposal', icon: FileText },
+  { name: 'Meus Clientes', href: '/dashboard/clients', icon: Briefcase },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },
   { name: 'Desafios', href: '/dashboard/challenges', icon: Trophy, comingSoon: true },
   { name: 'Colaboração', href: '/dashboard/collaboration', icon: Users, comingSoon: true },
