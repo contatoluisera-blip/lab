@@ -2,7 +2,7 @@
 
 import React from 'react';
 import Link from 'next/link';
-import { Bell, Search, User, Settings, LogOut, HelpCircle } from 'lucide-react';
+import { Bell, Search, User, Settings, LogOut, HelpCircle, Menu } from 'lucide-react';
 import { Button } from '@/components/ui/Button';
 import { useAuth } from '@/context/AuthContext';
 
@@ -51,18 +51,30 @@ export function Topbar() {
     };
   }, [updateProfile]);
 
+  const toggleSidebar = () => {
+    document.dispatchEvent(new CustomEvent('toggleSidebar'));
+  };
+
   return (
-    <header className="h-20 border-b border-white/5 neo-glass-panel sticky top-0 z-40 flex items-center justify-between px-6">
-      <div className="flex items-center flex-1 max-w-md relative">
-        <Search className="w-4 h-4 text-gray-500 absolute left-3" />
-        <input 
-          type="text" 
-          placeholder="Buscar ferramentas, desafios..." 
-          className="w-full glass-input pl-10 h-10 py-0 text-sm"
-        />
+    <header className="h-20 border-b border-white/5 neo-glass-panel sticky top-0 z-40 flex items-center justify-between px-4 md:px-6">
+      <div className="flex items-center gap-3 flex-1 max-w-md relative">
+        <button 
+          onClick={toggleSidebar}
+          className="md:hidden p-2 text-gray-400 hover:text-white transition-colors"
+        >
+          <Menu className="w-6 h-6" />
+        </button>
+        <div className="relative flex-1">
+          <Search className="w-4 h-4 text-gray-500 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input 
+            type="text" 
+            placeholder="Buscar ferramentas, desafios..." 
+            className="w-full glass-input !pl-10 h-10 py-0 text-sm"
+          />
+        </div>
       </div>
 
-      <div className="flex items-center gap-4">
+      <div className="flex items-center gap-2 md:gap-4">
         <Link href="/dashboard/billing">
           <Button variant="ghost" size="sm" className="hidden md:flex">
             Fazer Upgrade para Elite

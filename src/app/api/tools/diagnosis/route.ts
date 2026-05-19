@@ -339,8 +339,11 @@ export async function POST(request: Request) {
     if (engajamentoFinal < 70) recs.push({ area: "Engajamento", txt: "Seu engajamento está abaixo do benchmark. Tente formatos mais imersivos e faça perguntas nas legendas."});
     if (conteudoFinal < 70) recs.push({ area: "Formatos", txt: "Diversifique os formatos. Aumente o uso de Reels (para alcance) e Carrosséis (para salvamento)."});
     
-    // --- RESUMO EXECUTIVO (VIA IA OU FALLBACK) ---
+    // --- RESUMO EXECUTIVO E IDENTIDADE (VIA IA OU FALLBACK) ---
     let resumoExecutivo = '';
+    let nicho = profile.businessCategoryName || 'Não identificado';
+    let tom = 'Neutro';
+    let formatoPrincipal = pctReels > 0.5 ? 'Foco em Vídeos Curtos (Reels)' : 'Foco em Carrosséis/Fotos';
     
     if (process.env.OPENAI_API_KEY) {
       try {
@@ -348,23 +351,39 @@ export async function POST(request: Request) {
           apiKey: process.env.OPENAI_API_KEY,
         });
         
+        const amostraLegendas = recentPosts.slice(0, 10).map(p => p.caption).filter(c => c && c.length > 5).join(' | ').substring(0, 800);
+
         const miniPayload = `
         Perfil: @${handle} (${followers} seg)
+        Bio: ${profile.biography || ''}
+        Segmento Oficial: ${profile.businessCategoryName || 'Não informado'}
+        Amostra de Legendas Recentes: ${amostraLegendas}
         Nota Final: ${notaFinal}/100 (${classificacao})
         Engajamento Robusto: ${engajamentoRobusto.toFixed(2)}%
         Posts por Semana: ${postsPorSemana.toFixed(1)}
         Pontos fracos: ${recs.map(r=>r.area).join(', ')}
-        Crie um Resumo Executivo em 1 parágrafo (max 4 frases), amigável mas tático, sem dizer a nota numérica.
+        
+        Retorne um objeto JSON contendo estritamente as chaves abaixo:
+        1. "resumoExecutivo": Resumo em 1 parágrafo (max 4 frases), amigável mas tático, sem dizer a nota numérica.
+        2. "nicho": Analise a Bio e as Legendas para descrever com precisão o que o criador faz. NÃO use respostas genéricas como "Digital creator" ou "Tech" se puder ser mais descritivo (ex: Comentarista Político, Produtor de Audiovisual, Médico Pediatra).
+        3. "tom": O tom da comunicação inferido pela bio e segmento (ex: Corporativo, Descontraído, Educativo, Motivacional).
+        4. "formatoPrincipal": O formato predominante baseado na análise numérica.
         `;
 
         const completion = await openai.chat.completions.create({
           model: "gpt-4o-mini",
           messages: [
-            { role: "system", content: "Você é um auditor comercial de Instagram." },
+            { role: "system", content: "Você é um auditor comercial de Instagram. Responda apenas com o JSON." },
             { role: "user", content: miniPayload }
           ],
+          response_format: { type: "json_object" }
         });
-        resumoExecutivo = completion.choices[0].message.content || 'Resumo não gerado.';
+        
+        const iaData = JSON.parse(completion.choices[0].message.content || '{}');
+        resumoExecutivo = iaData.resumoExecutivo || 'Resumo não gerado.';
+        if (iaData.nicho) nicho = iaData.nicho;
+        if (iaData.tom) tom = iaData.tom;
+        if (iaData.formatoPrincipal) formatoPrincipal = iaData.formatoPrincipal;
       } catch (err) {
         console.error("Falha no OpenAI:", err);
       }
@@ -381,6 +400,11 @@ export async function POST(request: Request) {
       classificacao,
       confianca: conf,
       resumoExecutivo,
+      identidade: {
+        nicho,
+        tom,
+        formatoPrincipal
+      },
       metricas: {
         seguidores: followers,
         postsAnalisados: recentPosts.length,

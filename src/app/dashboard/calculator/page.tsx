@@ -4,6 +4,9 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Calculator, Sparkles, PieChart, ShieldCheck, Laptop, MonitorPlay } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 
 const creatorLegends: Record<string, string> = {
   iniciante: 'Até 1 ano de atuação. Construindo portfólio.',
@@ -14,6 +17,24 @@ const creatorLegends: Record<string, string> = {
 };
 
 export default function CalculatorPage() {
+  const { user } = useAuth();
+  
+  React.useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      setLoading(true);
+      const docRef = doc(db, 'calculations', id);
+      getDoc(docRef).then(docSnap => {
+        if (docSnap.exists() && docSnap.data().userId === user.uid) {
+          setResult(docSnap.data().resultado_json);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }
+  }, [user]);
+  
   // --- 1. Visíveis: Escopo e Entregáveis ---
   const [creator_level, setCreatorLevel] = useState('pleno');
   
@@ -112,6 +133,22 @@ export default function CalculatorPage() {
       }
       
       setResult(resData.data);
+
+      if (user && resData.data) {
+        try {
+          await addDoc(collection(db, 'calculations'), {
+            userId: user.uid,
+            service_type,
+            offer_mode,
+            video_quantity: Number(video_quantity) || 1,
+            precoRecomendado: resData.data.precoRecomendado,
+            resultado_json: resData.data,
+            createdAt: new Date().toISOString()
+          });
+        } catch (dbErr) {
+          console.error("Falha ao salvar orçamento no Firestore:", dbErr);
+        }
+      }
     } catch (err: any) {
       setError(err.message);
     } finally {

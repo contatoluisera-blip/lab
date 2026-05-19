@@ -1,19 +1,85 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { FileText, Sparkles, Send, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { FileText, Sparkles, Send, ScanSearch, Calculator, FileDown, Target, Building2, CheckCircle2, ChevronRight, LayoutList } from 'lucide-react';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
+import * as htmlToImage from 'html-to-image';
+import { jsPDF } from 'jspdf';
 
 export default function ProposalPage() {
+  const { user } = useAuth();
+  
   const [cliente, setCliente] = useState('');
   const [objetivo, setObjetivo] = useState('');
-  const [entregaveis, setEntregaveis] = useState('');
-  const [valorEstimado, setValorEstimado] = useState('');
+  const [modoGeracao, setModoGeracao] = useState('Profissional');
+  
+  const [diagnoses, setDiagnoses] = useState<any[]>([]);
+  const [calculations, setCalculations] = useState<any[]>([]);
+  const [selectedDiagnosis, setSelectedDiagnosis] = useState('');
+  const [selectedCalculation, setSelectedCalculation] = useState('');
   
   const [loading, setLoading] = useState(false);
+  const [loadingPdf, setLoadingPdf] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+
+  useEffect(() => {
+    if (!user) return;
+    
+    const fetchData = async () => {
+      try {
+        const diagQ = query(collection(db, 'diagnoses'), where('userId', '==', user.uid));
+        const calcQ = query(collection(db, 'calculations'), where('userId', '==', user.uid));
+        
+        const [diagSnap, calcSnap] = await Promise.all([getDocs(diagQ), getDocs(calcQ)]);
+        
+        const loadedDiag = diagSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+        const loadedCalc = calcSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
+        
+        setDiagnoses(loadedDiag);
+        setCalculations(loadedCalc);
+      } catch (err) {
+        console.error("Erro ao carregar dados do usuário:", err);
+      }
+    };
+    
+    fetchData();
+  }, [user]);
+
+  // Carregar do Histórico via ID
+  useEffect(() => {
+    const loadFromHistory = async () => {
+      const params = new URLSearchParams(window.location.search);
+      const historyId = params.get('id');
+      
+      if (historyId && user) {
+        try {
+          setLoading(true);
+          const docRef = doc(db, 'proposals', historyId);
+          const docSnap = await getDoc(docRef);
+          
+          if (docSnap.exists() && docSnap.data().userId === user.uid) {
+            const data = docSnap.data();
+            setResult(data.result_json);
+          }
+        } catch (err) {
+          console.error("Erro ao carregar histórico:", err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    };
+    
+    loadFromHistory();
+  }, [user]);
 
   const handleGenerate = async () => {
     if (!cliente || !objetivo) {
@@ -25,10 +91,25 @@ export default function ProposalPage() {
     setError('');
     
     try {
+      const settingsStr = localStorage.getItem('asa_settings');
+      const settings = settingsStr ? JSON.parse(settingsStr) : {};
+      
+      const payload = {
+        cliente,
+        objetivo,
+        modoGeração: modoGeracao,
+        diagnostico: selectedDiagnosis ? diagnoses.find(d => d.id === selectedDiagnosis)?.resultado_json : null,
+        orcamento: selectedCalculation ? calculations.find(c => c.id === selectedCalculation)?.resultado_json : null,
+        profissional: {
+          name: settings.nome_completo || user?.displayName || 'Criador',
+          email: settings.email || user?.email || '',
+        }
+      };
+
       const response = await fetch('/api/tools/proposal', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ cliente, objetivo, entregaveis, valorEstimado })
+        body: JSON.stringify(payload)
       });
       
       const resData = await response.json();
@@ -38,10 +119,54 @@ export default function ProposalPage() {
       }
       
       setResult(resData.data);
+      
+      if (user) {
+        try {
+          await addDoc(collection(db, 'proposals'), {
+            userId: user.uid,
+            clientName: selectedDiagnosis ? diagnoses.find(d => d.id === selectedDiagnosis)?.handle : 'Sem Cliente',
+            result_json: resData.data,
+            createdAt: new Date().toISOString()
+          });
+        } catch (dbErr) {
+          console.error("Falha ao salvar proposta no Firestore:", dbErr);
+        }
+      }
+
     } catch (err: any) {
       setError(err.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const downloadPDF = async () => {
+    const reportElement = document.getElementById('proposal-pdf-content');
+    if (!reportElement) return;
+
+    setLoadingPdf(true);
+    try {
+      const imgData = await htmlToImage.toPng(reportElement, { 
+        backgroundColor: '#0a0a0a',
+        pixelRatio: 2
+      });
+      
+      const img = new Image();
+      img.src = imgData;
+      await new Promise((resolve) => { img.onload = resolve; });
+
+      const pdf = new jsPDF({
+        orientation: 'portrait',
+        unit: 'px',
+        format: [img.width, img.height]
+      });
+      
+      pdf.addImage(imgData, 'PNG', 0, 0, img.width, img.height);
+      pdf.save(`Proposta_${cliente.replace(/\s+/g, '_')}.pdf`);
+    } catch (err: any) {
+      setError(`Falha ao gerar PDF: ${err.message}`);
+    } finally {
+      setLoadingPdf(false);
     }
   };
 
@@ -51,10 +176,10 @@ export default function ProposalPage() {
       <div className="flex flex-col gap-2 mb-8">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-mint bg-brand-mint/10 text-sm font-medium w-fit mb-2">
           <FileText className="w-4 h-4" />
-          <span className="text-white">Motor de Conversão B2B</span>
+          <span className="text-white">Motor Comercial B2B</span>
         </div>
-        <h1 className="text-3xl font-bold text-white tracking-tight">Gerador Executivo de Propostas</h1>
-        <p className="text-gray-400">Compile argumentos comerciais inquebráveis e apresente sua entrega tática de forma irrecusável ao cliente.</p>
+        <h1 className="text-3xl font-bold text-white tracking-tight">Gerador de Propostas</h1>
+        <p className="text-gray-400 font-light tracking-wide">Compile argumentos comerciais inquebráveis conectando dados do seu diagnóstico e valores da calculadora.</p>
       </div>
 
       <GlassCard glow className="p-8">
@@ -65,67 +190,110 @@ export default function ProposalPage() {
         )}
 
         <div className="space-y-8">
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Marca/Cliente</label>
-              <input 
-                type="text" 
-                value={cliente}
-                onChange={(e) => setCliente(e.target.value)}
-                placeholder="Ex: Coca-Cola, Starbucks..." 
-                className="w-full glass-input"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-300 mb-2">Estimativa Orçamentária</label>
-              <div className="relative">
-                <span className="absolute left-4 top-3.5 text-gray-500">R$</span>
-                <input 
-                  type="text"
-                  value={valorEstimado}
-                  onChange={(e) => setValorEstimado(e.target.value)}
-                  placeholder="2.500,00"
-                  className="w-full glass-input pl-10"
-                />
+          
+          {/* Seção 1: Vínculos Estratégicos */}
+          <div>
+            <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2 border-b border-white/10 pb-3 mb-5">
+              <LayoutList className="w-5 h-5 text-brand-mint" />
+              1. Base de Dados (Vínculos)
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <ScanSearch className="w-4 h-4 text-brand-jade" />
+                  Diagnóstico (O Problema)
+                </label>
+                <select 
+                  value={selectedDiagnosis} 
+                  onChange={e => setSelectedDiagnosis(e.target.value)}
+                  className="w-full glass-input text-sm py-3"
+                >
+                  <option value="">-- Não vincular (Entrada Manual) --</option>
+                  {diagnoses.map(d => (
+                    <option key={d.id} value={d.id}>@{d.handle} - Nota: {d.nota_final} ({new Date(d.createdAt).toLocaleDateString('pt-BR')})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 font-light mt-2 tracking-wide">A IA usará os pontos fracos identificados para justificar a urgência do serviço.</p>
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2 flex items-center gap-2">
+                  <Calculator className="w-4 h-4 text-emerald-400" />
+                  Orçamento (O Investimento)
+                </label>
+                <select 
+                  value={selectedCalculation} 
+                  onChange={e => setSelectedCalculation(e.target.value)}
+                  className="w-full glass-input text-sm py-3"
+                >
+                  <option value="">-- Não vincular (Preço Sob Demanda) --</option>
+                  {calculations.map(c => (
+                    <option key={c.id} value={c.id}>Pacote: {c.video_quantity} vídeos - {c.precoRecomendado} ({new Date(c.createdAt).toLocaleDateString('pt-BR')})</option>
+                  ))}
+                </select>
+                <p className="text-xs text-gray-500 font-light mt-2 tracking-wide">Fornece o valor validado tecnicamente, evitando que o cliente negocie margens não mapeadas.</p>
               </div>
             </div>
           </div>
 
+          {/* Seção 2: Contexto Específico */}
           <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Objetivo Primário da Campanha</label>
-            <input 
-              type="text" 
-              value={objetivo}
-              onChange={(e) => setObjetivo(e.target.value)}
-              placeholder="Ex: Lançar um novo sabor de bebida para o público jovem no TikTok." 
-              className="w-full glass-input"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm font-medium text-gray-300 mb-2">Resumo dos Entregáveis</label>
-            <textarea 
-              value={entregaveis}
-              onChange={(e) => setEntregaveis(e.target.value)}
-              placeholder="Ex: 4 Vídeos de 15s formato Vertical (Reels) com inserções do produto." 
-              className="w-full glass-input min-h-[100px] resize-none"
-            />
+            <h3 className="text-lg font-bold tracking-tight text-white flex items-center gap-2 border-b border-white/10 pb-3 mb-5 mt-4">
+              <Building2 className="w-5 h-5 text-brand-mint" />
+              2. Dados Complementares
+            </h3>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Nome da Empresa/Cliente</label>
+                <input 
+                  type="text" 
+                  value={cliente}
+                  onChange={(e) => setCliente(e.target.value)}
+                  placeholder="Ex: Clínica Sorriso Metálico" 
+                  className="w-full glass-input"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-300 mb-2">Objetivo Primário</label>
+                <input 
+                  type="text" 
+                  value={objetivo}
+                  onChange={(e) => setObjetivo(e.target.value)}
+                  placeholder="Ex: Aumentar agendamentos de clareamento." 
+                  className="w-full glass-input"
+                />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-300 mb-2">Modo de Geração</label>
+                <div className="flex gap-4">
+                  {['Rápida', 'Profissional', 'Premium'].map(modo => (
+                    <button 
+                      key={modo}
+                      onClick={() => setModoGeracao(modo)}
+                      className={`flex-1 py-3 px-4 rounded-xl text-sm font-medium transition-all duration-300 border ${modoGeracao === modo ? 'bg-brand-mint/20 border-brand-mint text-white' : 'bg-black/20 border-white/10 text-gray-400 hover:bg-white/5'}`}
+                    >
+                      {modo}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
           </div>
 
           <div className="pt-6 border-t border-white/10">
             <Button 
-              className="w-full md:w-auto px-10 h-14 text-sm uppercase tracking-wider relative overflow-hidden group float-right bg-gradient-to-r from-teal-500 to-brand-mint text-black font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)]"
+              className="w-full md:w-auto px-10 h-14 text-sm uppercase tracking-widest relative overflow-hidden group float-right bg-gradient-to-r from-teal-500 to-brand-mint text-black font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)]"
               onClick={handleGenerate}
               disabled={loading}
             >
               <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
               {loading ? (
                 <span className="flex items-center gap-2 justify-center">
-                  <Sparkles className="w-4 h-4 animate-spin text-black" /> Sintetizando Estratégia...
+                  <Sparkles className="w-4 h-4 animate-spin text-black" /> Escrevendo Proposta...
                 </span>
               ) : (
                 <span className="flex items-center gap-2 justify-center">
-                  <Send className="w-4 h-4" /> Compilar Proposta Blindada
+                  <Send className="w-4 h-4" /> Gerar Proposta Comercial
                 </span>
               )}
             </Button>
@@ -136,58 +304,152 @@ export default function ProposalPage() {
 
       {/* CONTINUOUS RESULTS */}
       {result && (
-        <div className="animate-in fade-in slide-in-from-top-6 duration-700 space-y-6 mt-8">
+        <div className="animate-in fade-in slide-in-from-top-6 duration-700 space-y-6 mt-12">
           
-          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-            
-            {/* Left Panel: Email Structure */}
-            <GlassCard className="lg:col-span-2 p-8 border-brand-mint/20">
-              <h4 className="text-xl font-bold text-white mb-6 flex items-center gap-3">
-                <FileText className="w-6 h-6 text-brand-mint drop-shadow-[0_0_10px_rgba(52,211,153,0.8)]" />
-                Resumo Executivo (E-mail Base)
-              </h4>
-              <div className="bg-[#0f0f0f] border border-white/5 rounded-xl p-6 relative">
-                 <div className="absolute top-4 right-4 text-xs font-mono text-gray-500">
-                    Apresentação Direta
-                 </div>
-                 <p className="text-gray-300 whitespace-pre-wrap leading-relaxed text-sm font-medium">
-                   {result.emailHeader}
-                 </p>
-                 <div className="mt-8 space-y-4">
-                    {result.estruturaExecutive.map((paragrafo: string, index: number) => (
-                      <div key={index} className="flex gap-4 items-start bg-brand-mint/5 p-4 rounded-lg border border-brand-mint/10">
-                        <CheckCircle2 className="w-5 h-5 text-brand-mint flex-shrink-0 mt-0.5" />
-                        <span className="text-sm text-gray-200">{paragrafo}</span>
+          <div className="flex justify-between items-center mb-6">
+            <h2 className="text-2xl font-bold tracking-tight text-white">Visualização da Proposta</h2>
+            <Button 
+              onClick={downloadPDF} 
+              className="bg-brand-mint/20 text-brand-mint hover:bg-brand-mint hover:text-black border border-brand-mint/50 font-bold"
+              disabled={loadingPdf}
+            >
+              <FileDown className="w-4 h-4 mr-2" />
+              {loadingPdf ? 'Processando PDF...' : 'Exportar PDF'}
+            </Button>
+          </div>
+
+          {/* Document Render Area (A4 style visually) */}
+          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 md:p-14 overflow-hidden relative shadow-2xl" id="proposal-pdf-content">
+             
+             {/* Background glow effects for premium look */}
+             <div className="absolute top-0 right-0 w-96 h-96 bg-brand-mint/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+             
+             {/* Capa */}
+             <div className="min-h-[60vh] flex flex-col justify-center mb-24 relative z-10 border-b border-white/5 pb-24">
+                <div className="w-20 h-1 bg-brand-mint mb-8 rounded-full"></div>
+                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white mb-4 leading-tight">
+                  {result.capa?.titulo || `Proposta Comercial de Conteúdo`}
+                </h1>
+                <p className="text-xl md:text-2xl font-light text-gray-400 tracking-wide mb-12">
+                  {result.capa?.subtitulo || `Desenvolvida para ${cliente}`}
+                </p>
+                <div className="mt-auto pt-12">
+                  <p className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-1">Apresentado por</p>
+                  <p className="text-lg font-bold text-gray-200">{JSON.parse(localStorage.getItem('asa_settings') || '{}').nome_completo || user?.displayName || 'Criador'}</p>
+                  <p className="text-sm font-light text-gray-400 mt-1">{new Date().toLocaleDateString('pt-BR')}</p>
+                </div>
+             </div>
+
+             {/* Corpo da Proposta */}
+             <div className="space-y-16 relative z-10 max-w-4xl">
+                
+                {/* Apresentação */}
+                <section>
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Apresentação</h2>
+                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
+                    {result.apresentacao}
+                  </p>
+                </section>
+
+                {/* Contexto & Diagnóstico */}
+                <section className="bg-white/[0.02] p-8 rounded-2xl border border-white/5">
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6 flex items-center gap-3">
+                    <Target className="w-6 h-6 text-brand-mint" /> O Cenário Atual
+                  </h2>
+                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
+                    {result.contexto}
+                  </p>
+                </section>
+
+                {/* Solução */}
+                <section>
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">A Solução</h2>
+                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
+                    {result.solucao}
+                  </p>
+                </section>
+
+                {/* Escopo */}
+                <section>
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Escopo do Projeto</h2>
+                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap mb-8">
+                    {result.escopo}
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <div className="bg-brand-mint/5 p-6 rounded-xl border border-brand-mint/10">
+                      <h4 className="text-brand-mint font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
+                        <CheckCircle2 className="w-4 h-4" /> O que está incluso
+                      </h4>
+                      <ul className="space-y-3">
+                        {Array.isArray(result.o_que_esta_incluso) && result.o_que_esta_incluso.map((item: string, i: number) => (
+                          <li key={i} className="text-gray-300 font-light text-sm flex items-start gap-2">
+                            <span className="text-brand-mint mt-0.5">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                    <div className="bg-red-500/5 p-6 rounded-xl border border-red-500/10">
+                      <h4 className="text-red-400 font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
+                        <span className="font-serif">x</span> O que não está incluso
+                      </h4>
+                      <ul className="space-y-3">
+                        {Array.isArray(result.o_que_nao_esta_incluso) && result.o_que_nao_esta_incluso.map((item: string, i: number) => (
+                          <li key={i} className="text-gray-400 font-light text-sm flex items-start gap-2">
+                            <span className="text-red-400 mt-0.5">•</span> {item}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </section>
+
+                {/* Processo de Trabalho */}
+                <section>
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-8">Processo de Trabalho</h2>
+                  <div className="space-y-6">
+                    {Array.isArray(result.processo) && result.processo.map((p: any, i: number) => (
+                      <div key={i} className="flex gap-4">
+                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-brand-mint font-bold">
+                          {i + 1}
+                        </div>
+                        <div>
+                          <h4 className="text-white font-bold text-lg mb-2 tracking-tight">{p.etapa}</h4>
+                          <p className="text-gray-400 font-light text-sm leading-relaxed">{p.descricao}</p>
+                        </div>
                       </div>
                     ))}
-                 </div>
-              </div>
-            </GlassCard>
+                  </div>
+                </section>
 
-            {/* Right Panel: Commercial Scope */}
-            <div className="space-y-6">
-              <GlassCard className="p-6 border-amber-500/20 relative overflow-hidden">
-                <div className="absolute top-0 right-0 p-4 opacity-10">
-                  <AlertTriangle className="w-24 h-24 text-amber-500" />
-                </div>
-                <h4 className="text-lg font-bold text-white mb-4 flex items-center gap-2 relative z-10">
-                  <AlertTriangle className="w-5 h-5 text-amber-500" />
-                  Barreira de Escopo
-                </h4>
-                <div className="relative z-10 text-sm text-gray-300 whitespace-pre-wrap bg-black/40 p-4 rounded-xl border border-white/5 font-mono">
-                  {result.escopoComercial}
-                </div>
-              </GlassCard>
+                {/* Investimento */}
+                <section className="mt-16 bg-gradient-to-br from-brand-mint/10 to-transparent p-10 rounded-3xl border border-brand-mint/20 text-center">
+                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Investimento</h2>
+                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-base mb-8 max-w-2xl mx-auto">
+                    {result.investimento?.texto_introdutorio}
+                  </p>
+                  <p className="text-5xl font-extrabold text-white tracking-tighter mb-4 drop-shadow-lg">
+                    {result.investimento?.valor || 'R$ --'}
+                  </p>
+                  <p className="text-brand-mint font-semibold text-sm tracking-widest uppercase mt-6 mb-2">Condições de Pagamento</p>
+                  <p className="text-gray-400 font-light text-sm">{result.investimento?.condicoes}</p>
+                </section>
 
-              <GlassCard glow className="p-6 bg-gradient-to-br from-brand-emerald/10 to-transparent flex flex-col items-center justify-center text-center">
-                 <Button className="w-full bg-white text-black hover:bg-gray-200 border-none">
-                    Gerar PDF Restrito
-                 </Button>
-                 <p className="text-xs text-gray-500 mt-3">Exporte e envie sem direito a edições.</p>
-              </GlassCard>
-            </div>
+                {/* Próximos Passos */}
+                <section className="text-center pt-16 border-t border-white/5">
+                  <h2 className="text-xl font-bold tracking-tight text-white mb-4">Próximos Passos</h2>
+                  <p className="text-gray-400 font-light leading-relaxed tracking-wide text-lg max-w-xl mx-auto mb-10">
+                    {result.proximo_passo}
+                  </p>
+                  <div className="inline-flex flex-col items-center opacity-50">
+                    <div className="w-16 h-px bg-gray-500 mb-2"></div>
+                    <p className="text-xs text-gray-500 font-light tracking-widest uppercase">Proposta Válida por 7 dias</p>
+                  </div>
+                </section>
 
+             </div>
           </div>
+
         </div>
       )}
     </div>

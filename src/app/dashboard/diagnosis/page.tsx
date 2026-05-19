@@ -3,12 +3,12 @@
 import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle } from 'lucide-react';
+import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle, LayoutTemplate } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, addDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 
 export default function DiagnosisPage() {
   const [handle, setHandle] = useState('');
@@ -20,6 +20,23 @@ export default function DiagnosisPage() {
   const [error, setError] = useState('');
 
   const { user } = useAuth();
+
+  React.useEffect(() => {
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      setLoading(true);
+      const docRef = doc(db, 'diagnoses', id);
+      getDoc(docRef).then(docSnap => {
+        if (docSnap.exists() && docSnap.data().userId === user.uid) {
+          setResult(docSnap.data().resultado_json);
+          setHandle(docSnap.data().handle);
+        }
+        setLoading(false);
+      }).catch(() => setLoading(false));
+    }
+  }, [user]);
 
   const handleGenerate = async () => {
     if (!handle) {
@@ -258,6 +275,42 @@ export default function DiagnosisPage() {
                   <p className="text-xl font-bold text-white">{result.metricas.postsPorSemana}</p>
                 </GlassCard>
               </div>
+              
+              {/* Identidade Criativa */}
+              {result.identidade && (
+                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <GlassCard className="p-4 border-white/5 flex items-start gap-3">
+                    <div className="p-2 bg-brand-jade/10 rounded-lg text-brand-jade">
+                      <Target className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Nicho / Segmento</p>
+                      <p className="text-sm font-semibold text-white">{result.identidade.nicho}</p>
+                    </div>
+                  </GlassCard>
+                  
+                  <GlassCard className="p-4 border-white/5 flex items-start gap-3">
+                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                      <MessageCircle className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Tom de Voz</p>
+                      <p className="text-sm font-semibold text-white">{result.identidade.tom}</p>
+                    </div>
+                  </GlassCard>
+                  
+                  <GlassCard className="p-4 border-white/5 flex items-start gap-3">
+                    <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                      <LayoutTemplate className="w-4 h-4" />
+                    </div>
+                    <div>
+                      <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Formato Predominante</p>
+                      <p className="text-sm font-semibold text-white">{result.identidade.formatoPrincipal}</p>
+                    </div>
+                  </GlassCard>
+                </div>
+              )}
+
 
               {/* Sub-Scores Matrix */}
               <GlassCard className="p-6 border-white/5">

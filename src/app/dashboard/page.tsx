@@ -1,13 +1,9 @@
 import React from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { Button } from '@/components/ui/Button';
+import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { 
   Lightbulb, 
   Clapperboard, 
-  Trophy, 
-  ArrowRight,
-  TrendingUp,
-  Activity,
   ScanSearch,
   Calculator,
   FileText,
@@ -17,68 +13,13 @@ import Link from 'next/link';
 
 export default function DashboardPage() {
   return (
-    <div className="space-y-8">
+    <div className="space-y-10 max-w-6xl mx-auto pb-12">
       
-      {/* Header section */}
-      <div className="flex flex-col md:flex-row md:items-end justify-between gap-4">
-        <div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Bem-vindo de volta, Criador.</h1>
-          <p className="text-gray-400 mt-1">Veja o que está acontecendo com suas ferramentas de produção hoje.</p>
-        </div>
-        <div className="flex gap-3">
-          <Button variant="outline">Ver Histórico</Button>
-          <Button>Gerar Ideia</Button>
-        </div>
-      </div>
-
-      {/* Quick Stats & Usage */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <GlassCard className="p-5 flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-lg bg-brand-emerald/10 flex items-center justify-center text-brand-emerald">
-              <Activity className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold px-2 py-1 bg-white/10 rounded-md text-gray-300">Plano Pro</span>
-          </div>
-          <div>
-            <h3 className="text-2xl font-bold text-white">42 / 100</h3>
-            <p className="text-sm text-gray-400">Créditos de IA Usados</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-5 flex flex-col justify-between">
-          <div className="flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-lg bg-blue-500/10 flex items-center justify-center text-blue-400">
-              <TrendingUp className="w-5 h-5" />
-            </div>
-            <span className="text-xs font-semibold px-2 py-1 bg-white/10 rounded-md text-gray-300">Este Mês</span>
-          </div>
-          <div>
-            <h3 className="text-2xl font-bold text-white">12</h3>
-            <p className="text-sm text-gray-400">Propostas Geradas</p>
-          </div>
-        </GlassCard>
-
-        <GlassCard className="p-5 flex flex-col justify-between relative overflow-hidden group">
-          <div className="absolute inset-0 bg-gradient-to-tr from-brand-emerald/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity" />
-          <div className="relative z-10 flex justify-between items-start mb-4">
-            <div className="w-10 h-10 rounded-lg bg-yellow-500/10 flex items-center justify-center text-yellow-400">
-              <Trophy className="w-5 h-5" />
-            </div>
-          </div>
-          <div className="relative z-10">
-            <h3 className="text-lg font-bold text-white">Desafio Semanal</h3>
-            <p className="text-sm text-gray-400 flex items-center gap-2 mt-1">
-              "B-Roll Cinematico de Produto" <ArrowRight className="w-4 h-4" />
-            </p>
-          </div>
-        </GlassCard>
-      </div>
+      <DashboardHeader />
 
       {/* Primary Tools Access */}
-      <div>
-        <h2 className="text-xl font-bold text-white mb-4">Central de Ferramentas</h2>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+      <div className="px-4 md:px-0 relative z-10 mt-4">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6" style={{ perspective: '1000px' }}>
           {[
             {
               title: "Gerador de Ideias",
@@ -86,7 +27,9 @@ export default function DashboardPage() {
               icon: Lightbulb,
               href: "/dashboard/idea-generator",
               iconColor: "text-brand-neon",
-              bgClass: "bg-brand-neon/10"
+              hoverTextColor: "group-hover:text-brand-neon",
+              bgClass: "bg-brand-neon/10",
+              shadowColor: "rgba(189,255,0,0.25)"
             },
             {
               title: "Diagnóstico de Perfil",
@@ -94,7 +37,9 @@ export default function DashboardPage() {
               icon: ScanSearch,
               href: "/dashboard/diagnosis",
               iconColor: "text-teal-400",
-              bgClass: "bg-teal-400/10"
+              hoverTextColor: "group-hover:text-teal-400",
+              bgClass: "bg-teal-400/10",
+              shadowColor: "rgba(45,212,191,0.25)"
             },
             {
               title: "Simulador de Produção",
@@ -102,7 +47,9 @@ export default function DashboardPage() {
               icon: Clapperboard,
               href: "/dashboard/simulator",
               iconColor: "text-emerald-400",
-              bgClass: "bg-emerald-400/10"
+              hoverTextColor: "group-hover:text-emerald-400",
+              bgClass: "bg-emerald-400/10",
+              shadowColor: "rgba(52,211,153,0.25)"
             },
             {
               title: "Calculadora de Orçamento",
@@ -110,7 +57,9 @@ export default function DashboardPage() {
               icon: Calculator,
               href: "/dashboard/calculator",
               iconColor: "text-brand-jade",
-              bgClass: "bg-brand-jade/20"
+              hoverTextColor: "group-hover:text-brand-jade",
+              bgClass: "bg-brand-jade/20",
+              shadowColor: "rgba(0,186,136,0.25)"
             },
             {
               title: "Gerador de Propostas",
@@ -118,7 +67,9 @@ export default function DashboardPage() {
               icon: FileText,
               href: "/dashboard/proposal",
               iconColor: "text-brand-mint",
-              bgClass: "bg-brand-mint/10"
+              hoverTextColor: "group-hover:text-brand-mint",
+              bgClass: "bg-brand-mint/10",
+              shadowColor: "rgba(167,243,208,0.25)"
             },
             {
               title: "Assistente IA",
@@ -126,18 +77,29 @@ export default function DashboardPage() {
               icon: MessageSquare,
               href: "/dashboard/assistant",
               iconColor: "text-green-400",
-              bgClass: "bg-green-400/10"
+              hoverTextColor: "group-hover:text-green-400",
+              bgClass: "bg-green-400/10",
+              shadowColor: "rgba(74,222,128,0.25)"
             }
           ].map((tool, idx) => (
-            <Link key={idx} href={tool.href} className="block">
-              <GlassCard glow className="h-full group hover:border-brand-emerald/40 transition-colors">
-                <div className="flex flex-col items-start gap-4 h-full">
-                  <div className={`w-12 h-12 rounded-xl flex items-center justify-center flex-shrink-0 transition-colors ${tool.bgClass} ${tool.iconColor}`}>
-                    <tool.icon className="w-6 h-6 group-hover:scale-110 transition-transform drop-shadow-[0_0_8px_currentColor]" />
+            <Link key={idx} href={tool.href} className="block group outline-none" style={{ transformStyle: 'preserve-3d' }}>
+              <GlassCard 
+                glow 
+                className="h-full transition-all duration-500 ease-out transform-gpu group-hover:-translate-y-2 group-hover:scale-[1.02] border border-white/5 group-hover:border-white/20 p-6 relative overflow-hidden"
+              >
+                {/* Custom hover glow shadow for 3D effect */}
+                <div 
+                  className="absolute -inset-px opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none rounded-2xl"
+                  style={{ boxShadow: `0 20px 40px -10px ${tool.shadowColor}, inset 0 1px 1px rgba(255,255,255,0.1)` }}
+                />
+
+                <div className="flex flex-col items-start gap-5 h-full relative z-10" style={{ transform: 'translateZ(20px)' }}>
+                  <div className={`w-14 h-14 rounded-2xl flex items-center justify-center flex-shrink-0 transition-all duration-500 group-hover:scale-110 ${tool.bgClass} ${tool.iconColor} group-hover:shadow-[0_0_20px_currentColor]`}>
+                    <tool.icon className="w-7 h-7 drop-shadow-[0_0_8px_currentColor]" />
                   </div>
                   <div>
-                    <h3 className="text-lg font-semibold text-white group-hover:text-brand-emerald transition-colors">{tool.title}</h3>
-                    <p className="text-sm text-gray-400 mt-2 leading-relaxed">
+                    <h3 className={`text-lg md:text-xl font-bold tracking-tight text-white transition-colors duration-300 ${tool.hoverTextColor}`}>{tool.title}</h3>
+                    <p className="text-sm text-gray-400 mt-2 leading-relaxed font-light tracking-wide transition-colors duration-300 group-hover:text-gray-300">
                       {tool.description}
                     </p>
                   </div>
@@ -146,29 +108,6 @@ export default function DashboardPage() {
             </Link>
           ))}
         </div>
-      </div>
-
-      {/* Recent Outputs (Placeholder) */}
-      <div>
-        <h2 className="text-xl font-bold text-white mb-4">Resultados Recentes</h2>
-        <GlassCard className="p-0">
-          <div className="divide-y divide-white/5">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="p-4 flex items-center justify-between hover:bg-white/5 transition-colors cursor-pointer">
-                <div className="flex items-center gap-3">
-                  <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center text-xs text-gray-400">
-                    <Lightbulb className="w-4 h-4" />
-                  </div>
-                  <div>
-                    <h4 className="text-sm font-medium text-white">Ideia de b-roll para cafeteria</h4>
-                    <p className="text-xs text-gray-500">Gerador de Ideias • 2 horas atrás</p>
-                  </div>
-                </div>
-                <Button variant="ghost" size="sm">Ver</Button>
-              </div>
-            ))}
-          </div>
-        </GlassCard>
       </div>
 
     </div>
