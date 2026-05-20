@@ -15,13 +15,18 @@ interface QnA {
 const MOCK_HISTORY: QnA[] = [
   {
     id: '1',
-    question: 'Qual o melhor horário para postar no Reels neste fim de semana?',
-    answer: 'Baseado no pico de atividade do seu nicho, a janela de maior tração ocorre entre as 11h30 e 13h00 (horário do almoço) do sábado e no domingo a partir das 18h. Se concentre em postar no domingo à noite para preparar o algoritmo para a semana comercial.'
+    question: 'Como configurar o app BlackMagic Camera no iPhone para gravar um b-roll de produto com visual cinematográfico?',
+    answer: 'Para b-rolls de produtos de alto impacto, configure o codec para Apple ProRes 422 HQ (ou HEVC a 100Mbps se precisar economizar armazenamento) em resolução 4K a 24fps. Defina o Shutter Angle fixo em 180° (equivalente a Shutter Speed de 1/48s) para manter o desfoque de movimento natural do cinema. Selecione o perfil de cor Apple Log ou BlackMagic Design Film para obter o máximo alcance dinâmico (Dynamic Range) e grave o balanço de brancos manualmente usando um cartão de cinza 18% (ex: 5600K para externas sob luz solar). Dica extra: Utilize a lente teleobjetiva (3x ou equivalente a 77mm) para comprimir os planos de fundo e evitar as distorções esféricas nas bordas do produto.'
   },
   {
     id: '2',
-    question: 'Devo gravar os vídeos em 4K ou 1080p 60fps?',
-    answer: 'O Instagram Reels e TikTok ainda comprimem vídeos em 4K massivamente. Recomenda-se gravar em 1080p a 60fps ou 30fps nativamente. Exportar nessa resolução garante transições mais limpas no upload sem acionar algoritmos de degradação da plataforma.'
+    question: 'Como criar o efeito Saber Neon (brilho nas bordas de elementos) no Node Video usando composição por nós?',
+    answer: 'No Node Video, siga o fluxo de composição: 1. Crie uma Composição 2D ou 3D e importe o clipe com o elemento recortado (use a ferramenta Auto-Cutout ou crie uma máscara). 2. Adicione um novo nó de Efeito clicando no botão (+) > Estilização > Glow (Brilho). 3. Ajuste as propriedades do nó: defina a cor do Glow no matiz desejado (ex: ciano #00ffff). Ajuste o Threshold para 0.20 (para iluminar apenas os contornos de alta luz), a Intensity para 1.8 e o Scattering (espalhamento) para 1.5. 4. Para dar oscilação realista, clique em "Add Property" > Generator > Flicker, configurando a Frequency em 6Hz e Amplitude em 0.25. Isso gerará uma emissão pulsante fiel de néon na timeline sem degradação do canal alfa.'
+  },
+  {
+    id: '3',
+    question: 'Qual a fórmula recomendada para precificar um contrato de 10 vídeos curtos (Reels/TikTok) para um cliente B2B?',
+    answer: 'A precificação estratégica deve considerar a soma de custos fixos, taxa horária técnica, depreciação e direitos patrimoniais. Fórmula recomendada: Valor total = (Tempo estimado em horas × Taxa horária de edição) + Depreciação de equipamentos + Licença de uso comercial (B2B). Por exemplo: 10 vídeos com média de 3 horas por vídeo (planejamento, gravação e edição) totalizam 30 horas. Com uma taxa de R$ 80/hora = R$ 2.400,00. Adicione 10% de depreciação de hardware/software (R$ 240,00) e 20% pela licença comercial dos direitos de uso dos vídeos (R$ 480,00). Valor final sugerido: R$ 3.120,00 (R$ 312 por vídeo). Insira sempre uma cláusula contratual limitando as rodadas de alteração a 2 por vídeo para blindar sua margem operacional contra retrabalhos infinitos.'
   }
 ];
 
@@ -101,7 +106,7 @@ export default function AssistantPage() {
             <textarea 
               value={question}
               onChange={(e) => setQuestion(e.target.value)}
-              placeholder="Ex: Qual lente devo usar para gravar um depoimento de cliente em um escritório pequeno?" 
+              placeholder="Ex: Como configurar o shutter angle no app BlackMagic Cam para gravar em 24fps e evitar cintilação de lâmpadas LED?" 
               className="w-full glass-input min-h-[100px] resize-none text-lg leading-relaxed placeholder:text-gray-500/70"
             />
           </div>

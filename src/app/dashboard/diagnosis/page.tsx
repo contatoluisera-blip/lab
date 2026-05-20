@@ -180,7 +180,7 @@ export default function DiagnosisPage() {
                     value={handle}
                     onChange={(e) => setHandle(e.target.value)}
                     placeholder="lucasfraga" 
-                    className="w-full glass-input pl-10"
+                    className="w-full glass-input !pl-10"
                   />
                 </div>
               </div>

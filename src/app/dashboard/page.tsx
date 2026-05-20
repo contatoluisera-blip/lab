@@ -3,7 +3,6 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
 import { 
   Lightbulb, 
-  Clapperboard, 
   ScanSearch,
   Calculator,
   FileText,
@@ -40,16 +39,6 @@ export default function DashboardPage() {
               hoverTextColor: "group-hover:text-teal-400",
               bgClass: "bg-teal-400/10",
               shadowColor: "rgba(45,212,191,0.25)"
-            },
-            {
-              title: "Simulador de Produção",
-              description: "Obtenha planos de execução técnica detalhados a partir de cenários descritos.",
-              icon: Clapperboard,
-              href: "/dashboard/simulator",
-              iconColor: "text-emerald-400",
-              hoverTextColor: "group-hover:text-emerald-400",
-              bgClass: "bg-emerald-400/10",
-              shadowColor: "rgba(52,211,153,0.25)"
             },
             {
               title: "Calculadora de Orçamento",

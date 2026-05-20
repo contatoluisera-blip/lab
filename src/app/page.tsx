@@ -17,7 +17,7 @@ export default function LandingPage() {
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
           <img src="/logo.png" alt="Creator Lab Logo" className="w-8 h-8 rounded-lg" />
-          <span className="font-semibold text-xl tracking-tight text-white">Creator Lab</span>
+          <img src="/logo-text.png" alt="Creator Lab" className="w-40 md:w-48 object-contain" />
         </div>
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
           <Link href="#features" className="hover:text-brand-mint transition-colors">Recursos</Link>

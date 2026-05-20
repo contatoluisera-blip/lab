@@ -8,7 +8,6 @@ import {
   LayoutDashboard, 
   Lightbulb, 
   ScanSearch, 
-  Clapperboard, 
   Calculator, 
   FileText, 
   MessageSquare,
@@ -21,16 +20,17 @@ import {
   ChevronLeft,
   ChevronRight,
   X,
-  FolderArchive
+  FolderArchive,
+  GraduationCap
 } from 'lucide-react';
 
 const MENU_ITEMS = [
   { name: 'Painel', href: '/dashboard', icon: LayoutDashboard },
+  { name: 'Estudo', href: '/dashboard/estudo', icon: GraduationCap },
   { name: 'Diagnóstico de Perfil', href: '/dashboard/diagnosis', icon: ScanSearch },
   { name: 'Calculadora de Orçamento', href: '/dashboard/calculator', icon: Calculator },
   { name: 'Gerador de Ideias', href: '/dashboard/idea-generator', icon: Lightbulb },
   { name: 'Gerador de Propostas', href: '/dashboard/proposal', icon: FileText },
-  { name: 'Simulador de Produção', href: '/dashboard/simulator', icon: Clapperboard },
   { name: 'Minhas Ações', href: '/dashboard/actions', icon: FolderArchive },
   { name: 'Meus Clientes', href: '/dashboard/clients', icon: Briefcase },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },
@@ -80,9 +80,7 @@ export function Sidebar() {
         <div className={cn("p-6 flex items-center justify-between", !isDesktopExpanded && "md:px-0 md:justify-center")}>
           <Link href="/dashboard" className="flex items-center gap-2">
             <img src="/logo.png" alt="Creator Lab Logo" className="w-8 h-8 rounded-lg flex-shrink-0" />
-            <span className={cn("font-semibold text-lg tracking-tight text-white transition-opacity duration-200", !isDesktopExpanded && "md:hidden")}>
-              Creator Lab
-            </span>
+            <img src="/logo-text.png" alt="Creator Lab" className={cn("w-32 object-contain transition-opacity duration-200", !isDesktopExpanded && "md:hidden")} />
           </Link>
 
           {/* Desktop Toggle Button */}
