@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Lock, Mail, KeyRound, ShieldCheck, AlertCircle } from 'lucide-react';
@@ -18,11 +18,16 @@ export default function LoginPage() {
   const router = useRouter();
   const { user, loading } = useAuth();
 
-  // Se já estiver logado, foge direto pro Dashboard
-  if (!loading && user) {
-    router.push('/dashboard');
-    return null;
-  }
+  // Se já estiver logado, redireciona para o Dashboard via useEffect
+  // (nunca chamar router.push diretamente durante o render)
+  useEffect(() => {
+    if (!loading && user) {
+      router.push('/dashboard');
+    }
+  }, [user, loading, router]);
+
+  // Enquanto redireciona, não renderiza nada
+  if (!loading && user) return null;
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();

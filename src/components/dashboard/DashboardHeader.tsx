@@ -2,6 +2,8 @@
 
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, getDoc } from 'firebase/firestore';
 
 export function DashboardHeader() {
   const [currentTime, setCurrentTime] = useState<Date | null>(null);
@@ -15,24 +17,33 @@ export function DashboardHeader() {
   }, []);
 
   useEffect(() => {
-    // Attempt to read from Settings first
-    const settingsStr = localStorage.getItem('asa_settings');
-    if (settingsStr) {
+    const fetchUserName = async () => {
+      if (!user) return;
+
+      // 1. Try Firestore profile first (source of truth after purchase)
       try {
-        const settings = JSON.parse(settingsStr);
-        if (settings.name) {
-          const firstName = settings.name.split(' ')[0];
-          setUserName(firstName);
+        const snap = await getDoc(doc(db, 'users', user.uid));
+        if (snap.exists() && snap.data().name) {
+          setUserName(snap.data().name.split(' ')[0]);
           return;
         }
-      } catch (e) {}
-    }
-    
-    // Fallback to Auth profile
-    if (user?.displayName) {
-      const firstName = user.displayName.split(' ')[0];
-      setUserName(firstName);
-    }
+      } catch (e) {
+        // Firestore unavailable — fall through
+      }
+
+      // 2. Fallback to Firebase Auth displayName
+      if (user.displayName) {
+        setUserName(user.displayName.split(' ')[0]);
+        return;
+      }
+
+      // 3. Last resort: email prefix
+      if (user.email) {
+        setUserName(user.email.split('@')[0]);
+      }
+    };
+
+    fetchUserName();
   }, [user]);
 
   const getGreeting = () => {
