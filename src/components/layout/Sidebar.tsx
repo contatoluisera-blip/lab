@@ -79,11 +79,9 @@ export function Sidebar() {
       >
         <div className={cn("p-6 flex items-center justify-between", !isDesktopExpanded && "md:px-0 md:justify-center")}>
           <Link href="/dashboard" className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg bg-brand-emerald flex items-center justify-center glow-text font-bold text-black border border-brand-emerald flex-shrink-0">
-              A
-            </div>
+            <img src="/logo.png" alt="Creator Lab Logo" className="w-8 h-8 rounded-lg flex-shrink-0" />
             <span className={cn("font-semibold text-lg tracking-tight text-white transition-opacity duration-200", !isDesktopExpanded && "md:hidden")}>
-              ASA Creator
+              Creator Lab
             </span>
           </Link>
 

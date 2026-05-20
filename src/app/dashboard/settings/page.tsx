@@ -188,7 +188,7 @@ export default function SettingsPage() {
                  </div>
                  <div>
                     <h2 className="text-xl font-bold text-white">Dados Pessoais</h2>
-                    <p className="text-xs text-gray-500">Como você será identificado no ASA Creator Hub.</p>
+                    <p className="text-xs text-gray-500">Como você será identificado no Creator Lab.</p>
                  </div>
               </div>
               

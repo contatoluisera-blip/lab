@@ -16,10 +16,8 @@ export default function LandingPage() {
 
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-8">
         <div className="flex items-center gap-3">
-          <div className="w-8 h-8 rounded-lg bg-brand-emerald flex items-center justify-center glow-text font-bold text-black border border-brand-emerald">
-            A
-          </div>
-          <span className="font-semibold text-xl tracking-tight text-white">ASA Creator</span>
+          <img src="/logo.png" alt="Creator Lab Logo" className="w-8 h-8 rounded-lg" />
+          <span className="font-semibold text-xl tracking-tight text-white">Creator Lab</span>
         </div>
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
           <Link href="#features" className="hover:text-brand-mint transition-colors">Recursos</Link>
@@ -86,7 +84,7 @@ export default function LandingPage() {
       
       {/* Footer */}
       <footer className="border-t border-white/5 py-12 bg-transparent text-center relative z-10">
-        <p className="text-gray-600 text-sm">© 2026 ASA Creator Hub. Todos os direitos reservados.</p>
+        <p className="text-gray-600 text-sm">© 2026 Creator Lab. Todos os direitos reservados.</p>
       </footer>
     </div>
   );

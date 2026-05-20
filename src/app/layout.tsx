@@ -15,7 +15,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "ASA Creator Hub",
+  title: "Creator Lab",
   description: "The Intelligence Operating System for Mobile Creators",
 };
 

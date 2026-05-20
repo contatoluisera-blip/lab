@@ -107,7 +107,7 @@ export default function LoginPage() {
                  <span className="flex items-center gap-2">Validando Criptografia...</span>
               ) : (
                 <span className="flex items-center gap-2 justify-center">
-                  <Lock className="w-4 h-4" /> Desbloquear Painel
+                  <Lock className="w-4 h-4" /> Desbloquear Creator Lab
                 </span>
               )}
             </Button>
