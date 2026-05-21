@@ -6,7 +6,8 @@ import {
   ScanSearch,
   Calculator,
   FileText,
-  MessageSquare
+  MessageSquare,
+  IdCard
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -69,6 +70,16 @@ export default function DashboardPage() {
               hoverTextColor: "group-hover:text-green-400",
               bgClass: "bg-green-400/10",
               shadowColor: "rgba(74,222,128,0.25)"
+            },
+            {
+              title: "Cartão do Creator",
+              description: "Gere um PDF profissional interativo com seus serviços, contatos e portfólio.",
+              icon: IdCard,
+              href: "/dashboard/creator-card",
+              iconColor: "text-blue-400",
+              hoverTextColor: "group-hover:text-blue-400",
+              bgClass: "bg-blue-400/10",
+              shadowColor: "rgba(96,165,250,0.25)"
             }
           ].map((tool, idx) => (
             <Link key={idx} href={tool.href} className="block group outline-none" style={{ transformStyle: 'preserve-3d' }}>

@@ -23,7 +23,8 @@ import {
   ChevronRight,
   X,
   FolderArchive,
-  GraduationCap
+  GraduationCap,
+  IdCard
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -33,6 +34,7 @@ const MENU_ITEMS = [
   { name: 'Calculadora de Orçamento', href: '/dashboard/calculator', icon: Calculator },
   { name: 'Gerador de Ideias', href: '/dashboard/idea-generator', icon: Lightbulb },
   { name: 'Gerador de Propostas', href: '/dashboard/proposal', icon: FileText },
+  { name: 'Cartão do Creator', href: '/dashboard/creator-card', icon: IdCard },
   { name: 'Minhas Ações', href: '/dashboard/actions', icon: FolderArchive },
   { name: 'Meus Clientes', href: '/dashboard/clients', icon: Briefcase },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },
