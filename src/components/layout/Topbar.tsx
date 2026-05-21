@@ -12,27 +12,39 @@ export function Topbar() {
   const [initials, setInitials] = React.useState('LG');
   const [isMenuOpen, setIsMenuOpen] = React.useState(false);
   const menuRef = React.useRef<HTMLDivElement>(null);
-  const { signOut } = useAuth();
+  const { user, signOut } = useAuth();
 
   const updateProfile = React.useCallback(() => {
+    let nameToUse = '';
+    let avatarToUse = null;
+
     const saved = localStorage.getItem('asa_settings');
     if (saved) {
       try {
         const data = JSON.parse(saved);
-        if (data.avatar) setAvatar(data.avatar);
-        if (data.name) {
-          setUserName(data.name);
-          const names = data.name.trim().split(' ');
-          const initial = names.length > 1 
-            ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-            : names[0].length > 0 ? names[0][0].toUpperCase() : 'LG';
-          setInitials(initial);
-        }
+        if (data.avatar) avatarToUse = data.avatar;
+        if (data.name) nameToUse = data.name;
       } catch (e) {
         console.error('Erro ao atualizar topo', e);
       }
     }
-  }, []);
+
+    if (avatarToUse) setAvatar(avatarToUse);
+
+    // Fallbacks
+    if (!nameToUse && user) {
+      nameToUse = user.displayName || (user.email ? user.email.split('@')[0] : 'Criador');
+    }
+
+    if (nameToUse) {
+      setUserName(nameToUse);
+      const names = nameToUse.trim().split(' ');
+      const initial = names.length > 1 
+        ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
+        : names[0].length > 0 ? names[0][0].toUpperCase() : 'LG';
+      setInitials(initial);
+    }
+  }, [user]);
 
   React.useEffect(() => {
     updateProfile();

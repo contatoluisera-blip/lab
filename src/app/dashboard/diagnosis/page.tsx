@@ -7,6 +7,9 @@ import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, Lin
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
+import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 
@@ -20,6 +23,7 @@ export default function DiagnosisPage() {
   const [error, setError] = useState('');
 
   const { user } = useAuth();
+  const { hasToolAccess, consumeCredit, userProfile } = useUserProfile();
 
   React.useEffect(() => {
     if (!user) return;
@@ -39,6 +43,15 @@ export default function DiagnosisPage() {
   }, [user]);
 
   const handleGenerate = async () => {
+    // Check access and consume 1 credit
+    const creditResult = await consumeCredit('diagnosis');
+    if (!creditResult.ok) {
+      setError(creditResult.reason === 'no_credits'
+        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
+        : 'Seu plano não tem acesso a esta ferramenta.');
+      return;
+    }
+
     if (!handle) {
       setError('Por favor, preencha o @ do perfil para continuar.');
       return;
@@ -194,21 +207,26 @@ export default function DiagnosisPage() {
               </div>
 
               <div className="pt-4">
-                <Button 
-                  className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(6,95,70,0.3)] bg-gradient-to-r from-brand-jade to-emerald-600 text-white hover:shadow-[0_0_20px_rgba(6,95,70,0.6)]"
-                  onClick={handleGenerate}
-                  disabled={loading}
-                >
-                  {loading ? (
-                    <span className="flex items-center gap-2 justify-center">
-                      <Sparkles className="w-4 h-4 animate-spin" /> Auditando...
-                    </span>
-                  ) : (
-                    <span className="flex items-center gap-2 justify-center">
-                      <ScanSearch className="w-4 h-4" /> Auditar Perfil
-                    </span>
-                  )}
-                </Button>
+                {hasToolAccess('diagnosis') ? (
+                  <Button 
+                    className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(6,95,70,0.3)] bg-gradient-to-r from-brand-jade to-emerald-600 text-white hover:shadow-[0_0_20px_rgba(6,95,70,0.6)]"
+                    onClick={handleGenerate}
+                    disabled={loading}
+                  >
+                    {loading ? (
+                      <span className="flex items-center gap-2 justify-center">
+                        <Sparkles className="w-4 h-4 animate-spin" /> Auditando...
+                      </span>
+                    ) : (
+                      <span className="flex items-center gap-2 justify-center">
+                        <ScanSearch className="w-4 h-4" /> Auditar Perfil
+                      </span>
+                    )}
+                  </Button>
+                ) : (
+                  <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
+                )}
+                {!loading && <CreditNotice toolId="diagnosis" />}
                 {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Extraindo publicações e calculando engajamento (30s)...</p>}
               </div>
             </div>

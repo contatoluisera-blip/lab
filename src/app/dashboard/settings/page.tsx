@@ -15,8 +15,12 @@ import {
   Phone
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/context/AuthContext';
+import { db } from '@/lib/firebase';
+import { doc, updateDoc, setDoc } from 'firebase/firestore';
 
 export default function SettingsPage() {
+  const { user } = useAuth();
   const [name, setName] = useState('Luis Erasmo');
   const [age, setAge] = useState('28');
   const [corporateEmail, setCorporateEmail] = useState('');
@@ -76,7 +80,7 @@ export default function SettingsPage() {
     }
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     const now = new Date();
     const timeString = `${now.getHours().toString().padStart(2, '0')}:${now.getMinutes().toString().padStart(2, '0')}`;
     
@@ -92,7 +96,24 @@ export default function SettingsPage() {
     localStorage.setItem('asa_settings', JSON.stringify(dataToSave));
     setLastSaved(timeString);
     
-    // Disparar evento para outros componentes (como o Topbar) atualizarem
+    // Atualizar no Firestore se o usuário estiver logado
+    if (user) {
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        // Usamos setDoc com merge para garantir que crie o doc se não existir, 
+        // ou só atualize os campos se existir.
+        await setDoc(userRef, { 
+          name, 
+          corporateEmail, 
+          phone 
+          // Omitindo avatar por enquanto pois pode ser grande (base64)
+        }, { merge: true });
+      } catch (err) {
+        console.error('Erro ao salvar no Firestore:', err);
+      }
+    }
+    
+    // Disparar evento para outros componentes (como o Topbar e DashboardHeader) atualizarem
     window.dispatchEvent(new Event('asa-settings-updated'));
     
     alert('Configurações salvas com sucesso!');
@@ -171,7 +192,7 @@ export default function SettingsPage() {
              <div className="space-y-4">
                <div className="p-4 rounded-xl bg-white/[0.02] border border-white/5">
                  <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">E-mail Principal</p>
-                 <p className="text-sm text-gray-300 font-medium truncate">luis.era@exemplo.com</p>
+                 <p className="text-sm text-gray-300 font-medium truncate">{user?.email || '—'}</p>
                </div>
              </div>
           </GlassCard>

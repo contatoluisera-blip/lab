@@ -498,29 +498,29 @@ export default function LandingPage() {
         </section>
 
         {/* Expert Profile Section */}
-        <section className="py-16 border-t border-white/5">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-12 items-center">
-            {/* Image mock column */}
-            <div className="col-span-12 md:col-span-5 relative group self-stretch flex flex-col justify-stretch">
-              {/* Vibrant Ambient Glow Backdrop */}
-              <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-brand-emerald/20 via-brand-mint/5 to-brand-jade/25 blur-2xl opacity-75 group-hover:opacity-100 group-hover:-inset-4 transition-all duration-500 pointer-events-none" />
-              
-              {/* Premium Glow-Border Image Card */}
-              <div className="relative rounded-2xl overflow-hidden border border-brand-emerald/25 bg-gradient-to-b from-[#0a0a0a] to-[#040404] shadow-[0_0_50px_rgba(16,185,129,0.25)] group-hover:border-brand-emerald/40 group-hover:shadow-[0_0_70px_rgba(16,185,129,0.45)] transition-all duration-500 flex-1 flex flex-col">
-                <img 
-                  src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/imagem%20siteapp.png?alt=media&token=4465413b-007c-491a-a60e-398ce647e398" 
-                  alt="Luisera - Creator Lab Expert" 
-                  className="w-full h-full object-cover min-h-[450px] md:min-h-[580px] hover:scale-[1.03] transition-transform duration-700"
+        <section className="py-12 md:py-16 border-t border-white/5">
+          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center">
+            {/* Image column — compact on mobile, full-height on desktop */}
+            <div className="col-span-12 md:col-span-5 relative group md:self-stretch md:flex md:flex-col md:justify-stretch">
+              {/* Ambient Glow — reduced on mobile to avoid bleed */}
+              <div className="absolute -inset-2 md:-inset-3 rounded-[1.5rem] md:rounded-[2rem] bg-gradient-to-tr from-brand-emerald/20 via-brand-mint/5 to-brand-jade/25 blur-xl md:blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
+
+              {/* Image Card */}
+              <div className="relative rounded-2xl overflow-hidden border border-brand-emerald/25 bg-gradient-to-b from-[#0a0a0a] to-[#040404] shadow-[0_0_40px_rgba(16,185,129,0.2)] group-hover:border-brand-emerald/40 group-hover:shadow-[0_0_70px_rgba(16,185,129,0.45)] transition-all duration-500 md:flex-1 md:flex md:flex-col">
+                <img
+                  src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/imagem%20siteapp.png?alt=media&token=4465413b-007c-491a-a60e-398ce647e398"
+                  alt="Luisera - Creator Lab Expert"
+                  className="w-full object-cover object-top h-[280px] sm:h-[340px] md:h-full md:min-h-[580px] hover:scale-[1.03] transition-transform duration-700"
                 />
               </div>
             </div>
 
             {/* Description column */}
-            <div className="col-span-12 md:col-span-7 space-y-6">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full">
+            <div className="col-span-12 md:col-span-7 space-y-5 md:space-y-6">
+              <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
                 O Idealizador
               </span>
-              <h2 className="text-3xl font-extrabold text-white tracking-tight leading-snug">
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
                 Criada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">Luisera</span>, para criadores que querem jogar em outro nível
               </h2>
               <div className="space-y-4 text-gray-300 text-sm leading-relaxed font-light">
@@ -534,7 +534,7 @@ export default function LandingPage() {
                   A Creator Lab nasce dessa visão: ajudar o criador mobile a deixar de operar no improviso e começar a trabalhar com método, clareza e autoridade.
                 </p>
               </div>
-              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
+              <div className="p-4 md:p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
                 "Porque o mercado não valoriza apenas quem cria bons vídeos. Valoriza quem sabe transformar criação em estratégia."
               </div>
             </div>

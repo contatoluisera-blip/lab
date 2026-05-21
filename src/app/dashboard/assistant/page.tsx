@@ -1,6 +1,10 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
+import { CreditNotice } from '@/components/ui/CreditNotice';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { MessageSquare, Sparkles, Send, BrainCircuit, Clock } from 'lucide-react';
@@ -31,6 +35,9 @@ const MOCK_HISTORY: QnA[] = [
 ];
 
 export default function AssistantPage() {
+  const { user } = useAuth();
+  const { hasToolAccess, consumeCredit } = useUserProfile();
+  
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -41,6 +48,15 @@ export default function AssistantPage() {
   const handleAsk = async () => {
     if (!question.trim()) {
       setError('Por favor, digite sua dúvida antes de enviar.');
+      return;
+    }
+    
+    // Check access and consume credit
+    const creditResult = await consumeCredit('assistant');
+    if (!creditResult.ok) {
+      setError(creditResult.reason === 'no_credits' 
+        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.' 
+        : 'Seu plano não tem acesso a esta ferramenta.');
       return;
     }
     
@@ -111,26 +127,31 @@ export default function AssistantPage() {
             />
           </div>
 
-          <div className="pt-2">
-            <Button 
-              className="w-full md:w-auto px-10 h-12 text-sm font-bold uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(74,222,128,0.3)] border border-green-500/40 bg-gradient-to-r from-green-500/10 to-green-400/20 text-green-300 hover:bg-green-500 hover:text-black hidden-glow"
-              onClick={handleAsk}
-              disabled={loading}
-              style={{
-                transition: "all 0.3s ease",
-              }}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
-              {loading ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Sparkles className="w-4 h-4 animate-spin" /> Buscando Resposta...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 justify-center">
-                  <Send className="w-4 h-4" /> Perguntar ao Cérebro IA
-                </span>
-              )}
-            </Button>
+          <div className="pt-2 flex flex-col items-start gap-2">
+            {hasToolAccess('assistant') ? (
+              <div className="flex flex-col items-start">
+                <Button 
+                  className="w-full md:w-auto px-10 h-12 text-sm font-bold uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(74,222,128,0.3)] border border-green-500/40 bg-gradient-to-r from-green-500/10 to-green-400/20 text-green-300 hover:bg-green-500 hover:text-black hidden-glow"
+                  onClick={handleAsk}
+                  disabled={loading}
+                  style={{ transition: "all 0.3s ease" }}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/10 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
+                  {loading ? (
+                    <span className="flex items-center gap-2 justify-center">
+                      <Sparkles className="w-4 h-4 animate-spin" /> Buscando Resposta...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2 justify-center">
+                      <Send className="w-4 h-4" /> Perguntar ao Cérebro IA
+                    </span>
+                  )}
+                </Button>
+                {!loading && <CreditNotice toolId="assistant" />}
+              </div>
+            ) : (
+              <UpgradeGate locked={true} requiredPlan="Pro" mode="button" label="Assistente — Disponível no Plano Pro" />
+            )}
           </div>
         </div>
       </GlassCard>

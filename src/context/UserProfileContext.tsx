@@ -1,0 +1,156 @@
+'use client';
+
+import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import { db } from '@/lib/firebase';
+import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { useAuth } from '@/context/AuthContext';
+import {
+  PlanId,
+  ToolId,
+  planHasToolAccess,
+  planHasCourseAccess,
+} from '@/lib/planConfig';
+
+// ─────────────────────────────────────────────
+// Types
+// ─────────────────────────────────────────────
+
+export interface UserProfile {
+  uid: string;
+  name: string;
+  email: string;
+  plan: PlanId;
+  credits: number;
+  trialUsed: Partial<Record<ToolId, boolean>>;
+  createdAt: string;
+}
+
+interface UserProfileContextType {
+  userProfile: UserProfile | null;
+  profileLoading: boolean;
+  /** Returns true if the user's plan grants access to this tool */
+  hasToolAccess: (tool: ToolId) => boolean;
+  /** Returns true if the user's plan grants course access */
+  hasCourseAccess: boolean;
+  /**
+   * Attempts to consume 1 credit for a tool use.
+   * First use of each tool is free (trial). Returns { ok, reason }.
+   */
+  consumeCredit: (tool: ToolId) => Promise<{ ok: boolean; reason?: 'no_access' | 'no_credits' }>;
+  /** Refresh profile from Firestore */
+  refreshProfile: () => Promise<void>;
+}
+
+const UserProfileContext = createContext<UserProfileContextType>({
+  userProfile: null,
+  profileLoading: true,
+  hasToolAccess: () => false,
+  hasCourseAccess: false,
+  consumeCredit: async () => ({ ok: false, reason: 'no_access' }),
+  refreshProfile: async () => {},
+});
+
+export const useUserProfile = () => useContext(UserProfileContext);
+
+// ─────────────────────────────────────────────
+// Provider
+// ─────────────────────────────────────────────
+
+export function UserProfileProvider({ children }: { children: React.ReactNode }) {
+  const { user, loading: authLoading } = useAuth();
+  const [userProfile, setUserProfile] = useState<UserProfile | null>(null);
+  const [profileLoading, setProfileLoading] = useState(true);
+
+  const fetchProfile = useCallback(async () => {
+    if (!user) {
+      setUserProfile(null);
+      setProfileLoading(false);
+      return;
+    }
+    try {
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) {
+        setUserProfile({ uid: user.uid, ...snap.data() } as UserProfile);
+      }
+    } catch (e) {
+      console.error('[UserProfile] Failed to load profile:', e);
+    } finally {
+      setProfileLoading(false);
+    }
+  }, [user]);
+
+  // Load on auth change
+  useEffect(() => {
+    if (!authLoading) {
+      setProfileLoading(true);
+      fetchProfile();
+    }
+  }, [user, authLoading, fetchProfile]);
+
+  const hasToolAccess = useCallback(
+    (tool: ToolId) => planHasToolAccess(userProfile?.plan, tool),
+    [userProfile]
+  );
+
+  const hasCourseAccess = planHasCourseAccess(userProfile?.plan);
+
+  const consumeCredit = useCallback(
+    async (tool: ToolId): Promise<{ ok: boolean; reason?: 'no_access' | 'no_credits' }> => {
+      if (!user || !userProfile) return { ok: false, reason: 'no_access' };
+
+      // 1. Check plan access
+      if (!planHasToolAccess(userProfile.plan, tool)) {
+        return { ok: false, reason: 'no_access' };
+      }
+
+      // 2. First use (trial) — free, mark trial as used
+      const alreadyUsedTrial = userProfile.trialUsed?.[tool] === true;
+      if (!alreadyUsedTrial) {
+        try {
+          const userRef = doc(db, 'users', user.uid);
+          await updateDoc(userRef, { [`trialUsed.${tool}`]: true });
+          setUserProfile(prev =>
+            prev ? { ...prev, trialUsed: { ...prev.trialUsed, [tool]: true } } : prev
+          );
+          return { ok: true };
+        } catch (e) {
+          console.error('[UserProfile] Failed to mark trial:', e);
+          return { ok: true }; // allow anyway if DB fails
+        }
+      }
+
+      // 3. Deduct 1 credit
+      if (userProfile.credits <= 0) {
+        return { ok: false, reason: 'no_credits' };
+      }
+
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { credits: increment(-1) });
+        setUserProfile(prev =>
+          prev ? { ...prev, credits: prev.credits - 1 } : prev
+        );
+        return { ok: true };
+      } catch (e) {
+        console.error('[UserProfile] Failed to deduct credit:', e);
+        return { ok: false, reason: 'no_credits' };
+      }
+    },
+    [user, userProfile]
+  );
+
+  return (
+    <UserProfileContext.Provider
+      value={{
+        userProfile,
+        profileLoading,
+        hasToolAccess,
+        hasCourseAccess,
+        consumeCredit,
+        refreshProfile: fetchProfile,
+      }}
+    >
+      {children}
+    </UserProfileContext.Provider>
+  );
+}

@@ -3,7 +3,9 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { COURSES_DATA, Module, Video } from '@/lib/coursesData';
+import { COURSES_DATA, ALL_COURSES, Course, Module, Video } from '@/lib/coursesData';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { 
   Play, 
   Search, 
@@ -18,10 +20,16 @@ import {
   StickyNote, 
   Trophy, 
   ArrowRight,
-  BookmarkCheck
+  BookmarkCheck,
+  Zap
 } from 'lucide-react';
 
 export default function EstudoPage() {
+  const { hasCourseAccess, userProfile } = useUserProfile();
+
+  // State for active course
+  const [activeCourseId, setActiveCourseId] = useState<string>('mobile-lab');
+
   // State for filtering
   const [searchQuery, setSearchQuery] = useState('');
   const [activeFilter, setActiveFilter] = useState<'all' | 'lessons' | 'lives'>('all');
@@ -116,29 +124,27 @@ export default function EstudoPage() {
     return Math.round((completedCount / totalVideos) * 100);
   }, [completedCount, totalVideos]);
 
-  // Filter video list
+  // Filter video list by active course + search + filter
   const filteredModules = useMemo(() => {
-    return COURSES_DATA.map(module => {
-      // Determine if module fits active filter category
-      // Module Bônus is classified as 'lives', others are 'lessons'
-      const isBonus = module.id === 'modulo-bonus';
-      if (activeFilter === 'lessons' && isBonus) return null;
-      if (activeFilter === 'lives' && !isBonus) return null;
+    const activeCourse = ALL_COURSES.find(c => c.id === activeCourseId);
+    const sourceModules = activeCourse?.modules ?? [];
 
-      // Filter videos by query
-      const filteredVideos = module.videos.filter(video => 
-        video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        video.description.toLowerCase().includes(searchQuery.toLowerCase())
-      );
-
-      if (filteredVideos.length === 0 && searchQuery !== '') return null;
-
-      return {
-        ...module,
-        videos: filteredVideos
-      };
+    return sourceModules.map(module => {
+      const filtered = module.videos.filter(video => {
+        const matchesSearch = !searchQuery ||
+          video.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          video.description.toLowerCase().includes(searchQuery.toLowerCase());
+        const isLive = video.id.startsWith('mb-l');
+        const matchesFilter =
+          activeFilter === 'all' ? true :
+          activeFilter === 'lives' ? isLive :
+          !isLive;
+        return matchesSearch && matchesFilter;
+      });
+      if (filtered.length === 0) return null;
+      return { ...module, videos: filtered };
     }).filter((m): m is Module => m !== null);
-  }, [activeFilter, searchQuery]);
+  }, [activeCourseId, activeFilter, searchQuery]);
 
   // Get first video of module 1 to feature in Hero section
   const firstVideo = COURSES_DATA[0]?.videos[0];
@@ -203,6 +209,77 @@ export default function EstudoPage() {
           </div>
         </div>
       </div>
+
+      {/* ── Course Selector Tabs ── */}
+      <div className="space-y-4">
+        <div className="flex items-center gap-3 flex-wrap">
+          {ALL_COURSES.map((course) => {
+            const isActive = activeCourseId === course.id;
+            return (
+              <button
+                key={course.id}
+                onClick={() => {
+                  setActiveCourseId(course.id);
+                  setSearchQuery('');
+                  setActiveFilter('all');
+                }}
+                className={`group relative flex flex-col items-start gap-1 px-5 py-4 rounded-2xl border transition-all duration-300 text-left min-w-[200px] ${
+                  isActive
+                    ? 'bg-brand-emerald/10 border-brand-emerald/40 shadow-[0_0_20px_rgba(16,185,129,0.15)]'
+                    : 'bg-white/[0.03] border-white/5 hover:border-white/15 hover:bg-white/[0.06]'
+                }`}
+              >
+                <div className="flex items-center justify-between w-full gap-2">
+                  <span className={`text-sm font-extrabold tracking-tight ${isActive ? 'text-white' : 'text-gray-300'}`}>
+                    {course.title}
+                  </span>
+                  <span className={`text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${
+                    isActive ? 'bg-brand-emerald text-black' : 'bg-white/10 text-gray-400'
+                  }`}>
+                    {course.subtitle}
+                  </span>
+                </div>
+                <span className="text-[11px] text-gray-500">{course.badge}</span>
+                {isActive && (
+                  <div className="absolute bottom-0 left-4 right-4 h-[2px] bg-brand-emerald rounded-full" />
+                )}
+              </button>
+            );
+          })}
+        </div>
+
+        {/* Active course description strip */}
+        {(() => {
+          const course = ALL_COURSES.find(c => c.id === activeCourseId);
+          return course ? (
+            <p className="text-xs text-gray-500 leading-relaxed pl-1">{course.description}</p>
+          ) : null;
+        })()}
+      </div>
+
+      {/* ── Course Access Upgrade Banner ── */}
+      {!hasCourseAccess && (
+        <div className="flex items-center justify-between gap-4 px-5 py-4 rounded-2xl bg-amber-500/10 border border-amber-500/25 shadow-[0_0_25px_rgba(245,158,11,0.08)]">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-full bg-amber-500/15 border border-amber-500/30 flex-shrink-0 flex items-center justify-center">
+              <Lock className="w-4 h-4 text-amber-400" />
+            </div>
+            <div>
+              <p className="text-sm font-bold text-amber-300">Acesso aos cursos bloqueado</p>
+              <p className="text-xs text-amber-400/70 mt-0.5 hidden sm:block">
+                O Plano Elite desbloqueia todos os cursos, lives e aulas bônus da Creator Lab.
+              </p>
+            </div>
+          </div>
+          <button
+            onClick={() => window.location.href = '/dashboard/billing'}
+            className="flex-shrink-0 flex items-center gap-2 px-4 py-2 rounded-xl text-xs font-bold bg-amber-500 text-black hover:bg-amber-400 transition-colors shadow-[0_0_15px_rgba(245,158,11,0.35)] whitespace-nowrap"
+          >
+            <Zap className="w-3.5 h-3.5" />
+            Fazer Upgrade
+          </button>
+        </div>
+      )}
 
       {/* Hero Section / Featured Video */}
       {firstVideo && !searchQuery && activeFilter === 'all' && (
@@ -318,18 +395,21 @@ export default function EstudoPage() {
                 <div className="flex overflow-x-auto gap-6 pb-4 scrollbar-thin scrollbar-thumb-brand-jade scrollbar-track-transparent scroll-smooth pt-1 px-1">
                   {module.videos.map((video) => {
                     const isCompleted = completedVideos.includes(video.id);
+                    const isLocked = !hasCourseAccess && !video.comingSoon;
                     return (
                       <div 
                         key={video.id}
                         onClick={() => {
-                          if (video.comingSoon) return;
+                          if (video.comingSoon || isLocked) return;
                           setSelectedVideo(video);
                           setSelectedVideoModule(module.title + " - " + module.subtitle);
                         }}
-                        className={`w-40 md:w-48 flex-shrink-0 group rounded-xl border transition-all duration-300 cursor-pointer overflow-hidden bg-[#0f0f0f]/60 relative aspect-[2/3] select-none ${
-                          video.comingSoon 
-                            ? 'border-white/5 opacity-60 cursor-default' 
-                            : 'border-brand-emerald/10 hover:border-brand-emerald/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:-translate-y-1'
+                        className={`w-40 md:w-48 flex-shrink-0 group rounded-xl border transition-all duration-300 overflow-hidden bg-[#0f0f0f]/60 relative aspect-[2/3] select-none ${
+                          video.comingSoon
+                            ? 'border-white/5 opacity-60 cursor-default'
+                            : isLocked
+                            ? 'border-amber-500/15 cursor-default'
+                            : 'cursor-pointer border-brand-emerald/10 hover:border-brand-emerald/50 hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] hover:-translate-y-1'
                         }`}
                       >
                         {/* Video Thumbnail Image */}
@@ -339,8 +419,21 @@ export default function EstudoPage() {
                           className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-500 pointer-events-none" 
                         />
                         
-                        {/* Dark Gradient Overlay covering the bottom of the card */}
+                        {/* Dark Gradient Overlay */}
                         <div className="absolute inset-0 bg-gradient-to-t from-black via-black/75 to-transparent z-10" />
+
+                        {/* Lock Overlay for non-Elite users */}
+                        {isLocked && (
+                          <div
+                            className="absolute inset-0 z-30 flex flex-col items-center justify-center gap-2 bg-black/65 backdrop-blur-[2px]"
+                            onClick={(e) => { e.stopPropagation(); window.location.href = '/dashboard/billing'; }}
+                          >
+                            <div className="w-8 h-8 rounded-full bg-amber-500/15 border border-amber-500/30 flex items-center justify-center">
+                              <Lock className="w-4 h-4 text-amber-400" />
+                            </div>
+                            <span className="text-[9px] font-bold text-amber-300 uppercase tracking-wider text-center px-2">Plano Elite</span>
+                          </div>
+                        )}
 
                         {/* Top Badges (z-20) */}
                         <div className="absolute top-2.5 left-2.5 flex gap-1.5 z-20">

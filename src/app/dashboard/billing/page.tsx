@@ -25,6 +25,7 @@ import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, getDoc } from 'firebase/firestore';
+import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
 
 export default function BillingPage() {
   const { user } = useAuth();
@@ -89,7 +90,7 @@ export default function BillingPage() {
       price: 'R$ 67',
       tier: 1,
       description: 'Ideal para criadores que querem sair do improviso e vender com mais clareza.',
-      features: ['50 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Suporte via comunidade'],
+      features: ['20 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias'],
       buttonText: 'Fazer Upgrade',
       featured: false
     },
@@ -107,7 +108,7 @@ export default function BillingPage() {
       price: 'R$ 197',
       tier: 3,
       description: 'Para criadores que querem levar a criação mobile para outro patamar.',
-      features: ['50 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'],
+      features: ['100 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'],
       buttonText: 'Fazer Upgrade',
       featured: false
     }
@@ -253,13 +254,13 @@ export default function BillingPage() {
               <div className="flex justify-between text-sm mb-2">
                 <span className="text-gray-400">Créditos desta fatura</span>
                 <span className="text-brand-mint font-medium">
-                  {userCredits !== null ? `${userCredits} créditos restantes` : '—'}
+                  {userCredits !== null ? `${userCredits}/${PLAN_CONFIGS[currentPlanName as PlanId]?.credits || 20} créditos restantes` : '—'}
                 </span>
               </div>
               <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-brand-emerald shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000" 
-                  style={{ width: userCredits !== null ? `${Math.min((userCredits / 50) * 100, 100)}%` : '0%' }}
+                  style={{ width: userCredits !== null ? `${Math.min((userCredits / (PLAN_CONFIGS[currentPlanName as PlanId]?.credits || 20)) * 100, 100)}%` : '0%' }}
                 />
               </div>
             </div>

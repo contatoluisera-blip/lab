@@ -18,11 +18,15 @@ import {
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
+import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
 
 export default function IdeaGeneratorPage() {
   const { user } = useAuth();
+  const { hasToolAccess, consumeCredit } = useUserProfile();
   
   // Tabs State
   const [modo, setModo] = useState<'estrategico' | 'livre'>('estrategico');
@@ -128,6 +132,16 @@ export default function IdeaGeneratorPage() {
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
+
+    // Check access and consume credit
+    const creditResult = await consumeCredit('ideas');
+    if (!creditResult.ok) {
+      alert(creditResult.reason === 'no_credits' 
+        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano.' 
+        : 'Seu plano não tem acesso ao Gerador de Ideias.');
+      return;
+    }
+
     setLoading(true);
     setResult(null);
 
@@ -279,16 +293,16 @@ CTA: ${idea.cta}
         
         {/* Formulário / Setup */}
         <div className="space-y-6 lg:sticky lg:top-24">
-          <GlassCard className="p-2 border-white/5 flex gap-2">
+          <GlassCard className="p-2 border-white/5 flex gap-3">
             <button 
               onClick={() => setModo('estrategico')}
-              className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'estrategico' ? 'bg-brand-neon text-black shadow-[0_0_20px_rgba(189,255,0,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`flex-1 py-3 px-2 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'estrategico' ? 'bg-brand-neon text-black shadow-[0_0_20px_rgba(189,255,0,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
             >
               Modo Estratégico
             </button>
             <button 
               onClick={() => setModo('livre')}
-              className={`flex-1 py-3 text-xs font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'livre' ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
+              className={`flex-1 py-3 px-2 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'livre' ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
             >
               Modo Livre
             </button>
@@ -438,10 +452,19 @@ CTA: ${idea.cta}
                 </div>
               )}
 
-              <Button type="submit" className={`w-full h-14 font-bold uppercase tracking-widest text-xs mt-6 ${modo === 'estrategico' ? 'bg-brand-neon text-black hover:bg-brand-neon/90' : ''}`} isLoading={loading}>
-                {!loading && <Target className="w-4 h-4 mr-2" />}
-                {modo === 'estrategico' ? 'Gerar Ideias Alinhadas' : 'Gerar Ideias Avulsas'}
-              </Button>
+              {hasToolAccess('ideas') ? (
+                <>
+                  <Button type="submit" className={`w-full h-14 font-bold uppercase tracking-widest text-xs mt-6 ${modo === 'estrategico' ? 'bg-brand-neon text-black hover:bg-brand-neon/90' : ''}`} disabled={loading}>
+                    {!loading ? <Target className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />}
+                    {modo === 'estrategico' ? 'Gerar Ideias Alinhadas' : 'Gerar Ideias Avulsas'}
+                  </Button>
+                  {!loading && <CreditNotice toolId="ideas" />}
+                </>
+              ) : (
+                <div className="mt-6">
+                  <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
+                </div>
+              )}
             </form>
           </GlassCard>
         </div>

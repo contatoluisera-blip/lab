@@ -4,6 +4,8 @@ import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
 import { 
   LayoutDashboard, 
   Lightbulb, 
@@ -44,6 +46,20 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
+  const { userProfile } = useUserProfile();
+
+  // Computando dados do plano e créditos
+  const planId = (userProfile?.plan as PlanId) || 'start';
+  const planConfig = PLAN_CONFIGS[planId];
+  const planLabel = planConfig?.label || 'Start';
+  const maxCredits = planConfig?.credits || 20;
+  
+  // Como os créditos no perfil representam o saldo atual, o usado é (max - atual)
+  const currentCredits = userProfile?.credits ?? maxCredits;
+  const usedCredits = Math.max(0, maxCredits - currentCredits);
+  
+  // Porcentagem usada (limitada a 100%)
+  const percentage = Math.min(100, Math.round((usedCredits / maxCredits) * 100)) || 0;
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -144,28 +160,39 @@ export function Sidebar() {
         <div className={cn("p-4 border-t border-white/5", !isDesktopExpanded && "md:px-2")}>
           {isDesktopExpanded ? (
             <div className="glass-card !p-4 !rounded-xl text-center space-y-2">
-              <p className="text-xs text-gray-400">Plano Pro</p>
+              <p className="text-xs text-gray-400">Plano {planLabel}</p>
               <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
-                <div className="bg-brand-emerald h-full w-[60%] shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                <div 
+                  className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
+                  style={{ width: `${percentage}%` }}
+                />
               </div>
-              <p className="text-xs text-brand-mint">42/100 Créditos Usados</p>
+              <p className="text-xs text-brand-mint">{usedCredits}/{maxCredits} Créditos Usados</p>
             </div>
           ) : (
-            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title="Plano Pro: 42/100 Créditos">
+            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title={`Plano ${planLabel}: ${usedCredits}/${maxCredits} Créditos`}>
                <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
-                 <div className="bg-brand-emerald h-full w-[60%] shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+                 <div 
+                   className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
+                   style={{ width: `${percentage}%` }}
+                 />
                </div>
-               <span className="text-[10px] font-bold text-brand-mint">PRO</span>
+               <span className="text-[10px] font-bold text-brand-mint uppercase">
+                 {planLabel.substring(0, 3)}
+               </span>
             </div>
           )}
           
           {/* Mobile version always shows full card */}
           <div className="glass-card !p-4 !rounded-xl text-center space-y-2 md:hidden">
-            <p className="text-xs text-gray-400">Plano Pro</p>
+            <p className="text-xs text-gray-400">Plano {planLabel}</p>
             <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
-              <div className="bg-brand-emerald h-full w-[60%] shadow-[0_0_10px_rgba(16,185,129,0.8)]" />
+              <div 
+                className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
+                style={{ width: `${percentage}%` }}
+              />
             </div>
-            <p className="text-xs text-brand-mint">42/100 Créditos Usados</p>
+            <p className="text-xs text-brand-mint">{usedCredits}/{maxCredits} Créditos Usados</p>
           </div>
 
         </div>

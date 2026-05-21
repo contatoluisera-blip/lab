@@ -15,10 +15,22 @@ export interface Module {
   videos: Video[];
 }
 
+export interface Course {
+  id: string;
+  title: string;
+  subtitle: string;
+  description: string;
+  badge: string;
+  modules: Module[];
+}
+
 const CAPA_PRETA = "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/capa%20preta.png?alt=media&token=edef280c-c34d-4642-b75d-397f560a07d1";
 const CAPA_VERDE = "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/capa%20verde.png?alt=media&token=e5492d95-b4b6-40e2-828a-d60bf96eac6f";
 
-export const COURSES_DATA: Module[] = [
+// ─────────────────────────────────────────────
+// CURSO 1: Mobile Lab (curso principal)
+// ─────────────────────────────────────────────
+const MOBILE_LAB_MODULES: Module[] = [
   {
     id: "modulo-1",
     title: "Módulo 1",
@@ -101,7 +113,7 @@ export const COURSES_DATA: Module[] = [
         title: "Aula 10 - Alinhamento",
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=0a1ba864-6e76-41b2-9de3-57a7bb12c548",
         duration: "08:55",
-        description: "Garantindo um visual simétrico e organized. Como alinhar elementos gráficos, textos e o próprio vídeo na tela do smartphone.",
+        description: "Garantindo um visual simétrico e organizado. Como alinhar elementos gráficos, textos e o próprio vídeo na tela do smartphone.",
         thumbnail: CAPA_VERDE
       },
       {
@@ -312,4 +324,315 @@ export const COURSES_DATA: Module[] = [
       }
     ]
   }
+];
+
+// ─────────────────────────────────────────────
+// CURSO 2: 3D pelo Celular (masterclass)
+// ─────────────────────────────────────────────
+const TRES_D_MODULES: Module[] = [
+  {
+    id: "3d-modulo-1",
+    title: "Módulo 1",
+    subtitle: "Fundamentos e Ferramentas",
+    videos: [
+      {
+        id: "3d-a01",
+        title: "Aula 01 - O que vamos fazer",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7666e8d8-bb2b-4d7b-a5c3-300a7cf675a0",
+        duration: "--:--",
+        description: "Visão geral da masterclass 3D pelo Celular. Entenda tudo o que você vai aprender e o que vai conseguir produzir ao final do curso.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a02",
+        title: "Aula 02 - Quando utilizar 3D nos seus vídeos",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=806d41c7-4ed5-406c-9f1e-e1d57314db70",
+        duration: "--:--",
+        description: "Estratégia criativa: quando o 3D agrega valor real ao seu vídeo e quando é apenas complexidade desnecessária.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a03",
+        title: "Aula 03 - O que é tracking? Conhecendo o NodeVideo pt1",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=4e0e0c61-191c-42d3-9789-6528b0195f6f",
+        duration: "--:--",
+        description: "Introdução ao conceito de tracking e primeiros passos na interface do NodeVideo para efeitos 3D.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a04",
+        title: "Aula 04 - Conhecendo o NodeVideo pt2",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=375798fe-7556-46aa-9524-27f84ef88734",
+        duration: "--:--",
+        description: "Aprofundando na interface e ferramentas do NodeVideo essenciais para a criação de efeitos 3D no celular.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a05",
+        title: "Aula 05 - Conhecendo o NodeVideo pt3",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=26a66b78-daf0-4627-88cb-b522ed3af717",
+        duration: "--:--",
+        description: "Continuação do tour pelo NodeVideo: nós avançados, camadas de composição e organização do projeto.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a06",
+        title: "Aula 06 - Conhecendo o NodeVideo pt4",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=fc77df72-de0f-488a-b69d-fc6aee9d9116",
+        duration: "--:--",
+        description: "Últimos detalhes da interface do NodeVideo antes de entrar na parte prática dos efeitos 3D.",
+        thumbnail: CAPA_VERDE
+      }
+    ]
+  },
+  {
+    id: "3d-modulo-2",
+    title: "Módulo 2",
+    subtitle: "Tracking e Efeitos 3D",
+    videos: [
+      {
+        id: "3d-a07",
+        title: "Aula 07 - Tracking 3D da Cena",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=f506f4d8-89c4-4677-a7eb-8bc150a429bd",
+        duration: "--:--",
+        description: "Como fazer o tracking 3D de uma cena real pelo celular para ancorar elementos virtuais no espaço.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a08",
+        title: "Aula 08 - Pontos Importantes sobre Tracking 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=9e07551d-a33b-4c6d-ae9e-8dab7be86b18",
+        duration: "--:--",
+        description: "Dicas e cuidados para um tracking preciso: superfícies, iluminação, movimento de câmera e erros comuns.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a09",
+        title: "Aula 09 - Texto em 3D pt1",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=820789dc-7826-4679-b0cc-092471096fa7",
+        duration: "--:--",
+        description: "Criando texto tridimensional ancorado em cenas reais: configuração inicial, tipografia e posicionamento.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a10",
+        title: "Aula 10 - Texto em 3D pt2",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=a02f35a7-26f9-4a8b-8637-96d8dc38a807",
+        duration: "--:--",
+        description: "Refinando o texto 3D: iluminação, sombra projetada, perspectiva e integração realista com a cena.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a11",
+        title: "Aula 11 - Aplicando Textura de Sombra em Texto 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=63c9b10b-96c9-435e-9d05-c59aa7075cee",
+        duration: "--:--",
+        description: "Como adicionar textura e efeito de sombra no texto 3D para um resultado mais realista e premium.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a12",
+        title: "Aula 12 - Vídeo em 3D pt1",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=091067c4-7800-4e52-b8db-a644803d77ba",
+        duration: "--:--",
+        description: "Inserindo vídeo em um espaço 3D: como projetar footage em planos tridimensionais rastreados na cena.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a13",
+        title: "Aula 13 - Vídeo em 3D pt2",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=cfbce260-7e61-4840-89cb-f3cffe7ae79a",
+        duration: "--:--",
+        description: "Finalizando a técnica de vídeo em 3D com ajustes de perspectiva, cor e integração com a iluminação da cena.",
+        thumbnail: CAPA_PRETA
+      }
+    ]
+  },
+  {
+    id: "3d-modulo-3",
+    title: "Módulo 3",
+    subtitle: "Objetos 3D e Animação",
+    videos: [
+      {
+        id: "3d-a14",
+        title: "Aula 14 - Inserindo Objetos 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=c8d7e011-9615-44bd-a359-b3c510967c55",
+        duration: "--:--",
+        description: "Como importar e inserir objetos 3D (.obj/.glb) no NodeVideo e ancorá-los em cenas rastreadas.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a15",
+        title: "Aula 15 - Como baixar objetos 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=e5670b0e-a539-4982-9d69-1ff59f5defc8",
+        duration: "--:--",
+        description: "Fontes gratuitas e pagas de modelos 3D para celular. Como encontrar, baixar e preparar para usar no NodeVideo.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a16",
+        title: "Aula 16 - EXTRA: Efeito 3D sem a versão Pro",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=cfaa1ab3-77a8-4fde-8906-500813cc4b3f",
+        duration: "--:--",
+        description: "Aula bônus: como replicar efeitos 3D impressionantes sem precisar da versão paga do NodeVideo.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a17",
+        title: "Aula 17 - Aplicando objeto 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=36b56c9a-1e4c-4c95-92d6-c76c91034b64",
+        duration: "--:--",
+        description: "Prática completa de aplicação de objeto 3D na cena: escala, rotação, posicionamento e alinhamento com a perspectiva real.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a18",
+        title: "Aula 18 - Erro de objeto 3D (Como resolver)",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=285602ef-a441-4e95-90b9-271e71eb933c",
+        duration: "--:--",
+        description: "Solucionando os erros mais comuns ao trabalhar com objetos 3D no NodeVideo.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a19",
+        title: "Aula 19 - Textura e posição de objeto 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=2a8fa816-0493-4fc9-a32f-c40f910b849f",
+        duration: "--:--",
+        description: "Como aplicar texturas personalizadas em objetos 3D e refinar seu posicionamento na cena para máximo realismo.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a20",
+        title: "Aula 20 - Aplicando textura em objeto 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=e3e8f760-7e35-43b0-83fc-3c30a6b49e26",
+        duration: "--:--",
+        description: "Tutorial avançado de texturização: mapeamento UV, materiais especulares e glossy no NodeVideo.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a21",
+        title: "Aula 21 - Smartphone 3D com vídeo inserido",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=82350a67-4532-408c-b337-8157cb27b9fa",
+        duration: "--:--",
+        description: "Efeito premium: crie um mockup 3D de smartphone com vídeo real rodando na tela, integrado à cena.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a22",
+        title: "Aula 22 - Sombras em elementos 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=ee25c176-88f0-4d17-ad9f-d789ee5e3d17",
+        duration: "--:--",
+        description: "Como criar e ajustar sombras realistas em elementos 3D para integrá-los naturalmente à iluminação da cena.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a23",
+        title: "Aula 23 - Sombra em elemento 3D pt2",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=87f2fecb-d023-4eb3-afbb-136fe5be655e",
+        duration: "--:--",
+        description: "Refinamento das sombras: suavidade, direção de luz, ambient occlusion e interação com o chão.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a24",
+        title: "Aula 24 - Transformando imagem em objeto 3D",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=22e89a2b-9515-4dcd-ae14-40a1dffbbedd",
+        duration: "--:--",
+        description: "Técnica de depth mapping: como converter uma imagem 2D em um objeto 3D manipulável no NodeVideo.",
+        thumbnail: CAPA_VERDE
+      }
+    ]
+  },
+  {
+    id: "3d-modulo-4",
+    title: "Módulo 4",
+    subtitle: "Keyframes, FOOH e Encerramento",
+    videos: [
+      {
+        id: "3d-a25",
+        title: "Aula 25 - Keyframes (O que são)",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=d01a9cbc-8faa-4249-81eb-094d146463f2",
+        duration: "--:--",
+        description: "Conceito de keyframes aplicado ao 3D: como criar animações suaves e controladas frame a frame.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a26",
+        title: "Aula 26 - Animação de objeto 3D pt1",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=433c807b-133a-4bc4-989c-b1c0216989f6",
+        duration: "--:--",
+        description: "Primeira parte da animação 3D: configurando keyframes de posição, rotação e escala ao longo do tempo.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a27",
+        title: "Aula 27 - Animação de objeto 3D pt2",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7a3d42a5-8622-4431-9838-94308097ffff",
+        duration: "--:--",
+        description: "Refinando a animação com curvas de easing para movimentos naturais e fluidos.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a28",
+        title: "Aula 28 - Animação de objeto 3D pt3",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7937e956-65fd-4431-8bdb-4d1b5d74fca7",
+        duration: "--:--",
+        description: "Finalização da sequência de animação 3D com exportação otimizada para redes sociais.",
+        thumbnail: CAPA_VERDE
+      },
+      {
+        id: "3d-a29",
+        title: "Aula 29 - FOOH | Efeito da Bandeira",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=85d96eed-596d-4057-9f58-6f05f189aa65",
+        duration: "--:--",
+        description: "Fake Out Of Home (FOOH): criando o viral efeito de bandeira/outdoor 3D em cenas reais pelo NodeVideo.",
+        thumbnail: CAPA_PRETA
+      },
+      {
+        id: "3d-a30",
+        title: "Aula 30 - FOOH | Efeito da Bandeira (Adicionando detalhes)",
+        url: "",
+        duration: "--:--",
+        description: "Refinando o efeito FOOH com detalhes adicionais, física de tecido e integração de luz ambiente.",
+        thumbnail: CAPA_VERDE,
+        comingSoon: true
+      },
+      {
+        id: "3d-a31",
+        title: "Aula 31 - Tira dúvidas com alunos",
+        url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=02ca1be3-3280-45b7-a747-f1f21102be64",
+        duration: "--:--",
+        description: "Sessão de perguntas e respostas ao vivo com os alunos cobrindo os pontos mais desafiadores da masterclass.",
+        thumbnail: CAPA_PRETA
+      }
+    ]
+  }
+];
+
+// ─────────────────────────────────────────────
+// Export: lista de cursos estruturados
+// ─────────────────────────────────────────────
+export const ALL_COURSES: Course[] = [
+  {
+    id: "mobile-lab",
+    title: "Mobile Lab",
+    subtitle: "Curso Completo",
+    description: "Do enquadramento à edição avançada: domine a criação profissional de vídeo usando apenas o celular.",
+    badge: "3 Módulos + Bônus",
+    modules: MOBILE_LAB_MODULES,
+  },
+  {
+    id: "3d-pelo-celular",
+    title: "3D pelo Celular",
+    subtitle: "Masterclass",
+    description: "Técnicas avançadas de tracking 3D, objetos virtuais, animação e efeitos FOOH no NodeVideo.",
+    badge: "4 Módulos · 31 Aulas",
+    modules: TRES_D_MODULES,
+  }
+];
+
+// Backward-compat export for any code still referencing COURSES_DATA
+export const COURSES_DATA: Module[] = [
+  ...MOBILE_LAB_MODULES,
+  ...TRES_D_MODULES,
 ];

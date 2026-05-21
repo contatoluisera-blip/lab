@@ -5,6 +5,9 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { FileText, Sparkles, Send, ScanSearch, Calculator, FileDown, Target, Building2, CheckCircle2, ChevronRight, LayoutList } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
+import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import * as htmlToImage from 'html-to-image';
@@ -12,6 +15,7 @@ import { jsPDF } from 'jspdf';
 
 export default function ProposalPage() {
   const { user } = useAuth();
+  const { hasToolAccess, consumeCredit } = useUserProfile();
   
   const [cliente, setCliente] = useState('');
   const [objetivo, setObjetivo] = useState('');
@@ -82,6 +86,15 @@ export default function ProposalPage() {
   }, [user]);
 
   const handleGenerate = async () => {
+    // Check access and consume 1 credit
+    const creditResult = await consumeCredit('proposal');
+    if (!creditResult.ok) {
+      setError(creditResult.reason === 'no_credits'
+        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
+        : 'Seu plano não tem acesso ao Gerador de Propostas. Faça upgrade para o Plano Pro ou Elite.');
+      return;
+    }
+
     if (!cliente || !objetivo) {
       setError('Por favor, preencha o Nome do Cliente e o Objetivo Principal da campanha.');
       return;
@@ -281,22 +294,29 @@ export default function ProposalPage() {
           </div>
 
           <div className="pt-6 border-t border-white/10">
-            <Button 
-              className="w-full md:w-auto px-10 h-14 text-sm uppercase tracking-widest relative overflow-hidden group float-right bg-gradient-to-r from-teal-500 to-brand-mint text-black font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)]"
-              onClick={handleGenerate}
-              disabled={loading}
-            >
-              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
-              {loading ? (
-                <span className="flex items-center gap-2 justify-center">
-                  <Sparkles className="w-4 h-4 animate-spin text-black" /> Escrevendo Proposta...
-                </span>
-              ) : (
-                <span className="flex items-center gap-2 justify-center">
-                  <Send className="w-4 h-4" /> Gerar Proposta Comercial
-                </span>
-              )}
-            </Button>
+            {hasToolAccess('proposal') ? (
+              <div className="flex flex-col items-end float-right">
+                <Button
+                  className="w-full md:w-auto px-10 h-14 text-sm uppercase tracking-widest relative overflow-hidden group bg-gradient-to-r from-teal-500 to-brand-mint text-black font-bold shadow-[0_0_20px_rgba(52,211,153,0.4)]"
+                  onClick={handleGenerate}
+                  disabled={loading}
+                >
+                  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/40 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
+                  {loading ? (
+                    <span className="flex items-center gap-2 justify-center">
+                      <Sparkles className="w-4 h-4 animate-spin text-black" /> Escrevendo Proposta...
+                    </span>
+                  ) : (
+                    <span className="flex items-center gap-2 justify-center">
+                      <Send className="w-4 h-4" /> Gerar Proposta Comercial
+                    </span>
+                  )}
+                </Button>
+                {!loading && <CreditNotice toolId="proposal" />}
+              </div>
+            ) : (
+              <UpgradeGate locked={true} requiredPlan="Pro" mode="button" label="Gerador de Propostas — Disponível no Plano Pro ou Elite" />
+            )}
             <div className="clear-both"></div>
           </div>
         </div>

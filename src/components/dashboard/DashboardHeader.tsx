@@ -20,30 +20,47 @@ export function DashboardHeader() {
     const fetchUserName = async () => {
       if (!user) return;
 
-      // 1. Try Firestore profile first (source of truth after purchase)
+      // 1. Primeiro tenta o perfil local (Configurações)
+      const savedSettings = localStorage.getItem('asa_settings');
+      if (savedSettings) {
+        try {
+          const data = JSON.parse(savedSettings);
+          if (data.name) {
+            setUserName(data.name.split(' ')[0]);
+            return;
+          }
+        } catch (e) {}
+      }
+
+      // 2. Tenta o perfil do Firestore
       try {
         const snap = await getDoc(doc(db, 'users', user.uid));
         if (snap.exists() && snap.data().name) {
           setUserName(snap.data().name.split(' ')[0]);
           return;
         }
-      } catch (e) {
-        // Firestore unavailable — fall through
-      }
+      } catch (e) {}
 
-      // 2. Fallback to Firebase Auth displayName
+      // 3. Fallback para Firebase Auth displayName
       if (user.displayName) {
         setUserName(user.displayName.split(' ')[0]);
         return;
       }
 
-      // 3. Last resort: email prefix
+      // 4. Último recurso: radical do email
       if (user.email) {
         setUserName(user.email.split('@')[0]);
       }
     };
 
     fetchUserName();
+
+    const handleSettingsUpdate = () => {
+      fetchUserName();
+    };
+
+    window.addEventListener('asa-settings-updated', handleSettingsUpdate);
+    return () => window.removeEventListener('asa-settings-updated', handleSettingsUpdate);
   }, [user]);
 
   const getGreeting = () => {

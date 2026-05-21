@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminAuth, adminDb, isAdminReady } from '@/lib/firebase/admin';
+import { planCredits, PlanId } from '@/lib/planConfig';
 
 export async function POST(request: Request) {
   try {
@@ -197,23 +198,20 @@ export async function POST(request: Request) {
         firebaseUid = userRecord.uid;
       }
 
-      // Write Firestore profile with 50 credits and full permissions
+      // Determine credits based on plan
+      const planKey = planName.toLowerCase() as PlanId;
+      const initialCredits = planCredits(planKey);
+
+      // Write Firestore profile with plan-correct credits and empty trialUsed
       await adminDb.collection('users').doc(firebaseUid).set({
         uid: firebaseUid,
         name: customer.name,
         email: customer.email,
         cpf: cleanDocument,
         phone: cleanPhone,
-        plan: planName.toLowerCase(),
-        credits: 50,
-        permissions: [
-          'diagnoses',
-          'calculations',
-          'ideas',
-          'proposals',
-          'assistant',
-          'courses'
-        ],
+        plan: planKey,
+        credits: initialCredits,
+        trialUsed: {},
         pagarmeOrderId: resData.id,
         paymentMethod,
         paymentStatus: resData.status,

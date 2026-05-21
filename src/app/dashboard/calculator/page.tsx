@@ -5,6 +5,9 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Calculator, Sparkles, PieChart, ShieldCheck, Laptop, MonitorPlay } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
+import { useUserProfile } from '@/context/UserProfileContext';
+import { UpgradeGate } from '@/components/ui/UpgradeGate';
+import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
 
@@ -18,6 +21,7 @@ const creatorLegends: Record<string, string> = {
 
 export default function CalculatorPage() {
   const { user } = useAuth();
+  const { hasToolAccess, consumeCredit, userProfile } = useUserProfile();
   
   React.useEffect(() => {
     if (!user) return;
@@ -103,6 +107,15 @@ export default function CalculatorPage() {
   };
 
   const handleGenerate = async () => {
+    // Check access and consume 1 credit
+    const creditResult = await consumeCredit('calculator');
+    if (!creditResult.ok) {
+      setError(creditResult.reason === 'no_credits'
+        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
+        : 'Seu plano não tem acesso a esta ferramenta.');
+      return;
+    }
+
     setLoading(true);
     setError('');
     
@@ -456,22 +469,27 @@ export default function CalculatorPage() {
             )}
           </GlassCard>
 
-          <Button 
-            className="w-full h-16 text-sm uppercase tracking-wider font-bold relative overflow-hidden group bg-gradient-to-r from-brand-jade to-emerald-600 hover:from-brand-jade hover:to-emerald-500 text-white shadow-[0_0_20px_rgba(6,95,70,0.5)]"
-            onClick={handleGenerate}
-            disabled={loading}
-          >
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
-            {loading ? (
-              <span className="flex items-center gap-2 justify-center">
-                <Sparkles className="w-5 h-5 animate-spin" /> PROCESSANDO...
-              </span>
-            ) : (
-              <span className="flex items-center gap-2 justify-center">
-                <Calculator className="w-5 h-5" /> DIMENSIONAR PREÇO FINAL
-              </span>
-            )}
-          </Button>
+          {hasToolAccess('calculator') ? (
+            <Button 
+              className="w-full h-16 text-sm uppercase tracking-wider font-bold relative overflow-hidden group bg-gradient-to-r from-brand-jade to-emerald-600 hover:from-brand-jade hover:to-emerald-500 text-white shadow-[0_0_20px_rgba(6,95,70,0.5)]"
+              onClick={handleGenerate}
+              disabled={loading}
+            >
+              <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
+              {loading ? (
+                <span className="flex items-center gap-2 justify-center">
+                  <Sparkles className="w-5 h-5 animate-spin" /> PROCESSANDO...
+                </span>
+              ) : (
+                <span className="flex items-center gap-2 justify-center">
+                  <Calculator className="w-5 h-5" /> DIMENSIONAR PREÇO FINAL
+                </span>
+              )}
+            </Button>
+          ) : (
+            <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
+          )}
+          {!loading && <CreditNotice toolId="calculator" />}
 
         </div>
       </div>
