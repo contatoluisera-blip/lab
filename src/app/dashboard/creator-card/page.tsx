@@ -218,12 +218,13 @@ export default function CreatorCardPage() {
   return (
     <div className="space-y-10 animate-in fade-in slide-in-from-bottom-4 duration-700 pb-20">
       
-      <div className="flex flex-col gap-2">
-        <h1 className="text-3xl font-bold text-white tracking-tight flex items-center gap-3">
-          <IdCard className="w-8 h-8 text-blue-400" />
-          Cartão do Creator
-        </h1>
-        <p className="text-gray-400 max-w-2xl">
+      <div className="flex flex-col gap-2 mb-8">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-blue-400 bg-blue-500/10 text-sm font-medium w-fit mb-2">
+          <IdCard className="w-4 h-4" />
+          <span className="text-white">Identidade Profissional</span>
+        </div>
+        <h1 className="text-3xl font-bold text-white tracking-tight">Cartão do Creator</h1>
+        <p className="text-gray-400 font-light tracking-wide max-w-2xl">
           Transforme suas informações em um PDF profissional, clicável e pronto para enviar por WhatsApp e fechar parcerias.
         </p>
       </div>

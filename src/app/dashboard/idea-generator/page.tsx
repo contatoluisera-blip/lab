@@ -266,15 +266,12 @@ CTA: ${idea.cta}
       {/* Header */}
       <div className="flex justify-between items-end mb-8">
         <div className="flex flex-col gap-2">
-          <div className="flex items-center gap-4">
-            <div className="p-3 bg-brand-neon/10 rounded-2xl text-brand-neon">
-              <Lightbulb className="w-7 h-7 drop-shadow-[0_0_8px_currentColor]" />
-            </div>
-            <div>
-              <h1 className="text-3xl font-bold text-white tracking-tight">Gerador de Ideias</h1>
-              <p className="text-gray-400">Receba roteiros estruturados baseados na dor do seu cliente e no escopo vendido.</p>
-            </div>
+          <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-neon bg-brand-neon/10 text-sm font-medium w-fit mb-2">
+            <Lightbulb className="w-4 h-4" />
+            <span className="text-white">Motor Criativo</span>
           </div>
+          <h1 className="text-3xl font-bold text-white tracking-tight">Gerador de Ideias</h1>
+          <p className="text-gray-400 font-light tracking-wide">Receba roteiros estruturados baseados na dor do seu cliente e no escopo vendido.</p>
         </div>
         
         {result && (

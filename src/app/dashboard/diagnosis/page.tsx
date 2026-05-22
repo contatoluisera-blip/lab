@@ -144,10 +144,10 @@ export default function DiagnosisPage() {
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-24">
       {/* Header */}
-      <div className="flex flex-col gap-2">
-        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-jade text-sm font-medium w-fit mb-2">
+      <div className="flex flex-col gap-2 mb-8">
+        <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-jade bg-brand-jade/10 text-sm font-medium w-fit mb-2">
           <ScanSearch className="w-4 h-4" />
-          <span>Inteligência Analítica</span>
+          <span className="text-white">Inteligência Analítica</span>
         </div>
         <div className="flex justify-between items-end">
           <div>
