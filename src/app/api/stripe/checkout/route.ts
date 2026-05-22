@@ -34,9 +34,10 @@ export async function POST(req: Request) {
 
     let productId = '';
     const normalizedPlan = planName.toLowerCase();
-    if (normalizedPlan === 'start') productId = process.env.STRIPE_PRODUCT_START || '';
-    else if (normalizedPlan === 'pro') productId = process.env.STRIPE_PRODUCT_PRO || '';
-    else if (normalizedPlan === 'elite') productId = process.env.STRIPE_PRODUCT_ELITE || '';
+    // Fallback para os IDs fixos que foram criados no painel do Stripe
+    if (normalizedPlan === 'start') productId = process.env.STRIPE_PRODUCT_START || 'prod_UZ1PmZZS5Z9KTY';
+    else if (normalizedPlan === 'pro') productId = process.env.STRIPE_PRODUCT_PRO || 'prod_UZ1fjWSTPbzrJe';
+    else if (normalizedPlan === 'elite') productId = process.env.STRIPE_PRODUCT_ELITE || 'prod_UZ1fwptRpKDIWW';
 
     if (!productId) {
       return NextResponse.json({ error: 'Invalid plan name or missing Product ID in env' }, { status: 400 });
