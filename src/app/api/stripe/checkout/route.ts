@@ -17,6 +17,12 @@ export async function POST(req: Request) {
     if (!authHeader?.startsWith('Bearer ')) {
       return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
     }
+
+    if (!adminAuth) {
+      console.error('Firebase Admin não foi inicializado. Verifique as chaves FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY no Netlify.');
+      return NextResponse.json({ error: 'Erro de configuração do servidor. Chaves do Firebase ausentes no Netlify.' }, { status: 500 });
+    }
+
     const token = authHeader.split('Bearer ')[1];
     const decodedToken = await adminAuth.verifyIdToken(token);
     const userId = decodedToken.uid;
