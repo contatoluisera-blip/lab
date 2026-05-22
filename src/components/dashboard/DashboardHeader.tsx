@@ -21,7 +21,7 @@ export function DashboardHeader() {
       if (!user) return;
 
       // 1. Primeiro tenta o perfil local (Configurações)
-      const savedSettings = localStorage.getItem('asa_settings');
+      const savedSettings = localStorage.getItem(`asa_settings_${user.uid}`);
       if (savedSettings) {
         try {
           const data = JSON.parse(savedSettings);

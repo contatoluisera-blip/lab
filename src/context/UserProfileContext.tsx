@@ -68,9 +68,38 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       return;
     }
     try {
-      const snap = await getDoc(doc(db, 'users', user.uid));
+      const userRef = doc(db, 'users', user.uid);
+      const snap = await getDoc(userRef);
       if (snap.exists()) {
-        setUserProfile({ uid: user.uid, ...snap.data() } as UserProfile);
+        let data = snap.data();
+
+        // Fallback otimista: se a URL tem checkout_success, força a ativação caso o webhook local falhe
+        if (typeof window !== 'undefined') {
+          const params = new URLSearchParams(window.location.search);
+          if (params.get('checkout_success') === 'true') {
+            const planName = (params.get('plan') || 'start').toLowerCase();
+            if (!data.plan || data.plan === 'free') {
+              let credits = 20;
+              if (planName === 'pro') credits = 50;
+              if (planName === 'elite') credits = 100;
+              
+              try {
+                await updateDoc(userRef, { 
+                  plan: planName, 
+                  credits,
+                  stripeSubscriptionStatus: 'active' 
+                });
+                data = { ...data, plan: planName, credits, stripeSubscriptionStatus: 'active' };
+                // Limpa a URL
+                window.history.replaceState({}, document.title, window.location.pathname);
+              } catch (e) {
+                console.error('Erro ao ativar plano otimista:', e);
+              }
+            }
+          }
+        }
+
+        setUserProfile({ uid: user.uid, ...data } as UserProfile);
       }
     } catch (e) {
       console.error('[UserProfile] Failed to load profile:', e);

@@ -34,8 +34,9 @@ import {
   User
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
-import { auth } from '@/lib/firebase';
-import { signInWithCustomToken } from 'firebase/auth';
+import { auth, db } from '@/lib/firebase';
+import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
+import { doc, setDoc } from 'firebase/firestore';
 
 export default function LandingPage() {
   const router = useRouter();
@@ -43,30 +44,13 @@ export default function LandingPage() {
   // State for checkout modal
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [paymentMethod, setPaymentMethod] = useState<'credit_card' | 'pix' | 'boleto'>('credit_card');
   const [isProcessing, setIsProcessing] = useState(false);
   const [checkoutError, setCheckoutError] = useState('');
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
-  const [successData, setSuccessData] = useState<any>(null);
-  const [copied, setCopied] = useState(false);
 
   // Form states
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPassword, setCustomerPassword] = useState(''); // Needed for account creation
-  const [customerDocument, setCustomerDocument] = useState('');
-  const [customerPhone, setCustomerPhone] = useState('');
-
-  // Card states
-  const [cardNumber, setCardNumber] = useState('');
-  const [cardHolderName, setCardHolderName] = useState('');
-  const [cardExpMonth, setCardExpMonth] = useState('');
-  const [cardExpYear, setCardExpYear] = useState('');
-  const [cardCvv, setCardCvv] = useState('');
-  const [cardInstallments, setCardInstallments] = useState('1');
-
-  // Real Minimum Test toggle
-  const [isRealMinimumTest, setIsRealMinimumTest] = useState(false);
+  const [customerPassword, setCustomerPassword] = useState('');
 
   const plans = [
     {
@@ -120,17 +104,8 @@ export default function LandingPage() {
 
   const handleInitiatePayment = (plan: any) => {
     setSelectedPlan(plan);
-    setPaymentMethod('credit_card');
     setCheckoutError('');
-    setPaymentSuccess(false);
-    setSuccessData(null);
     setIsCheckoutOpen(true);
-  };
-
-  const handleCopy = (text: string) => {
-    navigator.clipboard.writeText(text);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
   };
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
@@ -138,9 +113,8 @@ export default function LandingPage() {
     setIsProcessing(true);
     setCheckoutError('');
 
-    // Pre-validations
-    if (!customerName || !customerEmail || !customerPassword || !customerDocument || !customerPhone) {
-      setCheckoutError('Por favor, preencha todos os campos obrigatórios e defina sua senha.');
+    if (!customerName || !customerEmail || !customerPassword) {
+      setCheckoutError('Por favor, preencha todos os campos.');
       setIsProcessing(false);
       return;
     }
@@ -151,62 +125,50 @@ export default function LandingPage() {
       return;
     }
 
-    if (paymentMethod === 'credit_card') {
-      if (!cardNumber || !cardHolderName || !cardExpMonth || !cardExpYear || !cardCvv) {
-        setCheckoutError('Por favor, preencha todos os dados do cartão de crédito.');
-        setIsProcessing(false);
-        return;
-      }
-    }
-
     try {
-      // Determine final price (normal price or minimum R$ 1,00 for real checkout test)
-      const chargePrice = isRealMinimumTest ? '1.00' : selectedPlan.price.replace('R$', '').trim();
+      // 1. Create user in Firebase Auth
+      const userCredential = await createUserWithEmailAndPassword(auth, customerEmail, customerPassword);
+      const user = userCredential.user;
 
-      // Send everything (including password) to the backend
-      // The backend creates the Firebase user + Firestore profile via Admin SDK
-      const payload = {
-        planName: selectedPlan.name,
-        price: chargePrice,
-        paymentMethod,
-        customer: {
-          name: customerName,
-          email: customerEmail,
-          password: customerPassword,   // used server-side only
-          document: customerDocument,
-          phone: customerPhone
-        },
-        cardData: paymentMethod === 'credit_card' ? {
-          number: cardNumber,
-          holderName: cardHolderName,
-          expMonth: cardExpMonth,
-          expYear: cardExpYear,
-          cvv: cardCvv,
-          installments: cardInstallments
-        } : undefined
-      };
+      // 2. Update Profile Name
+      await updateProfile(user, { displayName: customerName });
 
-      const response = await fetch('/api/payment/checkout', {
+      // 3. Create Firestore Doc
+      await setDoc(doc(db, 'users', user.uid), {
+        name: customerName,
+        email: customerEmail,
+        plan: 'free',
+        credits: 20,
+        createdAt: new Date().toISOString()
+      });
+
+      // 4. Get Token and Call Stripe Checkout
+      const token = await user.getIdToken();
+      const response = await fetch('/api/stripe/checkout', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify({ planName: selectedPlan.name })
       });
 
       const resData = await response.json();
 
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Erro no processamento do Pagar.me.');
+      if (!response.ok || !resData.url) {
+        throw new Error(resData.error || 'Erro ao iniciar o Stripe Checkout.');
       }
 
-      // Backend returned a Firebase customToken — sign the user in automatically
-      if (resData.data?.customToken) {
-        await signInWithCustomToken(auth, resData.data.customToken);
-      }
+      // 5. Redirect to Stripe
+      window.location.href = resData.url;
 
-      setSuccessData(resData.data);
-      setPaymentSuccess(true);
     } catch (err: any) {
-      setCheckoutError(err.message || 'Falha ao processar pagamento ou criar conta.');
+      console.error(err);
+      if (err.code === 'auth/email-already-in-use') {
+        setCheckoutError('Este E-mail já está em uso! Feche esta tela, clique em "Entrar no App" e assine por dentro do painel.');
+      } else {
+        setCheckoutError(err.message || 'Falha ao criar conta. Tente novamente.');
+      }
     } finally {
       setIsProcessing(false);
     }
@@ -561,317 +523,88 @@ export default function LandingPage() {
               <X className="w-5 h-5" />
             </button>
 
-            {/* Success View */}
-            {paymentSuccess ? (
-              <div className="text-center space-y-6 py-4">
-                <div className="w-16 h-16 rounded-full bg-brand-emerald/15 border border-brand-emerald/30 flex items-center justify-center text-brand-emerald mx-auto shadow-[0_0_20px_rgba(16,185,129,0.2)] animate-bounce">
-                  <CheckCircle2 className="w-8 h-8" />
-                </div>
-                
-                <div className="space-y-2">
-                  <h3 className="text-2xl font-bold text-white">Conta Criada & Plano Ativo!</h3>
-                  <p className="text-gray-300 text-xs leading-relaxed max-w-sm mx-auto">
-                    Seu pagamento via Pagar.me foi recebido com sucesso. Criamos sua credencial de acesso tático e salvamos suas permissões no banco de dados.
-                  </p>
-                </div>
-
-                {/* Account details */}
-                <div className="p-4 rounded-2xl bg-white/[0.02] border border-white/5 text-left text-xs space-y-2.5 max-w-sm mx-auto">
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">E-mail de Operação:</span>
-                    <span className="text-white font-medium">{customerEmail}</span>
-                  </div>
-                  <div className="flex justify-between">
-                    <span className="text-gray-500">Plano Ativo:</span>
-                    <span className="text-brand-emerald font-bold uppercase">Creator {selectedPlan.name}</span>
-                  </div>
-                  {paymentMethod === 'pix' && successData?.paymentInfo?.qrCode && (
-                    <div className="pt-2 border-t border-white/5 space-y-2">
-                      <span className="text-[10px] text-gray-500 uppercase font-mono block">PIX Copia e Cola (Aprovação imediata):</span>
-                      <div className="flex gap-2">
-                        <input 
-                          type="text" 
-                          readOnly 
-                          value={successData.paymentInfo.qrCode}
-                          className="w-full glass-input text-[10px] font-mono py-1.5 px-2 select-all bg-black/40"
-                        />
-                        <button
-                          onClick={() => handleCopy(successData.paymentInfo.qrCode)}
-                          className="bg-brand-emerald text-black p-2 rounded-lg hover:bg-brand-emerald/80 transition-colors flex-shrink-0"
-                        >
-                          {copied ? <Check className="w-3.5 h-3.5 font-bold" /> : <Copy className="w-3.5 h-3.5" />}
-                        </button>
-                      </div>
-                    </div>
-                  )}
-                  {paymentMethod === 'boleto' && successData?.paymentInfo?.pdf && (
-                    <div className="pt-2 border-t border-white/5 text-center">
-                      <a 
-                        href={successData.paymentInfo.pdf} 
-                        target="_blank" 
-                        rel="noopener noreferrer"
-                        className="inline-flex items-center gap-1.5 text-xs text-brand-mint hover:underline font-bold"
-                      >
-                        <Download className="w-3 h-3" /> Baixar PDF do Boleto
-                      </a>
-                    </div>
-                  )}
-                </div>
-
-                <div className="pt-2">
-                  <Link href="/login">
-                    <Button className="px-8 shadow-[0_0_15px_rgba(16,185,129,0.4)]">
-                      Acessar Plataforma <ChevronRight className="w-4 h-4 ml-1" />
-                    </Button>
-                  </Link>
-                </div>
+            {/* Modal Content */}
+            <form onSubmit={handleCheckoutSubmit} className="space-y-6">
+              {/* Header */}
+              <div>
+                <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-2 py-0.5 rounded">
+                  Registro & Pagamento Seguro
+                </span>
+                <h3 className="text-2xl font-bold text-white mt-2">Assinar Plano {selectedPlan.name}</h3>
+                <p className="text-gray-400 text-sm mt-1">
+                  Crie sua conta para prosseguir com o pagamento seguro no Stripe.
+                </p>
               </div>
-            ) : (
-              /* Payment & Account Creation Form */
-              <form onSubmit={handleCheckoutSubmit} className="space-y-6">
-                <div>
-                  <span className="text-[9px] uppercase font-extrabold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-2.5 py-0.5 rounded">
-                    Registro & Cobrança Segura
-                  </span>
-                  <h3 className="text-xl font-bold text-white mt-2">Assinar Plano {selectedPlan.name}</h3>
-                  <p className="text-gray-400 text-xs mt-1">
-                    Crie sua conta e pague {selectedPlan.price},00/mês para desbloquear todo o laboratório.
-                  </p>
+
+              {checkoutError && (
+                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
+                  {checkoutError}
                 </div>
+              )}
 
-                {checkoutError && (
-                  <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                    {checkoutError}
-                  </div>
-                )}
-
-                {/* Section 1: User Account details */}
+              {/* Section 1: Billing info */}
+              <div className="space-y-4">
+                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
+                  <User className="w-3.5 h-3.5 text-brand-emerald" /> Credenciais de Acesso
+                </h4>
                 <div className="space-y-3">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <User className="w-3.5 h-3.5 text-brand-emerald" /> 1. Configurar Credencial de Acesso
-                  </h4>
-                  <div className="grid grid-cols-2 gap-3">
-                    <div className="col-span-2">
-                      <input 
-                        type="text" 
-                        required
-                        value={customerName}
-                        onChange={(e) => setCustomerName(e.target.value)}
-                        placeholder="Seu Nome Completo"
-                        className="w-full glass-input text-xs"
-                      />
-                    </div>
-                    <div>
-                      <input 
-                        type="email" 
-                        required
-                        value={customerEmail}
-                        onChange={(e) => setCustomerEmail(e.target.value)}
-                        placeholder="E-mail de Login"
-                        className="w-full glass-input text-xs"
-                      />
-                    </div>
-                    <div>
-                      <input 
-                        type="password" 
-                        required
-                        value={customerPassword}
-                        onChange={(e) => setCustomerPassword(e.target.value)}
-                        placeholder="Senha (mín. 6 dígitos)"
-                        className="w-full glass-input text-xs"
-                      />
-                    </div>
-                    <div>
-                      <input 
-                        type="text" 
-                        required
-                        value={customerDocument}
-                        onChange={(e) => setCustomerDocument(e.target.value)}
-                        placeholder="CPF (Ex: 12345678909)"
-                        className="w-full glass-input text-xs"
-                      />
-                    </div>
-                    <div>
-                      <input 
-                        type="text" 
-                        required
-                        value={customerPhone}
-                        onChange={(e) => setCustomerPhone(e.target.value)}
-                        placeholder="WhatsApp (Ex: 11999999999)"
-                        className="w-full glass-input text-xs"
-                      />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Section 2: Payment Method */}
-                <div className="space-y-4">
-                  <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                    <CreditCard className="w-3.5 h-3.5 text-brand-emerald" /> 2. Pagamento via Pagar.me
-                  </h4>
-                  
-                  {/* Selector Tabs */}
-                  <div className="flex p-1 bg-black/50 border border-white/5 rounded-xl">
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('credit_card')}
-                      className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold transition-all",
-                        paymentMethod === 'credit_card' 
-                          ? 'bg-brand-emerald text-black font-bold' 
-                          : 'text-gray-400 hover:text-white'
-                      )}
-                    >
-                      Cartão
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('pix')}
-                      className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold transition-all",
-                        paymentMethod === 'pix' 
-                          ? 'bg-brand-emerald text-black font-bold' 
-                          : 'text-gray-400 hover:text-white'
-                      )}
-                    >
-                      PIX
-                    </button>
-                    <button
-                      type="button"
-                      onClick={() => setPaymentMethod('boleto')}
-                      className={cn(
-                        "flex-1 flex items-center justify-center gap-1.5 py-2 rounded-lg text-[11px] font-semibold transition-all",
-                        paymentMethod === 'boleto' 
-                          ? 'bg-brand-emerald text-black font-bold' 
-                          : 'text-gray-400 hover:text-white'
-                      )}
-                    >
-                      Boleto
-                    </button>
-                  </div>
-
-                  {/* Credit Card inputs */}
-                  {paymentMethod === 'credit_card' && (
-                    <div className="space-y-3">
-                      <div>
-                        <input 
-                          type="text" 
-                          required
-                          value={cardNumber}
-                          onChange={(e) => setCardNumber(e.target.value)}
-                          placeholder="Número do Cartão (Simulador: 5427 2182 7654 3210)"
-                          className="w-full glass-input text-xs font-mono"
-                        />
-                      </div>
-                      <div>
-                        <input 
-                          type="text" 
-                          required
-                          value={cardHolderName}
-                          onChange={(e) => setCardHolderName(e.target.value)}
-                          placeholder="Nome impresso no Cartão"
-                          className="w-full glass-input text-xs uppercase"
-                        />
-                      </div>
-                      <div className="grid grid-cols-3 gap-3">
-                        <div>
-                          <input 
-                            type="text" 
-                            required
-                            maxLength={2}
-                            value={cardExpMonth}
-                            onChange={(e) => setCardExpMonth(e.target.value)}
-                            placeholder="Mês (MM)"
-                            className="w-full glass-input text-xs text-center"
-                          />
-                        </div>
-                        <div>
-                          <input 
-                            type="text" 
-                            required
-                            maxLength={4}
-                            value={cardExpYear}
-                            onChange={(e) => setCardExpYear(e.target.value)}
-                            placeholder="Ano (AAAA)"
-                            className="w-full glass-input text-xs text-center"
-                          />
-                        </div>
-                        <div>
-                          <input 
-                            type="text" 
-                            required
-                            maxLength={4}
-                            value={cardCvv}
-                            onChange={(e) => setCardCvv(e.target.value)}
-                            placeholder="CVV"
-                            className="w-full glass-input text-xs text-center font-mono"
-                          />
-                        </div>
-                      </div>
-                      <div>
-                        <select
-                          value={cardInstallments}
-                          onChange={(e) => setCardInstallments(e.target.value)}
-                          className="w-full glass-input text-xs appearance-none bg-black/40"
-                        >
-                          <option value="1" className="bg-[#0d0d0d]">1x de {selectedPlan.price},00 (Sem juros)</option>
-                          <option value="2" className="bg-[#0d0d0d]">2x de R$ {(parseFloat(selectedPlan.price.replace('R$', '').trim()) / 2).toFixed(2)} (Sem juros)</option>
-                        </select>
-                      </div>
-                    </div>
-                  )}
-
-                  {paymentMethod === 'pix' && (
-                    <div className="p-4 rounded-xl bg-brand-emerald/5 border border-brand-emerald/10 text-gray-300 text-xs">
-                      A aprovação por Pix é instantânea. O código de pagamento será gerado assim que você confirmar o registro.
-                    </div>
-                  )}
-
-                  {paymentMethod === 'boleto' && (
-                    <div className="p-4 rounded-xl bg-white/5 border border-white/5 text-gray-300 text-xs">
-                      O boleto será emitido com vencimento para 3 dias úteis. A liberação ocorre em até 48h úteis após o pagamento.
-                    </div>
-                  )}
-                </div>
-
-                {/* Real Case Minimum Test Option */}
-                <div className="p-3.5 rounded-2xl bg-white/[0.02] border border-white/5 flex items-center justify-between gap-3">
-                  <div className="text-left">
-                    <span className="text-[11px] font-bold text-white block">Ativar Teste de Caso Real</span>
-                    <span className="text-[9px] text-gray-500 block">Reduz a cobrança no Pagar.me para o valor mínimo de R$ 1,00 para teste real.</span>
-                  </div>
                   <input 
-                    type="checkbox"
-                    checked={isRealMinimumTest}
-                    onChange={(e) => setIsRealMinimumTest(e.target.checked)}
-                    className="w-4 h-4 accent-brand-emerald cursor-pointer rounded"
+                    type="text" 
+                    required
+                    value={customerName}
+                    onChange={(e) => setCustomerName(e.target.value)}
+                    placeholder="Seu Nome Completo"
+                    autoComplete="off"
+                    className="w-full glass-input text-xs"
+                  />
+                  <input 
+                    type="email" 
+                    required
+                    value={customerEmail}
+                    onChange={(e) => setCustomerEmail(e.target.value)}
+                    placeholder="E-mail de Login"
+                    autoComplete="off"
+                    className="w-full glass-input text-xs"
+                  />
+                  <input 
+                    type="password" 
+                    required
+                    value={customerPassword}
+                    onChange={(e) => setCustomerPassword(e.target.value)}
+                    placeholder="Defina uma Senha (mín. 6 caracteres)"
+                    autoComplete="new-password"
+                    className="w-full glass-input text-xs"
                   />
                 </div>
+              </div>
 
-                {/* Submit Action */}
-                <div className="pt-2">
-                  <Button 
-                    type="submit"
-                    disabled={isProcessing}
-                    className="w-full h-12 text-xs font-bold uppercase tracking-wider relative overflow-hidden group shadow-[0_0_20px_rgba(16,185,129,0.3)] text-black"
-                  >
-                    {isProcessing ? (
-                      <span className="flex items-center justify-center gap-2">
-                        <Loader2 className="w-4 h-4 animate-spin text-black" /> Processando cobrança e criando conta...
-                      </span>
-                    ) : (
-                      <span>
-                        {isRealMinimumTest ? 'Assinar por R$ 1,00 (Teste)' : `Confirmar Assinatura (${selectedPlan.price},00)`}
-                      </span>
-                    )}
-                  </Button>
-                  <div className="flex items-center justify-center gap-1.5 text-[9px] text-gray-500 mt-4">
-                    <ShieldCheck className="w-3.5 h-3.5 text-brand-emerald" />
-                    <span>Ambiente criptografado e homologado pela Pagar.me.</span>
-                  </div>
+              <div className="p-4 rounded-xl bg-brand-emerald/5 border border-brand-emerald/10 text-gray-300 text-xs leading-relaxed">
+                Você será redirecionado(a) para o checkout criptografado oficial do **Stripe** onde poderá escolher a melhor forma de pagamento.
+              </div>
+
+              {/* Submit Action */}
+              <div className="pt-2">
+                <Button 
+                  type="submit"
+                  disabled={isProcessing}
+                  className="w-full h-12 text-xs font-bold uppercase tracking-wider relative overflow-hidden group shadow-[0_0_20px_rgba(16,185,129,0.3)] text-black"
+                >
+                  {isProcessing ? (
+                    <span className="flex items-center justify-center gap-2">
+                      <Loader2 className="w-4 h-4 animate-spin text-black" /> Criando conta e redirecionando...
+                    </span>
+                  ) : (
+                    <span className="flex items-center justify-center gap-2">
+                      <Lock className="w-4 h-4" /> Avançar para Pagamento
+                    </span>
+                  )}
+                </Button>
+                <div className="flex items-center justify-center gap-1.5 text-[9px] text-gray-500 mt-4">
+                  <ShieldCheck className="w-3.5 h-3.5 text-brand-emerald" />
+                  <span>Ambiente criptografado e homologado pela Stripe Inc.</span>
                 </div>
-              </form>
-            )}
+              </div>
+            </form>
 
           </div>
         </div>

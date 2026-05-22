@@ -21,18 +21,27 @@ import { doc, updateDoc, setDoc } from 'firebase/firestore';
 
 export default function SettingsPage() {
   const { user } = useAuth();
-  const [name, setName] = useState('Luis Erasmo');
-  const [age, setAge] = useState('28');
+  const [name, setName] = useState('');
+  const [age, setAge] = useState('');
   const [corporateEmail, setCorporateEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [avatar, setAvatar] = useState<string | null>(null);
-  const [lastSaved, setLastSaved] = useState<string>('14:35');
+  const [lastSaved, setLastSaved] = useState<string>('Nunca salvo');
   const [photoError, setPhotoError] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
 
-  // Carregar dados salvos ao montar o componente
+  // Carregar dados salvos ao montar o componente (agora separado por usuário)
   React.useEffect(() => {
-    const saved = localStorage.getItem('asa_settings');
+    if (!user) return;
+
+    // Default do Auth/Firestore caso o local storage esteja vazio
+    if (user.displayName) {
+      setName(user.displayName);
+    } else if (user.email) {
+      setName(user.email.split('@')[0]);
+    }
+
+    const saved = localStorage.getItem(`asa_settings_${user.uid}`);
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -45,8 +54,17 @@ export default function SettingsPage() {
       } catch (e) {
         console.error('Erro ao carregar configurações', e);
       }
+    } else {
+       // Tenta buscar o nome do Firestore se nao tiver no localstorage
+       import('firebase/firestore').then(({ doc, getDoc }) => {
+         getDoc(doc(db, 'users', user.uid)).then(snap => {
+            if (snap.exists() && snap.data().name) {
+               setName(snap.data().name);
+            }
+         });
+       });
     }
-  }, []);
+  }, [user]);
 
   const handlePhotoClick = () => {
     fileInputRef.current?.click();
@@ -93,7 +111,9 @@ export default function SettingsPage() {
       lastSaved: timeString
     };
 
-    localStorage.setItem('asa_settings', JSON.stringify(dataToSave));
+    if (user) {
+      localStorage.setItem(`asa_settings_${user.uid}`, JSON.stringify(dataToSave));
+    }
     setLastSaved(timeString);
     
     // Atualizar no Firestore se o usuário estiver logado

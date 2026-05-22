@@ -18,12 +18,12 @@ export function Topbar() {
     let nameToUse = '';
     let avatarToUse = null;
 
-    const saved = localStorage.getItem('asa_settings');
+    const saved = user ? localStorage.getItem(`asa_settings_${user.uid}`) : null;
     if (saved) {
       try {
         const data = JSON.parse(saved);
         if (data.avatar) avatarToUse = data.avatar;
-        if (data.name) nameToUse = data.name;
+        if (data.name) nameToUse = data.name.split(' ')[0];
       } catch (e) {
         console.error('Erro ao atualizar topo', e);
       }
@@ -33,16 +33,15 @@ export function Topbar() {
 
     // Fallbacks
     if (!nameToUse && user) {
-      nameToUse = user.displayName || (user.email ? user.email.split('@')[0] : 'Criador');
+      nameToUse = user.displayName 
+        ? user.displayName.split(' ')[0] 
+        : (user.email ? user.email.split('@')[0] : 'Criador');
     }
 
     if (nameToUse) {
       setUserName(nameToUse);
-      const names = nameToUse.trim().split(' ');
-      const initial = names.length > 1 
-        ? `${names[0][0]}${names[names.length - 1][0]}`.toUpperCase()
-        : names[0].length > 0 ? names[0][0].toUpperCase() : 'LG';
-      setInitials(initial);
+      // Initialize with just the first letter since we're using first name
+      setInitials(nameToUse.length > 0 ? nameToUse[0].toUpperCase() : 'C');
     }
   }, [user]);
 

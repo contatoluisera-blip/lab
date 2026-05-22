@@ -56,12 +56,10 @@ export function Sidebar() {
   const planLabel = planConfig?.label || 'Start';
   const maxCredits = planConfig?.credits || 20;
   
-  // Como os créditos no perfil representam o saldo atual, o usado é (max - atual)
   const currentCredits = userProfile?.credits ?? maxCredits;
-  const usedCredits = Math.max(0, maxCredits - currentCredits);
   
-  // Porcentagem usada (limitada a 100%)
-  const percentage = Math.min(100, Math.round((usedCredits / maxCredits) * 100)) || 0;
+  // Porcentagem restante (limitada a 100%)
+  const percentage = Math.min(100, Math.round((currentCredits / maxCredits) * 100)) || 0;
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -169,10 +167,10 @@ export function Sidebar() {
                   style={{ width: `${percentage}%` }}
                 />
               </div>
-              <p className="text-xs text-brand-mint">{usedCredits}/{maxCredits} Créditos Usados</p>
+              <p className="text-xs text-brand-mint">{currentCredits}/{maxCredits} créditos restantes</p>
             </div>
           ) : (
-            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title={`Plano ${planLabel}: ${usedCredits}/${maxCredits} Créditos`}>
+            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title={`Plano ${planLabel}: ${currentCredits}/${maxCredits} créditos restantes`}>
                <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
                  <div 
                    className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
@@ -194,7 +192,7 @@ export function Sidebar() {
                 style={{ width: `${percentage}%` }}
               />
             </div>
-            <p className="text-xs text-brand-mint">{usedCredits}/{maxCredits} Créditos Usados</p>
+            <p className="text-xs text-brand-mint">{currentCredits}/{maxCredits} créditos restantes</p>
           </div>
 
         </div>

@@ -61,7 +61,6 @@ export default function CreatorCardPage() {
           const data = JSON.parse(savedSettings);
           if (data.name) initialName = data.name;
           if (data.corporateEmail) initialEmail = data.corporateEmail;
-          if (data.avatar) initialPhoto = data.avatar;
         } catch (e) {}
       }
 
@@ -70,7 +69,7 @@ export default function CreatorCardPage() {
         nome: prev.nome || initialName,
         email: prev.email || initialEmail,
       }));
-      setFotoUrl(initialPhoto);
+      // A foto não é mais pré-carregada para incentivar o usuário a fazer o upload
     };
     
     loadProfile();
