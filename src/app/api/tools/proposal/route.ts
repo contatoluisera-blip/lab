@@ -36,11 +36,6 @@ export async function POST(request: Request) {
           "Edição Vertical com Sound Design e Dinamismo",
           "Consultoria de Posicionamento de Linha Editorial"
         ],
-        o_que_nao_esta_incluso: [
-          "Gestão de Tráfego Pago ou Impulsionamentos",
-          "Gestão e resposta de comentários/directs",
-          "Publicações diárias nos stories"
-        ],
         processo: [
           { etapa: "1. Imersão e Estratégia", descricao: "Reunião de kickoff para entender a fundo o DNA da marca e mapear os arquétipos e objeções do público." },
           { etapa: "2. Roteirização Magnética", descricao: "Elaboração dos scripts usando fórmulas validadas de retenção (Gatilho -> Desenvolvimento -> CTA)." },
@@ -75,9 +70,8 @@ ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Retorne EXATAMENTE este JSON sem marcações
   "apresentacao": "1 ou 2 parágrafos. Quem somos nós, nossa filosofia de trabalho (foco em negócios e ROI, não apenas vaidade e likes) e o compromisso com os resultados do cliente.",
   "contexto": "Análise PROFUNDA do cenário atual. Utilize os dados do Diagnóstico fornecido para apontar GARGALOS reais. Mostre que entendemos a DOR deles. Seja cirúrgico: se o engajamento está baixo ou a frequência é ruim, explique como isso destrói a percepção da marca perante os clientes deles.",
   "solucao": "A tese da solução. Como a nossa entrega de valor (método, qualidade de captação, roteiro estratégico) ataca exatamente os gargalos citados no contexto. Venda a TRANSFORMAÇÃO.",
-  "escopo": "Visão geral estratégica da entrega. Não liste apenas vídeos, explique a inteligência do pacote. (ex: 'Uma esteira de produção focada em vídeos de atração e vídeos de retenção para criar um ecossistema completo').",
-  "o_que_esta_incluso": ["Item 1 (ex: Roteirização Magnética baseada em gatilhos mentais)", "Item 2...", "Item 3...", "Item 4..."],
-  "o_que_nao_esta_incluso": ["Item 1", "Item 2", "etc"],
+  "escopo": "Visão geral estratégica da entrega. Não liste apenas vídeos, explique a inteligência do pacote. É OBRIGATÓRIO explicitar a QUANTIDADE EXATA de entregas (ex: 'Uma esteira contendo a produção de 8 vídeos verticais...').",
+  "o_que_esta_incluso": ["Item 1 (Ex: Produção de 8 vídeos verticais)", "Item 2...", "Item 3...", "Item 4..."],
   "processo": [
     {"etapa": "Nome da Etapa 1", "descricao": "O que acontece aqui de forma profissional."},
     {"etapa": "Nome da Etapa 2", "descricao": "Detalhes..."},

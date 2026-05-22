@@ -135,14 +135,66 @@ export default function ProposalPage() {
       
       if (user) {
         try {
+          const clientNameToSave = cliente || (selectedDiagnosis ? diagnoses.find(d => d.id === selectedDiagnosis)?.handle : 'Cliente sem nome');
+
           await addDoc(collection(db, 'proposals'), {
             userId: user.uid,
-            clientName: selectedDiagnosis ? diagnoses.find(d => d.id === selectedDiagnosis)?.handle : 'Sem Cliente',
+            clientName: clientNameToSave,
             result_json: resData.data,
             createdAt: new Date().toISOString()
           });
+
+          // Extrair valor da proposta para o CRM
+          const valorString = resData.data.investimento?.valor || '';
+          // Limpa 'R$ 3.500,00' para 3500.00
+          const numericValue = Number(valorString.replace(/[^0-9,]+/g, '').replace(',', '.')) || 0;
+
+          // Extrair entregáveis da proposta para o CRM
+          let qtdVideos = 0;
+          
+          // 1. Tentar pegar do orçamento selecionado
+          const orcamentoObj = selectedCalculation ? calculations.find(c => c.id === selectedCalculation)?.resultado_json : null;
+          if (orcamentoObj && (orcamentoObj.video_quantity || orcamentoObj.video_quantity_total)) {
+             qtdVideos = Number(orcamentoObj.video_quantity || orcamentoObj.video_quantity_total);
+          } else {
+             // 2. Tentar garimpar no escopo ou inclusos da proposta (ex: "Produção de 4 vídeos")
+             const escopoText = (resData.data.escopo || '') + ' ' + (resData.data.o_que_esta_incluso || []).join(' ');
+             const match = escopoText.match(/(\d+)\s+v[ií]deo/i);
+             if (match) {
+               qtdVideos = Number(match[1]);
+             }
+          }
+
+          let entregaveis = [];
+          if (qtdVideos > 0 && qtdVideos <= 30) { // Limite de sanidade
+             entregaveis = Array.from({ length: qtdVideos }).map((_, i) => ({
+                id: Math.random().toString(36).substring(7),
+                description: `Vídeo ${i + 1}`,
+                completed: false,
+                link: ''
+             }));
+          } else {
+             // Fallback caso não ache a quantidade de vídeos
+             entregaveis = (resData.data.o_que_esta_incluso || []).map((item: string) => ({
+                id: Math.random().toString(36).substring(7),
+                description: item,
+                completed: false,
+                link: ''
+             }));
+          }
+
+          // Criar cliente automaticamente no CRM
+          await addDoc(collection(db, 'clients'), {
+            userId: user.uid,
+            name: clientNameToSave,
+            stage: 'aguardando_resposta',
+            value: numericValue,
+            deliveries: entregaveis,
+            createdAt: new Date().toISOString()
+          });
+
         } catch (dbErr) {
-          console.error("Falha ao salvar proposta no Firestore:", dbErr);
+          console.error("Falha ao salvar proposta ou cliente no Firestore:", dbErr);
         }
       }
 
@@ -396,7 +448,7 @@ export default function ProposalPage() {
                     {result.escopo}
                   </p>
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8">
+                  <div className="grid grid-cols-1 gap-8">
                     <div className="bg-brand-mint/5 p-6 rounded-xl border border-brand-mint/10">
                       <h4 className="text-brand-mint font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
                         <CheckCircle2 className="w-4 h-4" /> O que está incluso
@@ -405,18 +457,6 @@ export default function ProposalPage() {
                         {Array.isArray(result.o_que_esta_incluso) && result.o_que_esta_incluso.map((item: string, i: number) => (
                           <li key={i} className="text-gray-300 font-light text-sm flex items-start gap-2">
                             <span className="text-brand-mint mt-0.5">•</span> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
-                    <div className="bg-red-500/5 p-6 rounded-xl border border-red-500/10">
-                      <h4 className="text-red-400 font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
-                        <span className="font-serif">x</span> O que não está incluso
-                      </h4>
-                      <ul className="space-y-3">
-                        {Array.isArray(result.o_que_nao_esta_incluso) && result.o_que_nao_esta_incluso.map((item: string, i: number) => (
-                          <li key={i} className="text-gray-400 font-light text-sm flex items-start gap-2">
-                            <span className="text-red-400 mt-0.5">•</span> {item}
                           </li>
                         ))}
                       </ul>
