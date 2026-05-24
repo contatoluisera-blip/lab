@@ -23,6 +23,7 @@ import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
+import { addNotification } from '@/lib/notifications';
 
 export default function IdeaGeneratorPage() {
   const { user } = useAuth();
@@ -177,6 +178,12 @@ export default function IdeaGeneratorPage() {
       if (json.success) {
         setResult(json.data);
         if (user) {
+          addNotification(
+            user.uid,
+            'Ideias Criativas Geradas',
+            `O roteiro com ${json.data.ideias_geradas?.length || 5} ideias foi gerado com sucesso!`,
+            'success'
+          );
           try {
             await addDoc(collection(db, 'ideas'), {
               userId: user.uid,

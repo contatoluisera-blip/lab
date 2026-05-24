@@ -16,6 +16,7 @@ import { toPng } from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
+import { addNotification } from '@/lib/notifications';
 
 export default function CreatorCardPage() {
   const { user } = useAuth();
@@ -206,6 +207,15 @@ export default function CreatorCardPage() {
       }
 
       pdf.save(`CreatorCard_${formData.nome.replace(/\s+/g, '')}.pdf`);
+
+      if (user) {
+        addNotification(
+          user.uid,
+          'Cartão do Creator Gerado',
+          `O cartão profissional em PDF para ${formData.nome} foi criado com sucesso!`,
+          'success'
+        );
+      }
 
     } catch (err: any) {
       console.error(err);

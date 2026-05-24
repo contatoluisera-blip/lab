@@ -3,6 +3,7 @@ import { Sidebar } from '@/components/layout/Sidebar';
 import { Topbar } from '@/components/layout/Topbar';
 import { ProtectedRoute } from '@/components/layout/ProtectedRoute';
 import { UserProfileProvider } from '@/context/UserProfileContext';
+import { NotificationToast } from '@/components/ui/NotificationToast';
 
 export default function DashboardLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -22,6 +23,7 @@ export default function DashboardLayout({ children }: { children: React.ReactNod
           </main>
         </div>
       </div>
+      <NotificationToast />
     </UserProfileProvider>
   );
 }

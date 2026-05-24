@@ -116,6 +116,14 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     }
   }, [user, authLoading, fetchProfile]);
 
+  // Listen to setting updates to refresh
+  useEffect(() => {
+    window.addEventListener('asa-settings-updated', fetchProfile);
+    return () => {
+      window.removeEventListener('asa-settings-updated', fetchProfile);
+    };
+  }, [fetchProfile]);
+
   const hasToolAccess = useCallback(
     (tool: ToolId) => planHasToolAccess(userProfile?.plan, tool),
     [userProfile]

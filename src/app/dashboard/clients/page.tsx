@@ -3,7 +3,7 @@
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { Briefcase, Plus, TrendingUp, Users, DollarSign, Edit2, Trash2, X, Loader2, Link as LinkIcon, CheckCircle2 } from 'lucide-react';
+import { Briefcase, Plus, TrendingUp, Users, DollarSign, Edit2, Trash2, X, Loader2, Link as LinkIcon, CheckCircle2, Search } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, getDocs, updateDoc, deleteDoc, doc, query, where } from 'firebase/firestore';
@@ -45,6 +45,17 @@ export default function ClientsPage() {
   const { user } = useAuth();
   const [clients, setClients] = useState<Client[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState('');
+
+  const filteredClients = clients.filter(c => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      c.name.toLowerCase().includes(query) ||
+      STAGE_LABELS[c.stage].toLowerCase().includes(query) ||
+      c.deliveries.some(d => d.description.toLowerCase().includes(query))
+    );
+  });
   
   // Modal State
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -278,8 +289,28 @@ export default function ClientsPage() {
 
       {/* Clients Table */}
       <GlassCard className="overflow-hidden border-white/10">
-        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+        <div className="p-6 border-b border-white/5 flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <h2 className="text-lg font-bold text-white">Carteira de Clientes</h2>
+          
+          {/* Search Field */}
+          <div className="relative w-full sm:w-72">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Buscar cliente ou marca..."
+              className="w-full pl-10 pr-4 py-2 bg-black/40 border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-emerald/50 text-sm transition-all"
+            />
+            {searchQuery && (
+              <button 
+                onClick={() => setSearchQuery('')}
+                className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+              >
+                <X className="w-3.5 h-3.5" />
+              </button>
+            )}
+          </div>
         </div>
         
         {loading ? (
@@ -292,6 +323,12 @@ export default function ClientsPage() {
             <Briefcase className="w-12 h-12 text-gray-600 mb-4 opacity-50" />
             <p className="text-lg font-medium text-gray-400">Nenhum cliente cadastrado</p>
             <p className="text-sm mt-1">Adicione seu primeiro cliente ou gere propostas para começar a gestão.</p>
+          </div>
+        ) : filteredClients.length === 0 ? (
+          <div className="p-12 flex flex-col items-center justify-center text-gray-500">
+            <Search className="w-12 h-12 text-gray-600 mb-4 opacity-50" />
+            <p className="text-lg font-medium text-gray-400">Nenhum cliente encontrado</p>
+            <p className="text-sm mt-1">Tente buscar por outro termo.</p>
           </div>
         ) : (
           <div className="overflow-x-auto">
@@ -306,7 +343,7 @@ export default function ClientsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-white/5">
-                {clients.map(client => {
+                {filteredClients.map(client => {
                   const totalDeliveries = client.deliveries.length;
                   const completedDeliveries = client.deliveries.filter(d => d.completed).length;
                   const progress = totalDeliveries > 0 ? Math.round((completedDeliveries / totalDeliveries) * 100) : 0;

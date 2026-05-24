@@ -10,6 +10,7 @@ import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { addNotification } from '@/lib/notifications';
 
 const creatorLegends: Record<string, string> = {
   iniciante: 'Até 1 ano de atuação. Construindo portfólio.',
@@ -148,6 +149,12 @@ export default function CalculatorPage() {
       setResult(resData.data);
 
       if (user && resData.data) {
+        addNotification(
+          user.uid,
+          'Cálculo Concluído',
+          `O orçamento para o serviço foi dimensionado com sucesso!`,
+          'success'
+        );
         try {
           await addDoc(collection(db, 'calculations'), {
             userId: user.uid,

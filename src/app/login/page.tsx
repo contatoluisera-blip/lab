@@ -51,77 +51,107 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-[80vh] px-4 w-full">
-      <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500">
+    <div className="flex items-center justify-center min-h-[85vh] px-4 w-full">
+      <div className="w-full max-w-md animate-in fade-in zoom-in-95 duration-500 relative">
         
-        {/* Core Header */}
-        <div className="flex flex-col items-center mb-8 text-center space-y-2">
-          <div className="w-16 h-16 rounded-2xl neo-glass flex items-center justify-center border-2 border-teal-500/50 shadow-[0_0_30px_rgba(45,212,191,0.2)] mb-4">
-            <ShieldCheck className="w-8 h-8 text-teal-400" />
-          </div>
-          <h1 className="text-3xl font-bold text-white tracking-tight">Acesso Tático</h1>
-          <p className="text-gray-400 text-sm">Autenticação necessária para o ambiente B2B.</p>
+        {/* Core Header (Apenas a logo com luzes de fundo) */}
+        <div className="flex flex-col items-center mb-6 text-center relative select-none">
+          {/* Retroiluminação (Glow Backlight) com Animação Redimensionada */}
+          <div className="absolute top-12 w-80 h-80 bg-gradient-to-tr from-brand-emerald/20 via-brand-emerald/5 to-brand-mint/30 rounded-full blur-[70px] opacity-90 animate-pulse -z-10" />
+          <div className="absolute top-16 w-72 h-72 bg-brand-emerald/10 rounded-full blur-[50px] opacity-70 animate-ping duration-[6000ms] -z-10" />
+          
+          <img 
+            src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/creator%20lab%20verde.png?alt=media&token=8733334d-95bf-4f7c-85e1-6916cda0856f" 
+            alt="Creator Lab Logo" 
+            className="w-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.45)] relative z-10 transition-transform duration-500 hover:scale-105"
+            style={{ height: '330px' }}
+          />
         </div>
 
-        {/* Login Form */}
-        <GlassCard glow className="p-8 border-teal-500/20">
-          <form onSubmit={handleLogin} className="space-y-6">
-            
-            {error && (
-              <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-2 text-sm">
-                <AlertCircle className="w-4 h-4 flex-shrink-0" />
-                <span>{error}</span>
-              </div>
-            )}
+        {/* Custom Glass Card with Animated Illuminated Contour Border (like the reference) */}
+        <div className="relative p-[1.5px] rounded-[32px] overflow-hidden shadow-[0_20px_50px_rgba(0,0,0,0.8)]">
+          {/* Pulsing gradient layer for the 1.5px border highlight */}
+          <div className="absolute inset-0 bg-gradient-to-r from-brand-emerald/50 via-brand-mint/20 to-[#111] opacity-75 animate-pulse pointer-events-none" />
+          
+          {/* Slow rotating accent gradient around the card edge */}
+          <div 
+            className="absolute inset-0 bg-gradient-to-tr from-brand-emerald/40 via-blue-500/10 to-brand-mint/30 opacity-40 pointer-events-none"
+            style={{
+              animation: 'spin 12s linear infinite',
+              transformOrigin: 'center center',
+            }}
+          />
 
-            <div className="space-y-4">
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
-                   <Mail className="w-4 h-4 text-teal-500" /> Endereço de Operação
-                </label>
-                <input 
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  placeholder="analista@suaagencia.com.br"
-                  className="w-full glass-input text-white"
-                  autoComplete="email"
-                />
-              </div>
+          {/* Inner Card container */}
+          <div className="relative rounded-[30.5px] bg-[#0c0c0d]/95 backdrop-blur-3xl p-8 border border-white/5 overflow-hidden">
+            {/* Top-left internal glass refraction glow (like the reference) */}
+            <div className="absolute -top-16 -left-16 w-36 h-36 bg-brand-emerald/10 rounded-full blur-2xl pointer-events-none" />
+            <div className="absolute top-0 left-0 w-24 h-24 bg-gradient-to-br from-white/10 to-transparent blur-md rounded-tl-3xl pointer-events-none" />
 
-              <div>
-                <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
-                   <KeyRound className="w-4 h-4 text-teal-500" /> Código de Acesso
-                </label>
-                <input 
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full glass-input text-white"
-                />
-              </div>
+            {/* Header texts INSIDE the box */}
+            <div className="mb-8 text-center space-y-1.5 relative z-10">
+              <h2 className="text-2xl font-extrabold text-white tracking-tight">Acesse o Hub</h2>
+              <p className="text-gray-400 text-xs font-light">Insira suas credenciais para entrar no painel.</p>
             </div>
+            
+            <form onSubmit={handleLogin} className="space-y-6 relative z-10">
+              
+              {error && (
+                <div className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-400 flex items-center gap-2 text-sm">
+                  <AlertCircle className="w-4 h-4 flex-shrink-0" />
+                  <span>{error}</span>
+                </div>
+              )}
 
-            <Button 
+              <div className="space-y-4">
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
+                     <Mail className="w-4 h-4 text-brand-emerald" /> E-mail
+                  </label>
+                  <input 
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    placeholder="seu@email.com"
+                    className="w-full glass-input text-white"
+                    autoComplete="email"
+                  />
+                </div>
+
+                <div>
+                  <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
+                     <KeyRound className="w-4 h-4 text-brand-emerald" /> Senha
+                  </label>
+                  <input 
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    placeholder="••••••••"
+                    className="w-full glass-input text-white"
+                  />
+                </div>
+              </div>
+
+              <Button 
                 type="submit"
                 disabled={loadingLocal || loading}
-                className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(45,212,191,0.3)] bg-gradient-to-r from-teal-500/20 to-teal-400/10 text-teal-300 border border-teal-500/30 hover:bg-teal-500 hover:text-black hover:shadow-[0_0_20px_rgba(45,212,191,0.6)]"
+                className="w-full h-12 text-sm uppercase tracking-wider relative overflow-hidden group shadow-[0_0_15px_rgba(16,185,129,0.2)] bg-gradient-to-r from-brand-emerald/20 to-brand-emerald/10 text-brand-emerald border border-brand-emerald/30 hover:bg-brand-emerald hover:text-black hover:shadow-[0_0_20px_rgba(16,185,129,0.5)]"
               >
-              {loadingLocal || loading ? (
-                 <span className="flex items-center gap-2">Validando Criptografia...</span>
-              ) : (
-                <span className="flex items-center gap-2 justify-center">
-                  <Lock className="w-4 h-4" /> Desbloquear Creator Lab
-                </span>
-              )}
-            </Button>
-          </form>
-        </GlassCard>
+                {loadingLocal || loading ? (
+                   <span className="flex items-center gap-2">Entrando...</span>
+                ) : (
+                  <span className="flex items-center gap-2 justify-center">
+                    <Lock className="w-4 h-4" /> Entrar
+                  </span>
+                )}
+              </Button>
+            </form>
+          </div>
+        </div>
         
         {/* Footer Support */}
         <p className="text-center text-xs text-gray-500 mt-8">
-           O acesso à estação táctica é restrito a convidados e clientes autorizados.
+           Acesso restrito a usuários autorizados.
         </p>
 
       </div>

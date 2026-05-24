@@ -1,3 +1,10 @@
+export interface Resource {
+  name: string;
+  size: string;
+  type: string;
+  url?: string;
+}
+
 export interface Video {
   id: string;
   title: string;
@@ -6,6 +13,7 @@ export interface Video {
   description: string;
   thumbnail: string;
   comingSoon?: boolean;
+  resources?: Resource[];
 }
 
 export interface Module {
@@ -327,6 +335,59 @@ const MOBILE_LAB_MODULES: Module[] = [
 ];
 
 // ─────────────────────────────────────────────
+// RECURSOS AUXILIARES: 3D pelo Celular (Masterclass)
+// ─────────────────────────────────────────────
+const RESOURCES_3D = {
+  predioMovimento: {
+    name: "Vídeo Prédio em Movimento.MOV",
+    size: "33.7 MB",
+    type: "MOV",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FVi%CC%81deo%20Pre%CC%81dio%20em%20Movimento.MOV?alt=media&token=a6429618-1df3-4c48-8a4a-834d8c108aaf"
+  },
+  predioEstatico: {
+    name: "Vídeo Prédio Estático.MOV",
+    size: "28.5 MB",
+    type: "MOV",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FVi%CC%81deo%20Pre%CC%81dio%20Esta%CC%81tico.MOV?alt=media&token=a0bba4eb-79a1-47fd-8855-244b9aad1c5b"
+  },
+  ruaMovimento: {
+    name: "Video Rua em Movimento.MOV",
+    size: "23.1 MB",
+    type: "MOV",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FVideo%20Rua%20em%20Movimento.MOV?alt=media&token=fa33a59a-9218-46cd-86e2-61cab1112251"
+  },
+  seguindo: {
+    name: "Seguindo.MP4",
+    size: "9.2 MB",
+    type: "MP4",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FSeguindo.MP4?alt=media&token=50d1b69f-658e-4b44-8221-50aa173aea9b"
+  },
+  sombra: {
+    name: "SOMBRA.PNG",
+    size: "420 KB",
+    type: "PNG",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FSOMBRA.PNG?alt=media&token=6009c6fe-0c42-45b8-9913-417c944fda60"
+  },
+  logo: {
+    name: "Logo Fundo Transparente.PNG",
+    size: "135 KB",
+    type: "PNG",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2FLogo%20Fundo%20Transparente.PNG?alt=media&token=2fb8d3d9-119a-498c-b14a-36029725afa9"
+  },
+  rubiks: {
+    name: "3x3_rubiks_cube.zip",
+    size: "4.8 MB",
+    type: "ZIP",
+    url: "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/Materias%20Auxiliares%20Masterclass%2F3x3_rubiks_cube.zip?alt=media&token=ec181ec4-21d7-4932-bb15-d1d878b955c0"
+  },
+  morganite: {
+    name: "Fonte Morganite",
+    size: "Google Drive",
+    type: "Link",
+    url: "https://drive.google.com/drive/folders/1Ui8k6QWGZsKJ-9XlmOG19ESFBYxoSVDY?usp=sharing"
+  }
+};
+
 // CURSO 2: 3D pelo Celular (masterclass)
 // ─────────────────────────────────────────────
 const TRES_D_MODULES: Module[] = [
@@ -341,7 +402,17 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7666e8d8-bb2b-4d7b-a5c3-300a7cf675a0",
         duration: "--:--",
         description: "Visão geral da masterclass 3D pelo Celular. Entenda tudo o que você vai aprender e o que vai conseguir produzir ao final do curso.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.predioMovimento,
+          RESOURCES_3D.predioEstatico,
+          RESOURCES_3D.ruaMovimento,
+          RESOURCES_3D.seguindo,
+          RESOURCES_3D.sombra,
+          RESOURCES_3D.logo,
+          RESOURCES_3D.rubiks,
+          RESOURCES_3D.morganite
+        ]
       },
       {
         id: "3d-a02",
@@ -349,7 +420,17 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=806d41c7-4ed5-406c-9f1e-e1d57314db70",
         duration: "--:--",
         description: "Estratégia criativa: quando o 3D agrega valor real ao seu vídeo e quando é apenas complexidade desnecessária.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.predioMovimento,
+          RESOURCES_3D.predioEstatico,
+          RESOURCES_3D.ruaMovimento,
+          RESOURCES_3D.seguindo,
+          RESOURCES_3D.sombra,
+          RESOURCES_3D.logo,
+          RESOURCES_3D.rubiks,
+          RESOURCES_3D.morganite
+        ]
       },
       {
         id: "3d-a03",
@@ -357,7 +438,12 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=4e0e0c61-191c-42d3-9789-6528b0195f6f",
         duration: "--:--",
         description: "Introdução ao conceito de tracking e primeiros passos na interface do NodeVideo para efeitos 3D.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.predioMovimento,
+          RESOURCES_3D.predioEstatico,
+          RESOURCES_3D.ruaMovimento
+        ]
       },
       {
         id: "3d-a04",
@@ -396,7 +482,12 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=f506f4d8-89c4-4677-a7eb-8bc150a429bd",
         duration: "--:--",
         description: "Como fazer o tracking 3D de uma cena real pelo celular para ancorar elementos virtuais no espaço.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.predioMovimento,
+          RESOURCES_3D.predioEstatico,
+          RESOURCES_3D.ruaMovimento
+        ]
       },
       {
         id: "3d-a08",
@@ -404,7 +495,12 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=9e07551d-a33b-4c6d-ae9e-8dab7be86b18",
         duration: "--:--",
         description: "Dicas e cuidados para um tracking preciso: superfícies, iluminação, movimento de câmera e erros comuns.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.predioMovimento,
+          RESOURCES_3D.predioEstatico,
+          RESOURCES_3D.ruaMovimento
+        ]
       },
       {
         id: "3d-a09",
@@ -412,7 +508,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=820789dc-7826-4679-b0cc-092471096fa7",
         duration: "--:--",
         description: "Criando texto tridimensional ancorado em cenas reais: configuração inicial, tipografia e posicionamento.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.morganite
+        ]
       },
       {
         id: "3d-a10",
@@ -420,7 +519,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=a02f35a7-26f9-4a8b-8637-96d8dc38a807",
         duration: "--:--",
         description: "Refinando o texto 3D: iluminação, sombra projetada, perspectiva e integração realista com a cena.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.morganite
+        ]
       },
       {
         id: "3d-a11",
@@ -428,7 +530,11 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=63c9b10b-96c9-435e-9d05-c59aa7075cee",
         duration: "--:--",
         description: "Como adicionar textura e efeito de sombra no texto 3D para um resultado mais realista e premium.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.sombra,
+          RESOURCES_3D.morganite
+        ]
       },
       {
         id: "3d-a12",
@@ -436,7 +542,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=091067c4-7800-4e52-b8db-a644803d77ba",
         duration: "--:--",
         description: "Inserindo vídeo em um espaço 3D: como projetar footage em planos tridimensionais rastreados na cena.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.seguindo
+        ]
       },
       {
         id: "3d-a13",
@@ -444,7 +553,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=cfbce260-7e61-4840-89cb-f3cffe7ae79a",
         duration: "--:--",
         description: "Finalizando a técnica de vídeo em 3D com ajustes de perspectiva, cor e integração com a iluminação da cena.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.seguindo
+        ]
       }
     ]
   },
@@ -459,7 +571,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=c8d7e011-9615-44bd-a359-b3c510967c55",
         duration: "--:--",
         description: "Como importar e inserir objetos 3D (.obj/.glb) no NodeVideo e ancorá-los em cenas rastreadas.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a15",
@@ -467,15 +582,21 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=e5670b0e-a539-4982-9d69-1ff59f5defc8",
         duration: "--:--",
         description: "Fontes gratuitas e pagas de modelos 3D para celular. Como encontrar, baixar e preparar para usar no NodeVideo.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a16",
-        title: "Aula 16 - EXTRA: Efeito 3D sem a versão Pro",
+        title: "EXTRA: Efeito 3D sem a versão Pro",
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=cfaa1ab3-77a8-4fde-8906-500813cc4b3f",
         duration: "--:--",
         description: "Aula bônus: como replicar efeitos 3D impressionantes sem precisar da versão paga do NodeVideo.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a17",
@@ -483,7 +604,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=36b56c9a-1e4c-4c95-92d6-c76c91034b64",
         duration: "--:--",
         description: "Prática completa de aplicação de objeto 3D na cena: escala, rotação, posicionamento e alinhamento com a perspectiva real.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a18",
@@ -491,7 +615,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=285602ef-a441-4e95-90b9-271e71eb933c",
         duration: "--:--",
         description: "Solucionando os erros mais comuns ao trabalhar com objetos 3D no NodeVideo.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a19",
@@ -499,7 +626,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=2a8fa816-0493-4fc9-a32f-c40f910b849f",
         duration: "--:--",
         description: "Como aplicar texturas personalizadas em objetos 3D e refinar seu posicionamento na cena para máximo realismo.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a20",
@@ -507,7 +637,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=e3e8f760-7e35-43b0-83fc-3c30a6b49e26",
         duration: "--:--",
         description: "Tutorial avançado de texturização: mapeamento UV, materiais especulares e glossy no NodeVideo.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a21",
@@ -515,7 +648,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=82350a67-4532-408c-b337-8157cb27b9fa",
         duration: "--:--",
         description: "Efeito premium: crie um mockup 3D de smartphone com vídeo real rodando na tela, integrado à cena.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.seguindo
+        ]
       },
       {
         id: "3d-a22",
@@ -523,7 +659,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=ee25c176-88f0-4d17-ad9f-d789ee5e3d17",
         duration: "--:--",
         description: "Como criar e ajustar sombras realistas em elementos 3D para integrá-los naturalmente à iluminação da cena.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.sombra
+        ]
       },
       {
         id: "3d-a23",
@@ -531,7 +670,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=87f2fecb-d023-4eb3-afbb-136fe5be655e",
         duration: "--:--",
         description: "Refinamento das sombras: suavidade, direção de luz, ambient occlusion e interação com o chão.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.sombra
+        ]
       },
       {
         id: "3d-a24",
@@ -539,7 +681,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=22e89a2b-9515-4dcd-ae14-40a1dffbbedd",
         duration: "--:--",
         description: "Técnica de depth mapping: como converter uma imagem 2D em um objeto 3D manipulável no NodeVideo.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       }
     ]
   },
@@ -562,7 +707,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=433c807b-133a-4bc4-989c-b1c0216989f6",
         duration: "--:--",
         description: "Primeira parte da animação 3D: configurando keyframes de posição, rotação e escala ao longo do tempo.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a27",
@@ -570,7 +718,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7a3d42a5-8622-4431-9838-94308097ffff",
         duration: "--:--",
         description: "Refinando a animação com curvas de easing para movimentos naturais e fluidos.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a28",
@@ -578,7 +729,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7937e956-65fd-4431-8bdb-4d1b5d74fca7",
         duration: "--:--",
         description: "Finalização da sequência de animação 3D com exportação otimizada para redes sociais.",
-        thumbnail: CAPA_VERDE
+        thumbnail: CAPA_VERDE,
+        resources: [
+          RESOURCES_3D.rubiks
+        ]
       },
       {
         id: "3d-a29",
@@ -586,7 +740,10 @@ const TRES_D_MODULES: Module[] = [
         url: "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=85d96eed-596d-4057-9f58-6f05f189aa65",
         duration: "--:--",
         description: "Fake Out Of Home (FOOH): criando o viral efeito de bandeira/outdoor 3D em cenas reais pelo NodeVideo.",
-        thumbnail: CAPA_PRETA
+        thumbnail: CAPA_PRETA,
+        resources: [
+          RESOURCES_3D.logo
+        ]
       },
       {
         id: "3d-a30",
@@ -595,7 +752,10 @@ const TRES_D_MODULES: Module[] = [
         duration: "--:--",
         description: "Refinando o efeito FOOH com detalhes adicionais, física de tecido e integração de luz ambiente.",
         thumbnail: CAPA_VERDE,
-        comingSoon: true
+        comingSoon: true,
+        resources: [
+          RESOURCES_3D.logo
+        ]
       },
       {
         id: "3d-a31",

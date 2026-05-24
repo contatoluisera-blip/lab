@@ -5,18 +5,61 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs } from 'firebase/firestore';
-import { ScanSearch, Calculator, FolderArchive, Calendar, Target, Sparkles, TrendingUp, DollarSign, Lightbulb, FileText, CheckCircle2 } from 'lucide-react';
+import { ScanSearch, Calculator, FolderArchive, Calendar, Target, Sparkles, TrendingUp, DollarSign, Lightbulb, FileText, CheckCircle2, Search, X } from 'lucide-react';
 import Link from 'next/link';
 
 export default function ActionsPage() {
   const { user } = useAuth();
   const [activeTab, setActiveTab] = useState<'diagnostics' | 'calculations' | 'ideas' | 'proposals'>('diagnostics');
+  const [searchQuery, setSearchQuery] = useState('');
   
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
   const [calculations, setCalculations] = useState<any[]>([]);
   const [ideas, setIdeas] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+
+  const filteredDiagnoses = diagnoses.filter(d => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      d.handle?.toLowerCase().includes(query) ||
+      d.tipoPerfil?.toLowerCase().includes(query) ||
+      d.resultado_json?.classificacao?.toLowerCase().includes(query)
+    );
+  });
+
+  const filteredCalculations = calculations.filter(c => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      c.offer_mode?.toLowerCase().includes(query) ||
+      c.precoRecomendado?.toLowerCase().includes(query) ||
+      String(c.video_quantity).includes(query)
+    );
+  });
+
+  const filteredIdeas = ideas.filter(i => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      i.clientName?.toLowerCase().includes(query) ||
+      i.modo?.toLowerCase().includes(query) ||
+      i.result_json?.ideias_geradas?.some((g: any) => 
+        g.titulo?.toLowerCase().includes(query) || 
+        g.descricao?.toLowerCase().includes(query)
+      )
+    );
+  });
+
+  const filteredProposals = proposals.filter(p => {
+    if (!searchQuery) return true;
+    const query = searchQuery.toLowerCase();
+    return (
+      p.clientName?.toLowerCase().includes(query) ||
+      p.result_json?.apresentacao?.objetivo_estrategico?.toLowerCase().includes(query)
+    );
+  });
 
   useEffect(() => {
     if (!user) return;
@@ -74,32 +117,54 @@ export default function ActionsPage() {
         </p>
       </div>
 
-      {/* Tabs */}
-      <div className="flex gap-4 border-b border-white/10 pb-4 overflow-x-auto whitespace-nowrap hide-scrollbar">
-        <button 
-          onClick={() => setActiveTab('diagnostics')}
-          className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'diagnostics' ? 'bg-brand-jade text-white shadow-[0_0_15px_rgba(6,95,70,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
-        >
-          <ScanSearch className="w-4 h-4" /> Diagnósticos
-        </button>
-        <button 
-          onClick={() => setActiveTab('calculations')}
-          className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'calculations' ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
-        >
-          <Calculator className="w-4 h-4" /> Orçamentos
-        </button>
-        <button 
-          onClick={() => setActiveTab('ideas')}
-          className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'ideas' ? 'bg-brand-neon text-black shadow-[0_0_15px_rgba(189,255,0,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
-        >
-          <Lightbulb className="w-4 h-4" /> Ideias
-        </button>
-        <button 
-          onClick={() => setActiveTab('proposals')}
-          className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'proposals' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
-        >
-          <FileText className="w-4 h-4" /> Propostas
-        </button>
+      {/* Tabs & Search */}
+      <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 border-b border-white/10 pb-4">
+        <div className="flex gap-4 overflow-x-auto whitespace-nowrap hide-scrollbar pb-2 md:pb-0">
+          <button 
+            onClick={() => { setActiveTab('diagnostics'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'diagnostics' ? 'bg-brand-jade text-white shadow-[0_0_15px_rgba(6,95,70,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <ScanSearch className="w-4 h-4" /> Diagnósticos
+          </button>
+          <button 
+            onClick={() => { setActiveTab('calculations'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'calculations' ? 'bg-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <Calculator className="w-4 h-4" /> Orçamentos
+          </button>
+          <button 
+            onClick={() => { setActiveTab('ideas'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'ideas' ? 'bg-brand-neon text-black shadow-[0_0_15px_rgba(189,255,0,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <Lightbulb className="w-4 h-4" /> Ideias
+          </button>
+          <button 
+            onClick={() => { setActiveTab('proposals'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'proposals' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <FileText className="w-4 h-4" /> Propostas
+          </button>
+        </div>
+
+        {/* Search Field */}
+        <div className="relative w-full md:w-72">
+          <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 text-gray-400 w-4 h-4" />
+          <input
+            type="text"
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            placeholder="Buscar nas minhas ações..."
+            className="w-full pl-10 pr-4 py-2.5 bg-black/40 border border-white/5 rounded-xl text-white placeholder-gray-500 focus:outline-none focus:border-brand-emerald/50 text-sm transition-all"
+          />
+          {searchQuery && (
+            <button 
+              onClick={() => setSearchQuery('')}
+              className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-white"
+            >
+              <X className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
       </div>
 
       {/* Loading State */}
@@ -123,9 +188,15 @@ export default function ActionsPage() {
                   <p className="text-gray-400 font-medium text-center">Nenhum diagnóstico salvo ainda.</p>
                   <p className="text-gray-500 text-sm font-light mt-2">Vá em Diagnóstico de Perfil para auditar seu primeiro cliente.</p>
                 </GlassCard>
+              ) : filteredDiagnoses.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Search className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhum diagnóstico encontrado.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Tente buscar por outro termo.</p>
+                </GlassCard>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {diagnoses.map((diag) => (
+                  {filteredDiagnoses.map((diag) => (
                     <Link key={diag.id} href={`/dashboard/diagnosis?id=${diag.id}`} className="block">
                     <GlassCard className="p-6 border border-white/5 hover:border-brand-jade/30 transition-all duration-300 group relative overflow-hidden h-full">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-brand-jade/5 rounded-bl-full -z-10 blur-xl group-hover:bg-brand-jade/10 transition-all"></div>
@@ -175,9 +246,15 @@ export default function ActionsPage() {
                   <p className="text-gray-400 font-medium text-center">Nenhum orçamento salvo ainda.</p>
                   <p className="text-gray-500 text-sm font-light mt-2">Vá em Calculadora de Orçamento para dimensionar seu primeiro projeto.</p>
                 </GlassCard>
+              ) : filteredCalculations.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Search className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhum orçamento encontrado.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Tente buscar por outro termo.</p>
+                </GlassCard>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {calculations.map((calc) => (
+                  {filteredCalculations.map((calc) => (
                     <Link key={calc.id} href={`/dashboard/calculator?id=${calc.id}`} className="block">
                     <GlassCard className="p-6 border border-white/5 hover:border-emerald-400/30 transition-all duration-300 group relative overflow-hidden h-full">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-400/5 rounded-bl-full -z-10 blur-xl group-hover:bg-emerald-400/10 transition-all"></div>
@@ -225,9 +302,15 @@ export default function ActionsPage() {
                   <p className="text-gray-400 font-medium text-center">Nenhuma ideia salva ainda.</p>
                   <p className="text-gray-500 text-sm font-light mt-2">Vá em Gerador de Ideias para criar um roteiro.</p>
                 </GlassCard>
+              ) : filteredIdeas.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Search className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhuma ideia encontrada.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Tente buscar por outro termo.</p>
+                </GlassCard>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {ideas.map((idea) => (
+                  {filteredIdeas.map((idea) => (
                     <Link key={idea.id} href={`/dashboard/idea-generator?id=${idea.id}`} className="block">
                     <GlassCard className="p-6 border border-white/5 hover:border-brand-neon/30 transition-all duration-300 group relative overflow-hidden h-full">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-brand-neon/5 rounded-bl-full -z-10 blur-xl group-hover:bg-brand-neon/10 transition-all"></div>
@@ -271,9 +354,15 @@ export default function ActionsPage() {
                   <p className="text-gray-400 font-medium text-center">Nenhuma proposta salva ainda.</p>
                   <p className="text-gray-500 text-sm font-light mt-2">Vá em Gerador de Propostas para montar a sua.</p>
                 </GlassCard>
+              ) : filteredProposals.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Search className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhuma proposta encontrada.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Tente buscar por outro termo.</p>
+                </GlassCard>
               ) : (
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {proposals.map((prop) => (
+                  {filteredProposals.map((prop) => (
                     <Link key={prop.id} href={`/dashboard/proposal?id=${prop.id}`} className="block">
                     <GlassCard className="p-6 border border-white/5 hover:border-indigo-500/30 transition-all duration-300 group relative overflow-hidden h-full">
                       <div className="absolute top-0 right-0 w-32 h-32 bg-indigo-500/5 rounded-bl-full -z-10 blur-xl group-hover:bg-indigo-500/10 transition-all"></div>

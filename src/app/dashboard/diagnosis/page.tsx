@@ -12,6 +12,7 @@ import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { addNotification } from '@/lib/notifications';
 
 export default function DiagnosisPage() {
   const [handle, setHandle] = useState('');
@@ -76,6 +77,13 @@ export default function DiagnosisPage() {
       setResult(resData.data);
 
       if (user && resData.data) {
+        addNotification(
+          user.uid,
+          'Diagnóstico Concluído',
+          `A auditoria do perfil @${handle.trim().replace('@', '')} foi gerada com sucesso!`,
+          'success'
+        );
+
         try {
           await addDoc(collection(db, 'diagnoses'), {
              userId: user.uid,

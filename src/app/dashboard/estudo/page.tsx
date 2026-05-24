@@ -151,27 +151,7 @@ export default function EstudoPage() {
 
   // Helper to get resources based on module
   const getResourcesForVideo = (video: Video) => {
-    const videoId = video.id;
-    if (videoId.startsWith('m1-')) {
-      return [
-        { name: "Checklist de Pré-Produção.pdf", size: "1.2 MB", type: "PDF" },
-        { name: "Guia de Roteiro e Estrutura Magnética.pdf", size: "2.4 MB", type: "PDF" }
-      ];
-    } else if (videoId.startsWith('m2-')) {
-      return [
-        { name: "Guia Técnico: Configurando Câmera Manual no Celular.pdf", size: "3.1 MB", type: "PDF" }
-      ];
-    } else if (videoId.startsWith('m3-')) {
-      return [
-        { name: "Pacote de Assets de Edição (Overlays & Transições).zip", size: "45 MB", type: "ZIP" },
-        { name: "Presilhas de Áudio e Efeitos Sonoros Recomendados.zip", size: "18 MB", type: "ZIP" },
-        { name: "Preset de Cores e LUTs para Mobile (CapCut/NodeVideo).zip", size: "5.4 MB", type: "ZIP" }
-      ];
-    }
-    return [
-      { name: "Modelo de Contrato Comercial de Edição de Vídeos.docx", size: "480 KB", type: "Word" },
-      { name: "Anotações Complementares da Mentoria.pdf", size: "1.5 MB", type: "PDF" }
-    ];
+    return video.resources || [];
   };
 
   return (
@@ -600,26 +580,49 @@ export default function EstudoPage() {
                   {/* RESOURCES TAB */}
                   {modalTab === 'resources' && (
                     <div className="space-y-3">
-                      <p className="text-xs text-gray-400 mb-1">Baixe arquivos extras e assets para acompanhar a aula na prática:</p>
-                      {getResourcesForVideo(selectedVideo).map((resource, idx) => (
-                        <div 
-                          key={idx} 
-                          className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
-                        >
-                          <div className="flex items-center gap-2.5">
-                            <div className="w-8 h-8 rounded-lg bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-mint">
-                              <FileText className="w-4 h-4" />
+                      {getResourcesForVideo(selectedVideo).length > 0 ? (
+                        <>
+                          <p className="text-xs text-gray-400 mb-1">Baixe arquivos extras e assets para acompanhar a aula na prática:</p>
+                          {getResourcesForVideo(selectedVideo).map((resource, idx) => (
+                            <div 
+                              key={idx} 
+                              className="flex items-center justify-between p-3 rounded-xl bg-white/5 border border-white/5 hover:bg-white/10 transition-colors"
+                            >
+                              <div className="flex items-center gap-2.5">
+                                <div className="w-8 h-8 rounded-lg bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-mint">
+                                  <FileText className="w-4 h-4" />
+                                </div>
+                                <div>
+                                  <p className="text-xs font-bold text-white line-clamp-1">{resource.name}</p>
+                                  <span className="text-[10px] text-gray-400 uppercase font-mono">{resource.type} • {resource.size}</span>
+                                </div>
+                              </div>
+                              {resource.url ? (
+                                <a 
+                                  href={resource.url} 
+                                  target="_blank" 
+                                  rel="noopener noreferrer"
+                                  className="p-1.5 rounded-lg bg-black/40 border border-white/5 hover:border-brand-emerald/40 text-brand-mint hover:text-white transition-all text-xs flex items-center gap-1"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Baixar
+                                </a>
+                              ) : (
+                                <button 
+                                  className="p-1.5 rounded-lg bg-black/40 border border-white/5 text-gray-500 cursor-not-allowed text-xs flex items-center gap-1 opacity-55"
+                                  title="Este é um arquivo de demonstração genérico"
+                                >
+                                  <Download className="w-3.5 h-3.5" /> Baixar
+                                </button>
+                              )}
                             </div>
-                            <div>
-                              <p className="text-xs font-bold text-white line-clamp-1">{resource.name}</p>
-                              <span className="text-[10px] text-gray-400 uppercase font-mono">{resource.type} • {resource.size}</span>
-                            </div>
-                          </div>
-                          <button className="p-1.5 rounded-lg bg-black/40 border border-white/5 hover:border-brand-emerald/40 text-brand-mint hover:text-white transition-all text-xs flex items-center gap-1">
-                            <Download className="w-3.5 h-3.5" /> Baixar
-                          </button>
+                          ))}
+                        </>
+                      ) : (
+                        <div className="text-center py-10 bg-white/[0.02] border border-white/5 rounded-xl">
+                          <FileText className="w-8 h-8 text-gray-600 mx-auto mb-2" />
+                          <p className="text-xs text-gray-400">Nenhum material de apoio disponível para esta aula.</p>
                         </div>
-                      ))}
+                      )}
                     </div>
                   )}
 

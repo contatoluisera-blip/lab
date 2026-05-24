@@ -10,6 +10,7 @@ import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
+import { addNotification } from '@/lib/notifications';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 
@@ -134,6 +135,12 @@ export default function ProposalPage() {
       setResult(resData.data);
       
       if (user) {
+        addNotification(
+          user.uid,
+          'Proposta Comercial Gerada',
+          `A proposta comercial para ${cliente || 'o cliente'} foi gerada com sucesso!`,
+          'success'
+        );
         try {
           const clientNameToSave = cliente || (selectedDiagnosis ? diagnoses.find(d => d.id === selectedDiagnosis)?.handle : 'Cliente sem nome');
 
