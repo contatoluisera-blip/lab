@@ -536,10 +536,27 @@ export default function CalculatorPage() {
           </div>
 
           <div className="flex justify-center mt-8">
-             <div className="bg-black/30 border border-white/5 px-8 py-5 rounded-2xl max-w-3xl text-center">
-                <p className="text-sm text-gray-400 leading-relaxed italic">
+             <div className="bg-black/30 border border-white/5 px-8 py-5 rounded-2xl max-w-3xl text-center w-full">
+                <p className="text-sm text-gray-400 leading-relaxed italic mb-6">
                   {result.raciocinio}
                 </p>
+                
+                {result.detalhamento && result.detalhamento.length > 0 && (
+                  <div className="text-left mt-6 space-y-3 border-t border-white/10 pt-6">
+                    <h4 className="text-sm font-semibold text-white mb-4 uppercase tracking-wider text-center">Detalhamento da Composição de Preço</h4>
+                    {result.detalhamento.map((item: any, i: number) => (
+                      <div key={i} className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-lg bg-white/5 border border-white/5 hover:bg-white/10 transition-colors">
+                        <div className="flex flex-col">
+                          <span className="text-sm font-medium text-gray-200">{item.label}</span>
+                          <span className="text-xs text-gray-500 mt-0.5">{item.desc}</span>
+                        </div>
+                        <div className="mt-2 sm:mt-0 sm:ml-4 text-right shrink-0">
+                          <span className="text-sm font-bold text-brand-jade">{item.valor}</span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
              </div>
           </div>
 

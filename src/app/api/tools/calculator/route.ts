@@ -249,6 +249,19 @@ export async function POST(request: Request) {
     // Formatar como string amigável
     const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR')}`;
 
+    // Detalhamento do Cálculo Item por Item
+    const detalhamento = [
+      { label: 'Valor Hora Base', valor: fmt(valor_hora_base), desc: 'Custo de vida + amortização de equipamentos + licenças.' },
+      { label: 'Tempo Técnico Estimado', valor: `${horas_estimadas.toFixed(1)}h`, desc: 'Captação, edição, roteiro e revisões (com desconto de volume).' },
+      { label: 'Custo Técnico Fixo', valor: fmt(technical_cost), desc: 'Horas totais x Valor da Hora Base.' },
+      { label: 'Custos Diretos', valor: fmt(custos_diretos), desc: 'Deslocamento, alimentação, trilhas e banco de imagens.' },
+      { label: 'Direitos de Imagem', valor: fmt(valor_direitos), desc: `Adicional de ${(direitos_pct * 100).toFixed(0)}% pelo escopo e licença de uso.` },
+      { label: 'Risco Operacional', valor: fmt(operational_risk), desc: 'Fundo de 4% para atrasos, refações e imprevistos.' },
+      { label: 'Subtotal Técnico', valor: fmt(subtotal_com_prazo), desc: deadline_mult > 1.0 ? `Subtotal com adicional de urgência (${((deadline_mult - 1) * 100).toFixed(0)}%).` : 'Custos + Direitos + Risco Operacional.' },
+      { label: 'Impostos e Pagamento', valor: fmt(precoFinal * (imposto_rate + taxa_pagamento)), desc: `Impostos fiscais (${(imposto_rate * 100).toFixed(1)}%) + Taxas de Gateway (${(taxa_pagamento * 100).toFixed(1)}%).` },
+      { label: 'Reserva Comercial / Lucro', valor: fmt(precoFinal * reserva_comercial), desc: `Margem livre de ${(reserva_comercial * 100).toFixed(0)}% para negociação e lucro líquido da agência.` }
+    ];
+
     // Raciocínio (Mock explicativo atualizado)
     const argumentoVenda = `Este orçamento considera ${q} vídeos verticais curtos, até ${h_captacao} horas de captação, edição ${edit_complexity.replace('_', ' ')}, legendas, capa simples, e entrega em prazo ${deadline_type}. Não inclui arquivos brutos ou motion avançado.`;
 
@@ -258,7 +271,8 @@ export async function POST(request: Request) {
       precoPremium: fmt(precoPremium),
       precoPorVideo: fmt(precoPorVideo),
       raciocinio: `A precificação considera ${horas_estimadas.toFixed(1)}h técnicas estimadas. Valor base regional da hora operando a ${fmt(valor_hora_base)}/h. Custos diretos previstos de ${fmt(custos_diretos)}.`,
-      argumentoVenda
+      argumentoVenda,
+      detalhamento
     };
 
     return NextResponse.json({ success: true, data: resultData });

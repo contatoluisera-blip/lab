@@ -68,16 +68,18 @@ export async function POST(request: Request) {
       console.log(`Buscando Apify para ${handle} (Perfil + 60 Posts)...`);
       
       const [profileRun, postsRun] = await Promise.all([
-        apifyClient.actor("shu8hvrXbJbY3Eb9W").call({
+        apifyClient.actor("apify/instagram-scraper").call({
           addParentData: false,
           directUrls: [`https://www.instagram.com/${handle}`],
-          resultsType: "details"
+          resultsType: "details",
+          searchType: "hashtag"
         }),
-        apifyClient.actor("shu8hvrXbJbY3Eb9W").call({
+        apifyClient.actor("apify/instagram-scraper").call({
           addParentData: false,
           directUrls: [`https://www.instagram.com/${handle}`],
           resultsLimit: 60,
-          resultsType: "posts"
+          resultsType: "posts",
+          searchType: "hashtag"
         })
       ]);
 
