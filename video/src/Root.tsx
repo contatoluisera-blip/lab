@@ -10,12 +10,12 @@ export const RemotionRoot: React.FC = () => {
   return (
     <>
       <Composition
-        id="Apresentacao"
+        id="ChutaAi"
         component={Apresentacao}
         durationInFrames={2240}
         fps={30}
-        width={3840}
-        height={2160}
+        width={2160}
+        height={3840}
       />
 
       <Composition

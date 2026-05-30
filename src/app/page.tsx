@@ -70,6 +70,21 @@ export default function LandingPage() {
       featured: false
     },
     {
+      name: 'Elite',
+      price: 'R$ 197',
+      description: 'Para quem quer acessar a Creator Lab no nível mais completo, com ferramentas, conteúdos, gestão e suporte estratégico para operar com mais profissionalismo, consistência e visão de crescimento.',
+      subText: 'Ideal para criadores, social medias e profissionais que querem levar a criação mobile para outro patamar.',
+      features: [
+        'Todos os recursos do plano Pro',
+        'Suporte estratégico prioritário',
+        'Acesso aos Cursos, Aulas e Lives com Luisera',
+        'Conteúdos exclusivos de posicionamento B2B',
+        'Consultoria de marca pessoal em grupo'
+      ],
+      buttonText: 'Quero o plano Elite',
+      featured: true
+    },
+    {
       name: 'Pro',
       price: 'R$ 117',
       description: 'Para quem já atende clientes ou quer acelerar sua evolução com mais recursos, mais estrutura e mais capacidade de transformar análises, ideias e orçamentos em propostas comerciais completas.',
@@ -83,21 +98,6 @@ export default function LandingPage() {
         'Gestão de Clientes integrada'
       ],
       buttonText: 'Entrar no plano Pro',
-      featured: true
-    },
-    {
-      name: 'Elite',
-      price: 'R$ 197',
-      description: 'Para quem quer acessar a Creator Lab no nível mais completo, com ferramentas, conteúdos, gestão e suporte estratégico para operar com mais profissionalismo, consistência e visão de crescimento.',
-      subText: 'Ideal para criadores, social medias e profissionais que querem levar a criação mobile para outro patamar.',
-      features: [
-        'Todos os recursos do plano Pro',
-        'Suporte estratégico prioritário',
-        'Acesso aos Cursos, Aulas e Lives com Luisera',
-        'Conteúdos exclusivos de posicionamento B2B',
-        'Consultoria de marca pessoal em grupo'
-      ],
-      buttonText: 'Quero o plano Elite',
       featured: false
     }
   ];
@@ -220,6 +220,23 @@ export default function LandingPage() {
             <Link href="/login">
               <Button size="lg" variant="ghost" className="px-8 border border-white/5 hover:bg-white/5">Entrar no App</Button>
             </Link>
+          </div>
+
+          {/* Video Player */}
+          <div className="w-full max-w-4xl mx-auto mt-12 relative group z-20">
+            {/* Ambient Glow */}
+            <div className="absolute inset-0 bg-brand-emerald/10 blur-[80px] rounded-full group-hover:bg-brand-emerald/20 transition-all duration-700 pointer-events-none" />
+            
+            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.2)] bg-[#050505] aspect-video">
+              <iframe
+                id="panda-39e7fff9-00f5-4e62-9505-0b4e625104b8"
+                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=39e7fff9-00f5-4e62-9505-0b4e625104b8&autoplay=true"
+                style={{ border: 'none' }}
+                className="w-full h-full"
+                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                allowFullScreen
+              />
+            </div>
           </div>
         </section>
 
