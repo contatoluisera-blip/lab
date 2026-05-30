@@ -15,7 +15,10 @@ const firebaseConfig = {
 // Conecta uma única vez para evitar vazamento em memória no NextJS Server Side
 const app = !getApps().length ? initializeApp(firebaseConfig) : getApp();
 
+import { getStorage } from "firebase/storage";
+
 const auth = getAuth(app);
 const db = getFirestore(app);
+const storage = getStorage(app);
 
-export { app, auth, db };
+export { app, auth, db, storage };

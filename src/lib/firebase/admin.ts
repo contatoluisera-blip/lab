@@ -12,6 +12,7 @@ if (!admin.apps.length) {
     try {
       admin.initializeApp({
         credential: admin.credential.cert({ projectId, clientEmail, privateKey }),
+        storageBucket: process.env.NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,
       });
       isAdminReady = true;
     } catch (error) {
@@ -29,3 +30,4 @@ if (!admin.apps.length) {
 export { isAdminReady };
 export const adminDb = isAdminReady ? admin.firestore() : null as any;
 export const adminAuth = isAdminReady ? admin.auth() : null as any;
+export const adminStorage = isAdminReady ? admin.storage() : null as any;

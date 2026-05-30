@@ -12,7 +12,8 @@ export type ToolId =
   | 'assistant'
   | 'clients'
   | 'actions'
-  | 'creator-card';
+  | 'creator-card'
+  | 'estudia';
 
 export interface PlanConfig {
   id: PlanId;
@@ -29,7 +30,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia'],
     courses: false,
   },
   pro: {
@@ -37,7 +38,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia'],
     courses: false,
   },
   elite: {
