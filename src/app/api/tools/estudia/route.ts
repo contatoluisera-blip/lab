@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import { adminStorage } from '@/lib/firebase/admin';
+import { adminStorage, adminDb } from '@/lib/firebase/admin';
 export const maxDuration = 300; 
 
 const KIE_AI_API_KEY = process.env.KIE_AI_API_KEY || '';
@@ -549,47 +549,20 @@ export async function POST(request: Request) {
 
     const taskId = createData.data.taskId;
 
-    // 2. Polling para buscar o resultado
-    let attempts = 0;
-    const maxAttempts = 60; // 60 * 3s = 3 minutos no máximo
-    const delayMs = 3000;
-
-    while (attempts < maxAttempts) {
-      await new Promise(resolve => setTimeout(resolve, delayMs));
-      attempts++;
-
-      const pollResponse = await fetch(`https://api.kie.ai/api/v1/jobs/recordInfo?taskId=${taskId}`, {
-        method: 'GET',
-        headers: {
-          'Authorization': `Bearer ${KIE_AI_API_KEY}`,
-        }
+    // 2. Salva o registro inicial no Firestore
+    if (adminDb) {
+      await adminDb.collection('estudia').doc(taskId).set({
+        userId: userId || 'anon',
+        taskId,
+        status: 'processing',
+        sourceUrl: publicUrl,
+        resultUrl: null,
+        createdAt: new Date().toISOString()
       });
-
-      const pollData = await pollResponse.json();
-
-      if (pollData.code === 200 && pollData.data) {
-        const state = pollData.data.state;
-
-        if (state === 'success') {
-          try {
-            const resultObj = JSON.parse(pollData.data.resultJson);
-            if (resultObj.resultUrls && resultObj.resultUrls.length > 0) {
-              return NextResponse.json({ success: true, imageUrl: resultObj.resultUrls[0] });
-            } else {
-               return NextResponse.json({ success: true, data: resultObj });
-            }
-          } catch (e) {
-            console.error('Erro ao parsear resultJson:', pollData.data.resultJson);
-            return NextResponse.json({ error: 'Formato de resposta inválido' }, { status: 500 });
-          }
-        } else if (state === 'failed' || state === 'fail') {
-          return NextResponse.json({ error: 'Geração falhou no provedor', details: pollData.data.failMsg }, { status: 500 });
-        }
-        // state === 'waiting' ou 'processing' -> continua o loop
-      }
     }
 
-    return NextResponse.json({ error: 'Tempo limite excedido aguardando a geração.' }, { status: 504 });
+    // 3. Retorna o taskId para o frontend fazer o polling
+    return NextResponse.json({ success: true, taskId });
 
   } catch (error: any) {
     console.error('Estudia Error:', error);

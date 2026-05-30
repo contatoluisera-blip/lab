@@ -12,7 +12,7 @@ import { addNotification } from '@/lib/notifications';
 
 export default function EstudIAPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit } = useUserProfile();
+  const { hasToolAccess, consumeCredit, refundCredit } = useUserProfile();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -66,6 +66,7 @@ export default function EstudIAPage() {
       // Converte imagem para base64 para enviar para a API
       const base64Image = await fileToBase64(selectedFile);
 
+      // 1. Inicia a requisição assíncrona
       const response = await fetch('/api/tools/estudia', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -75,10 +76,41 @@ export default function EstudIAPage() {
       const resData = await response.json();
       
       if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao processar a imagem. Tente novamente mais tarde.');
+        await refundCredit('estudia');
+        throw new Error(resData.error || 'Falha ao iniciar processamento. Seu crédito foi estornado.');
       }
       
-      setResultUrl(resData.imageUrl);
+      const taskId = resData.taskId;
+
+      // 2. Polling loop na interface
+      let attempts = 0;
+      const maxAttempts = 48; // 48 * 5s = 240s
+      const delayMs = 5000;
+      let finalResultUrl = null;
+
+      while (attempts < maxAttempts) {
+        await new Promise(resolve => setTimeout(resolve, delayMs));
+        attempts++;
+
+        const statusRes = await fetch(`/api/tools/estudia/status?taskId=${taskId}`);
+        const statusData = await statusRes.json();
+
+        if (statusData.success && statusData.status === 'completed') {
+          finalResultUrl = statusData.imageUrl;
+          break;
+        } else if (!statusData.success || statusData.status === 'failed') {
+          await refundCredit('estudia');
+          throw new Error(statusData.error || 'A geração falhou. Seu crédito não foi consumido, tente novamente.');
+        }
+        // Se estiver processando, apenas continua o loop
+      }
+
+      if (!finalResultUrl) {
+        await refundCredit('estudia');
+        throw new Error('O tempo limite de 240 segundos foi excedido. Seu crédito não foi consumido, tente gerar novamente.');
+      }
+
+      setResultUrl(finalResultUrl);
 
       if (user) {
         addNotification(
@@ -175,7 +207,7 @@ export default function EstudIAPage() {
                 <div className="absolute inset-0 bg-gradient-to-r from-transparent via-white/20 to-transparent -translate-x-[200%] group-hover:animate-[shimmer_2s_infinite]" />
                 {loading ? (
                   <span className="flex items-center gap-2 justify-center">
-                    <Sparkles className="w-5 h-5 animate-spin" /> PROCESSANDO NO ESTÚDIO (ISSO PODE LEVAR ALGUNS SEGUNDOS)...
+                    <Sparkles className="w-5 h-5 animate-spin" /> GERANDO... (PODE LEVAR DE 1 A 3 MINUTOS)
                   </span>
                 ) : (
                   <span className="flex items-center gap-2 justify-center">
@@ -203,10 +235,10 @@ export default function EstudIAPage() {
                 <div className="flex flex-col items-center justify-center space-y-4 text-center p-6">
                   <div className="w-16 h-16 border-4 border-t-teal-500 border-r-emerald-500 border-b-transparent border-l-transparent rounded-full animate-spin"></div>
                   <p className="text-teal-400 font-medium text-sm animate-pulse">
-                    Aplicando iluminação de estúdio e ajustando textura...
+                    Pode levar de 1 a 3 minutos para gerar, te avisaremos quando ficar pronto.
                   </p>
                   <p className="text-xs text-gray-500">
-                    O NanoBanana 2 está processando sua imagem em alta qualidade.
+                    O NanoBanana 2 está processando sua imagem em alta qualidade e você pode acompanhar por aqui ou na aba Minhas Ações.
                   </p>
                 </div>
               ) : resultUrl ? (

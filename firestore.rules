@@ -40,6 +40,14 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
+    // Estúd.IA gerações
+    match /estudia/{docId} {
+      allow read, update, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+    }
+
     // Clientes gerenciados
     match /clients/{docId} {
       allow read, update, delete: if request.auth != null

@@ -37,6 +37,10 @@ interface UserProfileContextType {
    * First use of each tool is free (trial). Returns { ok, reason }.
    */
   consumeCredit: (tool: ToolId) => Promise<{ ok: boolean; reason?: 'no_access' | 'no_credits' }>;
+  /**
+   * Refunds 1 credit to the user if a generation failed or timed out.
+   */
+  refundCredit: (tool: ToolId) => Promise<{ ok: boolean }>;
   /** Refresh profile from Firestore */
   refreshProfile: () => Promise<void>;
 }
@@ -47,6 +51,7 @@ const UserProfileContext = createContext<UserProfileContextType>({
   hasToolAccess: () => false,
   hasCourseAccess: false,
   consumeCredit: async () => ({ ok: false, reason: 'no_access' }),
+  refundCredit: async () => ({ ok: false }),
   refreshProfile: async () => {},
 });
 
@@ -176,6 +181,25 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     [user, userProfile]
   );
 
+  const refundCredit = useCallback(
+    async (tool: ToolId): Promise<{ ok: boolean }> => {
+      if (!user || !userProfile) return { ok: false };
+
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { credits: increment(1) });
+        setUserProfile(prev =>
+          prev ? { ...prev, credits: prev.credits + 1 } : prev
+        );
+        return { ok: true };
+      } catch (e) {
+        console.error('[UserProfile] Failed to refund credit:', e);
+        return { ok: false };
+      }
+    },
+    [user, userProfile]
+  );
+
   return (
     <UserProfileContext.Provider
       value={{
@@ -184,6 +208,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         hasToolAccess,
         hasCourseAccess,
         consumeCredit,
+        refundCredit,
         refreshProfile: fetchProfile,
       }}
     >

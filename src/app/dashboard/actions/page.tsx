@@ -10,13 +10,14 @@ import Link from 'next/link';
 
 export default function ActionsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'diagnostics' | 'calculations' | 'ideas' | 'proposals'>('diagnostics');
+  const [activeTab, setActiveTab] = useState<'diagnostics' | 'calculations' | 'ideas' | 'proposals' | 'estudia'>('diagnostics');
   const [searchQuery, setSearchQuery] = useState('');
   
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
   const [calculations, setCalculations] = useState<any[]>([]);
   const [ideas, setIdeas] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
+  const [estudiaGens, setEstudiaGens] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
   const filteredDiagnoses = diagnoses.filter(d => {
@@ -61,6 +62,11 @@ export default function ActionsPage() {
     );
   });
 
+  const filteredEstudia = estudiaGens.filter(e => {
+    if (!searchQuery) return true;
+    return e.status?.toLowerCase().includes(searchQuery.toLowerCase());
+  });
+
   useEffect(() => {
     if (!user) return;
     
@@ -71,9 +77,10 @@ export default function ActionsPage() {
         const calcQ = query(collection(db, 'calculations'), where('userId', '==', user.uid));
         const ideaQ = query(collection(db, 'ideas'), where('userId', '==', user.uid));
         const propQ = query(collection(db, 'proposals'), where('userId', '==', user.uid));
+        const estudiaQ = query(collection(db, 'estudia'), where('userId', '==', user.uid));
         
-        const [diagSnap, calcSnap, ideaSnap, propSnap] = await Promise.all([
-          getDocs(diagQ), getDocs(calcQ), getDocs(ideaQ), getDocs(propQ)
+        const [diagSnap, calcSnap, ideaSnap, propSnap, estudiaSnap] = await Promise.all([
+          getDocs(diagQ), getDocs(calcQ), getDocs(ideaQ), getDocs(propQ), getDocs(estudiaQ)
         ]);
         
         const loadedDiag = diagSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
@@ -88,11 +95,15 @@ export default function ActionsPage() {
         const loadedProps = propSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
         });
+        const loadedEstudia = estudiaSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        });
         
         setDiagnoses(loadedDiag);
         setCalculations(loadedCalc);
         setIdeas(loadedIdeas);
         setProposals(loadedProps);
+        setEstudiaGens(loadedEstudia);
       } catch (err) {
         console.error("Erro ao carregar histórico:", err);
       } finally {
@@ -143,6 +154,12 @@ export default function ActionsPage() {
             className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'proposals' ? 'bg-indigo-500 text-white shadow-[0_0_15px_rgba(99,102,241,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
           >
             <FileText className="w-4 h-4" /> Propostas
+          </button>
+          <button 
+            onClick={() => { setActiveTab('estudia'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'estudia' ? 'bg-teal-500 text-white shadow-[0_0_15px_rgba(20,184,166,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <Sparkles className="w-4 h-4" /> Fotos de Estúdio
           </button>
         </div>
 
@@ -391,6 +408,71 @@ export default function ActionsPage() {
                       </div>
                     </GlassCard>
                     </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aba de Estúd.IA */}
+          {activeTab === 'estudia' && (
+            <div>
+              {estudiaGens.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Sparkles className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhuma foto de estúdio gerada ainda.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Vá em Foto de Estúdio para criar seu retrato profissional.</p>
+                </GlassCard>
+              ) : filteredEstudia.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Search className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">Nenhuma foto encontrada.</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">Tente buscar por outro termo.</p>
+                </GlassCard>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredEstudia.map((gen) => (
+                    <GlassCard key={gen.id} className="p-6 border border-white/5 hover:border-teal-500/30 transition-all duration-300 group relative overflow-hidden h-full flex flex-col">
+                      <div className="absolute top-0 right-0 w-32 h-32 bg-teal-500/5 rounded-bl-full -z-10 blur-xl group-hover:bg-teal-500/10 transition-all"></div>
+                      
+                      <div className="flex justify-between items-start mb-6">
+                        <div className="flex items-center gap-2 text-teal-400">
+                          <Sparkles className="w-5 h-5" />
+                          <span className="font-bold tracking-tight">Estúd.IA</span>
+                        </div>
+                        <div className={`px-3 py-1 rounded-full text-xs font-bold ${
+                          gen.status === 'completed' ? 'bg-teal-500/20 text-teal-400' :
+                          gen.status === 'processing' ? 'bg-blue-400/20 text-blue-400' :
+                          'bg-red-400/20 text-red-400'
+                        }`}>
+                          {gen.status === 'completed' ? 'Concluído' : gen.status === 'processing' ? 'Processando' : 'Erro'}
+                        </div>
+                      </div>
+
+                      <div className="flex-1 flex items-center justify-center mb-6">
+                        {gen.status === 'completed' && gen.resultUrl ? (
+                          <img src={gen.resultUrl} alt="Retrato" className="w-full h-48 object-cover rounded-xl" />
+                        ) : gen.status === 'processing' ? (
+                          <div className="w-full h-48 bg-black/40 rounded-xl flex items-center justify-center">
+                            <Sparkles className="w-8 h-8 text-teal-400 animate-spin" />
+                          </div>
+                        ) : (
+                          <div className="w-full h-48 bg-black/40 rounded-xl flex items-center justify-center">
+                            <X className="w-8 h-8 text-red-400" />
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="pt-4 border-t border-white/5 flex items-center justify-between">
+                        <div className="flex items-center gap-2 text-gray-500 text-xs font-light">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(gen.createdAt).toLocaleDateString('pt-BR')}
+                        </div>
+                        {gen.status === 'completed' && gen.resultUrl && (
+                          <a href={gen.resultUrl} target="_blank" rel="noreferrer" className="text-teal-400 text-xs font-medium hover:underline">Abrir</a>
+                        )}
+                      </div>
+                    </GlassCard>
                   ))}
                 </div>
               )}
