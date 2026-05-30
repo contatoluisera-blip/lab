@@ -16,8 +16,8 @@ export function ProtectedRoute({ children }: { children: React.ReactNode }) {
     if (!loading && !user) {
       router.push('/login');
     } else if (!loading && !profileLoading && user && userProfile) {
-      if ((!userProfile.plan || (userProfile.plan as any) === 'free') && pathname !== '/dashboard/billing') {
-        router.push('/dashboard/billing');
+      if (!userProfile.plan || (userProfile.plan as any) === 'free') {
+        router.push('/paywall');
       }
     }
   }, [user, loading, userProfile, profileLoading, pathname, router]);
