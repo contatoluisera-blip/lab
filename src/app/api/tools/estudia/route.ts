@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminStorage } from '@/lib/firebase/admin';
 export const maxDuration = 300; 
 
-const KIE_AI_API_KEY = 'd86398621bbeab92d576b08a234644db';
+const KIE_AI_API_KEY = process.env.KIE_AI_API_KEY || '';
 
 const PROMPT = `You are an advanced image-to-image portrait transformation engine specialized in high-end professional studio photography.
 
