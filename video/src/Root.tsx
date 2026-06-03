@@ -4,11 +4,22 @@ import { HelloWorld, myCompSchema } from "./HelloWorld";
 import { Logo, myCompSchema2 } from "./HelloWorld/Logo";
 import { Apresentacao } from "./Apresentacao";
 
+import { PreviaCreatorLab } from "./PreviaCreatorLab";
+
 // Each <Composition> is an entry in the sidebar!
 
 export const RemotionRoot: React.FC = () => {
   return (
     <>
+      <Composition
+        id="PreviaCreatorLab"
+        component={PreviaCreatorLab}
+        durationInFrames={1770}
+        fps={30}
+        width={2160}
+        height={3830}
+      />
+
       <Composition
         id="ChutaAi"
         component={Apresentacao}

@@ -64,70 +64,38 @@ export async function POST(request: Request) {
     let profile: any = null;
     let allPosts: any[] = [];
     
-    try {
-      console.log(`Buscando Apify para ${handle} (Perfil + 60 Posts)...`);
-      
-      const [profileRun, postsRun] = await Promise.all([
-        apifyClient.actor("apify/instagram-scraper").call({
-          addParentData: false,
-          directUrls: [`https://www.instagram.com/${handle}`],
-          resultsType: "details",
-          searchType: "hashtag"
-        }),
-        apifyClient.actor("apify/instagram-scraper").call({
-          addParentData: false,
-          directUrls: [`https://www.instagram.com/${handle}`],
-          resultsLimit: 60,
-          resultsType: "posts",
-          searchType: "hashtag"
-        })
-      ]);
+    console.log(`Buscando Apify para ${handle} (Perfil + 60 Posts)...`);
+    
+    const [profileRun, postsRun] = await Promise.all([
+      apifyClient.actor("apify/instagram-scraper").call({
+        addParentData: false,
+        directUrls: [`https://www.instagram.com/${handle}/`],
+        resultsType: "details",
+        searchType: "user"
+      }),
+      apifyClient.actor("apify/instagram-scraper").call({
+        addParentData: false,
+        directUrls: [`https://www.instagram.com/${handle}/`],
+        resultsLimit: 60,
+        resultsType: "posts",
+        searchType: "user"
+      })
+    ]);
 
-      const [profileDataset, postsDataset] = await Promise.all([
-        apifyClient.dataset(profileRun.defaultDatasetId).listItems(),
-        apifyClient.dataset(postsRun.defaultDatasetId).listItems()
-      ]);
+    const [profileDataset, postsDataset] = await Promise.all([
+      apifyClient.dataset(profileRun.defaultDatasetId).listItems(),
+      apifyClient.dataset(postsRun.defaultDatasetId).listItems()
+    ]);
 
-      const profileItems = profileDataset.items;
-      const postsItems = postsDataset.items;
+    const profileItems = profileDataset.items;
+    const postsItems = postsDataset.items;
 
-      if (profileItems && profileItems.length > 0) {
-        profile = profileItems.find(i => i.followersCount !== undefined) || profileItems[0];
-      }
-      
-      if (postsItems && postsItems.length > 0) {
-        allPosts = postsItems.filter(i => i.type || i.shortCode);
-      }
-      
-    } catch (apiErr: any) {
-      console.warn("Apify falhou (provável erro de créditos 402 ou token). Usando MOCK para teste do motor.", apiErr.message);
-      
-      // Fallback Mock para permitir o teste visual da UI e do Motor Determinístico
-      profile = {
-          followersCount: 12500,
-          profilePicUrl: "https://mock.com/pic.jpg",
-          fullName: "Nome de Teste",
-          biography: "Especialista em marketing. Clique no link para agendar sua consultoria exclusiva.",
-          externalUrl: "https://linktr.ee/mock",
-          businessCategoryName: "Marketing",
-          postsCount: 150
-      };
-      
-      allPosts = Array.from({length: 45}).map((_, i) => ({
-            timestamp: new Date(Date.now() - Math.random() * 90 * 24 * 60 * 60 * 1000).toISOString(),
-            type: Math.random() > 0.4 ? 'Video' : 'Image',
-            isReel: true,
-            caption: Math.random() > 0.5 ? "Clique no link na bio! #marketing" : "Apenas um post legal.",
-            likesCount: Math.floor(Math.random() * 500) + 100,
-            commentsCount: Math.floor(Math.random() * 50) + 5,
-            url: `mock_url_${i}`,
-            latestComments: [
-              { text: "Amei muito, recomendo!" },
-              { text: "Quanto custa o serviço?" },
-              { text: "Muito ruim, não gostei." },
-              { text: "sdv segue de volta" }
-            ]
-      }));
+    if (profileItems && profileItems.length > 0) {
+      profile = profileItems.find(i => i.followersCount !== undefined) || profileItems[0];
+    }
+    
+    if (postsItems && postsItems.length > 0) {
+      allPosts = postsItems.filter(i => i.type || i.shortCode);
     }
 
     if (!profile) {
@@ -357,7 +325,7 @@ export async function POST(request: Request) {
 
         const miniPayload = `
         Perfil: @${handle} (${followers} seg)
-        Bio: ${profile.biography || ''}
+        Bio: ${profile.biography || 'Não informada'}
         Segmento Oficial: ${profile.businessCategoryName || 'Não informado'}
         Amostra de Legendas Recentes: ${amostraLegendas}
         Nota Final: ${notaFinal}/100 (${classificacao})
@@ -365,10 +333,15 @@ export async function POST(request: Request) {
         Posts por Semana: ${postsPorSemana.toFixed(1)}
         Pontos fracos: ${recs.map(r=>r.area).join(', ')}
         
+        INSTRUÇÕES CRÍTICAS PARA O NICHO:
+        - O Nicho e o Resumo Executivo devem ser deduzidos PRIMARIAMENTE pela "Bio" e pelo "Segmento Oficial".
+        - A "Amostra de Legendas" é secundária e serve apenas para o tom de voz. NÃO mude o nicho principal do criador por conta de legendas específicas, pois elas podem ser publicidades ou parcerias esporádicas fora do escopo do perfil.
+        - Não faça adivinhações. Se o nicho não for óbvio, atenha-se ao que está escrito na Bio.
+        
         Retorne um objeto JSON contendo estritamente as chaves abaixo:
-        1. "resumoExecutivo": Resumo em 1 parágrafo (max 4 frases), amigável mas tático, sem dizer a nota numérica.
-        2. "nicho": Analise a Bio e as Legendas para descrever com precisão o que o criador faz. NÃO use respostas genéricas como "Digital creator" ou "Tech" se puder ser mais descritivo (ex: Comentarista Político, Produtor de Audiovisual, Médico Pediatra).
-        3. "tom": O tom da comunicação inferido pela bio e segmento (ex: Corporativo, Descontraído, Educativo, Motivacional).
+        1. "resumoExecutivo": Resumo analítico em 1 parágrafo (max 4 frases), amigável mas tático. Foque em avaliar a saúde do perfil (engajamento, consistência) e as oportunidades de melhoria. Não diga a nota numérica e não foque muito no tema do conteúdo.
+        2. "nicho": Descreva com precisão o foco do criador baseado NA BIO e SEGMENTO.
+        3. "tom": O tom da comunicação (ex: Corporativo, Descontraído, Educativo, Vendedor).
         4. "formatoPrincipal": O formato predominante baseado na análise numérica.
         `;
 
