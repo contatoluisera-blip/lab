@@ -99,7 +99,8 @@ export default function DiagnosisPage() {
       }
 
     } catch (err: any) {
-      setError(err.message);
+      console.error("Erro completo da auditoria:", err);
+      setError("Não foi possível analisar este perfil no momento. Verifique o @ digitado ou tente novamente mais tarde.");
     } finally {
       setLoading(false);
     }
