@@ -63,9 +63,8 @@ export async function POST(request: Request) {
 
     let profile: any = null;
     let allPosts: any[] = [];
-    
-    console.log(`Buscando Apify para ${handle} (Perfil + 60 Posts)...`);
-    
+    console.log(`Buscando Apify para ${handle} (Perfil + 120 Posts)...`);
+
     const [profileRun, postsRun] = await Promise.all([
       apifyClient.actor("apify/instagram-scraper").call({
         addParentData: false,
@@ -76,7 +75,7 @@ export async function POST(request: Request) {
       apifyClient.actor("apify/instagram-scraper").call({
         addParentData: false,
         directUrls: [`https://www.instagram.com/${handle}/`],
-        resultsLimit: 60,
+        resultsLimit: 120,
         resultsType: "posts",
         searchType: "user"
       })
@@ -314,6 +313,14 @@ export async function POST(request: Request) {
     let nicho = profile.businessCategoryName || 'Não identificado';
     let tom = 'Neutro';
     let formatoPrincipal = pctReels > 0.5 ? 'Foco em Vídeos Curtos (Reels)' : 'Foco em Carrosséis/Fotos';
+    let analiseSentimento = {
+      positivo: 50,
+      neutro: 40,
+      negativo: 10,
+      resumo: "Não foi possível analisar os comentários neste momento.",
+      amostraTotal: 0,
+      porPost: [] as any[]
+    };
     
     if (process.env.OPENAI_API_KEY) {
       try {
@@ -322,27 +329,50 @@ export async function POST(request: Request) {
         });
         
         const amostraLegendas = recentPosts.slice(0, 10).map(p => p.caption).filter(c => c && c.length > 5).join(' | ').substring(0, 800);
+        
+        let totalCommentsSampled = 0;
+        const comentariosPorPost = recentPosts.slice(0, 15).map(p => {
+          const coms = (p.latestComments || []).map((c: any) => c.text).filter(Boolean);
+          totalCommentsSampled += coms.length;
+          return `Post URL: ${p.url || p.shortCode}\nComentários (${coms.length}):\n${coms.slice(0, 30).join('\n')}`;
+        }).join('\n\n').substring(0, 6000);
 
         const miniPayload = `
         Perfil: @${handle} (${followers} seg)
         Bio: ${profile.biography || 'Não informada'}
         Segmento Oficial: ${profile.businessCategoryName || 'Não informado'}
         Amostra de Legendas Recentes: ${amostraLegendas}
-        Nota Final: ${notaFinal}/100 (${classificacao})
-        Engajamento Robusto: ${engajamentoRobusto.toFixed(2)}%
-        Posts por Semana: ${postsPorSemana.toFixed(1)}
-        Pontos fracos: ${recs.map(r=>r.area).join(', ')}
         
-        INSTRUÇÕES CRÍTICAS PARA O NICHO:
-        - O Nicho e o Resumo Executivo devem ser deduzidos PRIMARIAMENTE pela "Bio" e pelo "Segmento Oficial".
-        - A "Amostra de Legendas" é secundária e serve apenas para o tom de voz. NÃO mude o nicho principal do criador por conta de legendas específicas, pois elas podem ser publicidades ou parcerias esporádicas fora do escopo do perfil.
-        - Não faça adivinhações. Se o nicho não for óbvio, atenha-se ao que está escrito na Bio.
+        --- COMENTÁRIOS POR POST ---
+        ${comentariosPorPost}
+        ----------------------------
+        
+        Nota Final: ${notaFinal}/100 (${classificacao})
+        
+        INSTRUÇÕES CRÍTICAS PARA O NICHO E SENTIMENTO:
+        - O Nicho deve ser estritamente o que está na Bio. Não invente sub-nichos.
+        - Analise os comentários e defina as porcentagens GERAIS de sentimento (soma 100).
+        - Para cada post na amostra que tenha comentários, gere uma avaliação individual da média do post, e TAMBÉM analise individualmente cada comentário fornecido.
         
         Retorne um objeto JSON contendo estritamente as chaves abaixo:
-        1. "resumoExecutivo": Resumo analítico em 1 parágrafo (max 4 frases), amigável mas tático. Foque em avaliar a saúde do perfil (engajamento, consistência) e as oportunidades de melhoria. Não diga a nota numérica e não foque muito no tema do conteúdo.
-        2. "nicho": Descreva com precisão o foco do criador baseado NA BIO e SEGMENTO.
-        3. "tom": O tom da comunicação (ex: Corporativo, Descontraído, Educativo, Vendedor).
-        4. "formatoPrincipal": O formato predominante baseado na análise numérica.
+        1. "resumoExecutivo": Resumo analítico em 1 parágrafo (max 4 frases).
+        2. "nicho": Descreva com precisão o nicho baseado NA BIO, SEM ALUCINAR temas não citados.
+        3. "tom": O tom da comunicação.
+        4. "formatoPrincipal": Formato predominante.
+        5. "analiseSentimento": Um objeto JSON com:
+           - "positivo", "neutro", "negativo" (numéricos de 0 a 100 somando 100)
+           - "resumo": resumo de 2 frases do público
+           - "amostraTotal": número exato de comentários analisados (neste caso, ${totalCommentsSampled})
+           - "porPost": array de objetos, cada um com:
+             {
+               "url": "url do post", 
+               "amostra": (numero), 
+               "positivo": %, "neutro": %, "negativo": %, 
+               "resumo": "...",
+               "comentariosAvaliados": [
+                 { "texto": "texto do comentario", "sentimento": "positivo", "neutro" ou "negativo" }
+               ]
+             }
         `;
 
         const completion = await openai.chat.completions.create({
@@ -359,6 +389,7 @@ export async function POST(request: Request) {
         if (iaData.nicho) nicho = iaData.nicho;
         if (iaData.tom) tom = iaData.tom;
         if (iaData.formatoPrincipal) formatoPrincipal = iaData.formatoPrincipal;
+        if (iaData.analiseSentimento) analiseSentimento = iaData.analiseSentimento;
       } catch (err) {
         console.error("Falha no OpenAI:", err);
       }
@@ -380,6 +411,7 @@ export async function POST(request: Request) {
         tom,
         formatoPrincipal
       },
+      analiseSentimento,
       metricas: {
         seguidores: followers,
         postsAnalisados: recentPosts.length,

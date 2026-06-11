@@ -8,20 +8,6 @@ const CONFIG = {
     senior: 140,
     especialista: 200
   },
-  income_defaults: {
-    iniciante: 2500,
-    junior: 3500,
-    pleno: 5000,
-    senior: 8000,
-    especialista: 12000
-  },
-  billable_hours_month: {
-    iniciante: 70,
-    junior: 80,
-    pleno: 85,
-    senior: 90,
-    especialista: 90
-  },
   regional_factors: {
     interior_pequeno: 0.88,
     interior_medio: 0.95,
@@ -30,22 +16,12 @@ const CONFIG = {
     sao_paulo_capital: 1.08,
     remoto_nacional: 1.0
   },
-  offer_modes: {
-    mercado_lean: {
-      commercial_reserve: 0.15,
-      default_revision_rounds: 1,
-      positioning_factor: 1.0
-    },
-    profissional_padrao: {
-      commercial_reserve: 0.18,
-      default_revision_rounds: 2,
-      positioning_factor: 1.25
-    },
-    premium: {
-      commercial_reserve: 0.22,
-      default_revision_rounds: 2,
-      positioning_factor: 1.65
-    }
+  client_size_multiplier: {
+    micro: 1.0,
+    pequeno: 1.10,
+    medio: 1.20,
+    grande: 1.30,
+    multinacional: 1.50
   },
   tax_profiles: {
     mei: 0.03,
@@ -69,60 +45,11 @@ const CONFIG = {
     uso_amplo: 0.5
   },
   deadline_multipliers: {
+    flexivel: 0.95,
     normal: 1.0,
-    rapido: 1.15,
-    urgente: 1.35,
-    fim_de_semana: 1.5
-  },
-  software_db: {
-    capcut_free: 0,
-    capcut_pro: 40,
-    canva_free: 0,
-    canva_pro: 35,
-    adobe_premiere: 65,
-    adobe_express: 23,
-    adobe_photoshop: 65,
-    adobe_after_effects: 65,
-    adobe_stock: 139,
-    google_one_30gb: 4.5,
-    google_one_100gb: 9.99,
-    google_ai_pro_5tb: 96.99,
-    ia_generica: 100
-  },
-  equipment_db: {
-    nenhum: { replacement_value: 0, life_months: 1, residual_rate: 0 },
-    // iPhones
-    iphone_11_usado: { replacement_value: 1800, life_months: 24, residual_rate: 0.2 },
-    iphone_12: { replacement_value: 2500, life_months: 30, residual_rate: 0.3 },
-    iphone_13: { replacement_value: 3200, life_months: 36, residual_rate: 0.35 },
-    iphone_14: { replacement_value: 4000, life_months: 36, residual_rate: 0.35 },
-    iphone_15: { replacement_value: 5000, life_months: 36, residual_rate: 0.4 },
-    iphone_15_pro: { replacement_value: 6500, life_months: 36, residual_rate: 0.4 },
-    iphone_15_pro_max: { replacement_value: 8000, life_months: 36, residual_rate: 0.45 },
-    iphone_16_128gb: { replacement_value: 8499, life_months: 36, residual_rate: 0.45 },
-    iphone_16_pro: { replacement_value: 10500, life_months: 36, residual_rate: 0.45 },
-    iphone_16_pro_max: { replacement_value: 12500, life_months: 36, residual_rate: 0.45 },
-    // Samsung Galaxy
-    galaxy_s23_fe: { replacement_value: 2800, life_months: 30, residual_rate: 0.3 },
-    galaxy_s23: { replacement_value: 3500, life_months: 36, residual_rate: 0.35 },
-    galaxy_s23_ultra: { replacement_value: 5000, life_months: 36, residual_rate: 0.35 },
-    galaxy_s24: { replacement_value: 5000, life_months: 36, residual_rate: 0.4 },
-    galaxy_s24_ultra: { replacement_value: 8000, life_months: 36, residual_rate: 0.4 },
-    galaxy_a54_a55: { replacement_value: 2000, life_months: 30, residual_rate: 0.3 },
-    // Outros Androids
-    motorola_edge_50_fusion: { replacement_value: 1950, life_months: 30, residual_rate: 0.35 },
-    xiaomi_redmi_note: { replacement_value: 1500, life_months: 30, residual_rate: 0.25 },
-    xiaomi_poco: { replacement_value: 2000, life_months: 30, residual_rate: 0.25 },
-    android_intermediario_generico: { replacement_value: 2500, life_months: 30, residual_rate: 0.3 },
-    
-    // Outros equipamentos
-    kit_audio_basico: { replacement_value: 300, life_months: 24, residual_rate: 0.2 },
-    kit_audio_wireless: { replacement_value: 700, life_months: 36, residual_rate: 0.2 },
-    kit_luz_basico: { replacement_value: 600, life_months: 36, residual_rate: 0.2 },
-    kit_luz_profissional: { replacement_value: 1500, life_months: 36, residual_rate: 0.2 },
-    gimbal_tripe: { replacement_value: 900, life_months: 36, residual_rate: 0.3 },
-    notebook_edicao_intermediario: { replacement_value: 5500, life_months: 48, residual_rate: 0.4 },
-    notebook_edicao_profissional: { replacement_value: 12000, life_months: 48, residual_rate: 0.45 }
+    rapido: 1.10,
+    urgente: 1.20,
+    imediatissimo: 1.35
   }
 };
 
@@ -130,147 +57,193 @@ export async function POST(request: Request) {
   try {
     const body = await request.json();
     const {
-      creator_level = 'pleno',
-      region_type = 'sao_paulo_capital',
-      service_type = 'pacote_8_reels_mobile_lean',
-      offer_mode = 'mercado_lean',
-      client_type = 'pequeno_negocio',
-      video_quantity = 8,
-      capture_included = true,
-      capture_hours = 4,
-      edit_complexity = 'simples_intermediaria',
-      revision_rounds = 1,
-      usage_rights = 'organico_trafego_local_3m',
-      deadline_type = 'normal',
-      selected_smartphone = 'iphone_16_128gb',
-      selected_computer = 'notebook_edicao_intermediario',
-      selected_audio_kit = 'kit_audio_wireless',
-      selected_light_kit = 'kit_luz_basico',
-      selected_software = ['capcut_pro', 'canva_pro', 'google_one_100gb'],
-      tax_profile = 'simples_inicial',
+      personal_info = {},
+      recurrent_costs = [],
+      experience = {},
+      client_info = {},
+      service_details = {},
+      custom_equipment = [],
+      extra_costs = {},
+      tax_percentage = 6
     } = body;
 
-    // 1. Calcular Custo de Equipamentos e Software
-    function calcEquipCost(eqId: string) {
-      if (!eqId || eqId === 'nenhum') return 0;
-      const eq = CONFIG.equipment_db[eqId as keyof typeof CONFIG.equipment_db];
-      if (!eq) return 0;
-      return (eq.replacement_value * (1 - eq.residual_rate)) / eq.life_months;
-    }
+    const detalhamento: { label: string; valor: string; desc: string }[] = [];
+    const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}`;
 
-    let total_software_cost = 0;
-    if (Array.isArray(selected_software)) {
-      selected_software.forEach(sw => {
-        total_software_cost += CONFIG.software_db[sw as keyof typeof CONFIG.software_db] || 0;
+    // 1. Horas Faturáveis no Mês
+    const hours_per_day = Number(personal_info.hours_per_day) || 8;
+    const days_per_month = Number(personal_info.days_per_month) || 22;
+    const total_work_hours = hours_per_day * days_per_month;
+    // Assume 60% of time is billable (rest is admin, prospect, idle)
+    const billable_hours_month = total_work_hours * 0.6;
+    detalhamento.push({
+      label: 'Horas Faturáveis Mensais',
+      valor: `${billable_hours_month.toFixed(0)}h`,
+      desc: `Considerando ${hours_per_day}h/dia em ${days_per_month} dias, com eficiência de 60%.`
+    });
+
+    // 2. Somar Custos Recorrentes
+    let total_recurrent_costs = 0;
+    recurrent_costs.forEach((c: any) => {
+      total_recurrent_costs += Number(c.value) || 0;
+    });
+    detalhamento.push({
+      label: 'Custos Fixos (Mensal)',
+      valor: fmt(total_recurrent_costs),
+      desc: 'Soma de todos os gastos recorrentes informados (internet, softwares, aluguel, etc).'
+    });
+
+    // 3. Somar Amortização de Equipamentos
+    let total_equip_monthly = 0;
+    custom_equipment.forEach((eq: any) => {
+      const val = Number(eq.value) || 0;
+      const life = Number(eq.life_months) || 36;
+      const residual = 0.2; // assumindo 20% valor de revenda
+      const amort = (val * (1 - residual)) / life;
+      total_equip_monthly += amort;
+    });
+    detalhamento.push({
+      label: 'Amortização de Equipamentos',
+      valor: fmt(total_equip_monthly),
+      desc: 'Custo mensal para repor seus equipamentos no futuro.'
+    });
+
+    // 4. Valor Base da Hora
+    const imposto_rate = (Number(tax_percentage) || 0) / 100;
+    // Custo base por hora
+    const custo_hora_minimo = (total_recurrent_costs + total_equip_monthly) / billable_hours_month;
+    
+    // Valor de mercado pelo nível
+    const creator_level = experience.level || 'pleno';
+    const hora_mercado = CONFIG.hourly_rates[creator_level as keyof typeof CONFIG.hourly_rates] || 95;
+    
+    // Pegar o maior para garantir sustentabilidade, e aplicar fator regional
+    const regional_factor = CONFIG.regional_factors[client_info.region_type as keyof typeof CONFIG.regional_factors] || 1.0;
+    const client_size_mult = CONFIG.client_size_multiplier[client_info.size as keyof typeof CONFIG.client_size_multiplier] || 1.0;
+
+    const valor_hora_base = Math.max(custo_hora_minimo * 1.5 /* Margem de lucro básica sobre custo */, hora_mercado) * regional_factor * client_size_mult;
+    
+    detalhamento.push({
+      label: 'Valor da Hora Técnica',
+      valor: fmt(valor_hora_base),
+      desc: `Ajustado pelo seu custo mínimo (${fmt(custo_hora_minimo)}/h), nível ${creator_level.toUpperCase()} e porte do cliente.`
+    });
+
+    // 5. Horas do Projeto
+    const q = Number(service_details.video_quantity) || 1;
+    const h_captacao = service_details.external_capture ? (Number(service_details.capture_hours) || 4) : 0;
+    
+    let t_roteiro_pv = 0.5, t_edicao_pv = 1.0, t_revisao_pv = 0.5;
+    const complexity = service_details.edit_complexity || 'media';
+    if (complexity === 'facil') { t_edicao_pv = 0.5; t_roteiro_pv = 0.2; }
+    if (complexity === 'dificil') { t_edicao_pv = 2.5; t_roteiro_pv = 1.0; }
+
+    // Fator de volume (desconto no tempo por eficiência em escala)
+    let vol_factor = 1.0;
+    if (q >= 3 && q <= 5) vol_factor = 0.90;
+    if (q >= 6 && q <= 10) vol_factor = 0.80;
+    if (q >= 11) vol_factor = 0.70;
+
+    const repetible_time_per_video = (t_roteiro_pv + t_edicao_pv + t_revisao_pv);
+    const total_repetible = (repetible_time_per_video * vol_factor) * q;
+    
+    const horas_estimadas = total_repetible + h_captacao + 2.0; // +2h de admin/briefing
+    
+    detalhamento.push({
+      label: 'Tempo Estimado do Projeto',
+      valor: `${horas_estimadas.toFixed(1)}h`,
+      desc: `${h_captacao}h captação + ${(total_repetible).toFixed(1)}h produção (com fator de escala para ${q} vídeos).`
+    });
+
+    // 6. Custo Técnico Bruto
+    const custo_tecnico = horas_estimadas * valor_hora_base;
+    detalhamento.push({
+      label: 'Custo Técnico Fixo',
+      valor: fmt(custo_tecnico),
+      desc: 'Tempo Estimado x Valor da Hora Técnica.'
+    });
+
+    // 7. Custos Extras (Terceirizados, Stock, etc)
+    let total_extras = 0;
+    if (extra_costs) {
+      total_extras += Number(extra_costs.freelancers) || 0;
+      total_extras += Number(extra_costs.stock_footage) || 0;
+      total_extras += Number(extra_costs.soundtrack) || 0;
+      total_extras += Number(extra_costs.vectors) || 0;
+      total_extras += Number(extra_costs.others) || 0;
+    }
+    if (total_extras > 0) {
+      detalhamento.push({
+        label: 'Custos Adicionais da Produção',
+        valor: fmt(total_extras),
+        desc: 'Soma de freelancers, banco de imagens, trilhas e outros.'
       });
     }
 
-    const total_equip_cost = 
-      calcEquipCost(selected_smartphone) + 
-      calcEquipCost(selected_computer) + 
-      calcEquipCost(selected_audio_kit) + 
-      calcEquipCost(selected_light_kit) +
-      calcEquipCost('gimbal_tripe'); // Default adicionado para equiparar a simulação
-
-    // 2. Definir Valor Base da Hora
-    const creator = creator_level as keyof typeof CONFIG.hourly_rates;
-    const income_presumida = CONFIG.income_defaults[creator] || 5000;
-    const horas_faturaveis = CONFIG.billable_hours_month[creator] || 85;
-    const imposto_rate = CONFIG.tax_profiles[tax_profile as keyof typeof CONFIG.tax_profiles] || 0.06;
-    const impostos_estimados_mes = income_presumida * imposto_rate;
-
-    const hora_minima_sustentavel = (income_presumida + impostos_estimados_mes + total_software_cost + total_equip_cost) / horas_faturaveis;
-    const hora_mercado = CONFIG.hourly_rates[creator] || 95;
-
-    const regional_factor = CONFIG.regional_factors[region_type as keyof typeof CONFIG.regional_factors] || 1.0;
-    
-    const valor_hora_base = Math.max(hora_mercado, hora_minima_sustentavel) * regional_factor;
-
-    // 3. Calcular Horas Estimadas
-    const q = Number(video_quantity) || 8;
-    const h_captacao = capture_included ? (Number(capture_hours) || 4) : 0;
-
-    let t_roteiro_pv = 0.25, t_edicao_pv = 0.75, t_legenda_pv = 0.25, t_revisao_pv = 0.20;
-    let t_fixed = 8.5; 
-
-    if (offer_mode === 'profissional_padrao') {
-       t_roteiro_pv = 0.5; t_edicao_pv = 1.25; t_legenda_pv = 0.40; t_revisao_pv = 0.40;
-       t_fixed = 14.5;
-    } else if (offer_mode === 'premium') {
-       t_roteiro_pv = 0.8; t_edicao_pv = 2.0; t_legenda_pv = 0.70; t_revisao_pv = 0.60;
-       t_fixed = 22.5;
+    // 8. Direitos e Licenças
+    const usage = service_details.usage_rights || 'organico';
+    const direitos_pct = CONFIG.usage_rights[usage as keyof typeof CONFIG.usage_rights] || 0;
+    const valor_direitos = custo_tecnico * direitos_pct;
+    if (valor_direitos > 0) {
+      detalhamento.push({
+        label: 'Licenciamento de Imagem',
+        valor: fmt(valor_direitos),
+        desc: `Adicional de ${(direitos_pct * 100).toFixed(0)}% pelo escopo de direitos autorais e veiculação.`
+      });
     }
 
-    let vol_factor = 1.0;
-    if (q >= 3 && q <= 5) vol_factor = 0.92;
-    if (q >= 6 && q <= 10) vol_factor = 0.82;
-    if (q >= 11 && q <= 20) vol_factor = 0.75;
-    if (q >= 21) vol_factor = 0.68;
+    // 9. Fechamento e Prazos (Gross-up)
+    const deadline = service_details.deadline_type || 'normal';
+    const deadline_mult = CONFIG.deadline_multipliers[deadline as keyof typeof CONFIG.deadline_multipliers] || 1.0;
+    
+    const subtotal = (custo_tecnico + total_extras + valor_direitos) * deadline_mult;
+    
+    if (deadline_mult > 1.0) {
+      detalhamento.push({
+        label: 'Taxa de Urgência',
+        valor: fmt(subtotal - (custo_tecnico + total_extras + valor_direitos)),
+        desc: `Acréscimo de ${((deadline_mult - 1) * 100).toFixed(0)}% por conta do prazo de entrega.`
+      });
+    }
 
-    const repetible_time_per_video = (t_roteiro_pv + t_edicao_pv + t_legenda_pv + t_revisao_pv);
-    const total_repetible = (repetible_time_per_video * vol_factor) * q;
+    // Reserva comercial (negociação) + Taxas
+    const reserva_comercial = 0.15; // 15% para dar margem a descontos e lucro da agência
+    const taxa_pagamento = 0.025; // 2.5% cartao/link
 
-    const horas_estimadas = t_fixed + total_repetible + h_captacao;
+    // Formula gross-up: Preco Final = Subtotal / (1 - Impostos - Taxas - Reserva)
+    const divisor = (1 - imposto_rate - taxa_pagamento - reserva_comercial);
+    const precoFinal = subtotal / divisor;
+    
+    const imposto_valor = precoFinal * imposto_rate;
+    const reserva_valor = precoFinal * reserva_comercial;
 
-    // 4. Custos Diretos
-    let custos_diretos = 450;
-    if (offer_mode === 'profissional_padrao') custos_diretos = 650;
-    if (offer_mode === 'premium') custos_diretos = 1100;
+    detalhamento.push({
+      label: 'Impostos Fiscais e Taxas',
+      valor: fmt(imposto_valor + (precoFinal * taxa_pagamento)),
+      desc: `Imposto declarado (${(imposto_rate * 100).toFixed(1)}%) + Gateway (${(taxa_pagamento * 100).toFixed(1)}%).`
+    });
 
-    // 5. Custo Técnico e Adicionais
-    const technical_cost = horas_estimadas * valor_hora_base;
+    detalhamento.push({
+      label: 'Reserva Comercial e Lucro',
+      valor: fmt(reserva_valor),
+      desc: `Margem estratégica de ${(reserva_comercial * 100).toFixed(0)}% para absorver negociações ou converter em lucro líquido.`
+    });
 
-    const direitos_pct = CONFIG.usage_rights[usage_rights as keyof typeof CONFIG.usage_rights] || 0.08;
-    const valor_direitos = technical_cost * direitos_pct;
+    // 10. Valores Finais (Arredondados)
+    const roundedFinal = Math.ceil(precoFinal / 10) * 10;
+    const roundedMin = Math.ceil((subtotal / (1 - imposto_rate - taxa_pagamento)) / 10) * 10;
 
-    const operational_risk = technical_cost * 0.04;
-
-    const subtotal = technical_cost + custos_diretos + valor_direitos + operational_risk;
-
-    // 6. Fechamento (Gross-up)
-    const taxa_pagamento = 0.025; // default cartao_link
-    const reserva_comercial = CONFIG.offer_modes[offer_mode as keyof typeof CONFIG.offer_modes]?.commercial_reserve || 0.15;
-    const deadline_mult = CONFIG.deadline_multipliers[deadline_type as keyof typeof CONFIG.deadline_multipliers] || 1.0;
-
-    const subtotal_com_prazo = subtotal * deadline_mult;
-
-    const calc_price = (reserva: number) => subtotal_com_prazo / (1 - imposto_rate - taxa_pagamento - reserva);
-
-    const price_recommended = calc_price(reserva_comercial);
-    const price_min = calc_price(0); // Sem reserva comercial
-    const price_premium = calc_price(CONFIG.offer_modes['premium'].commercial_reserve) * 1.5; 
-
-    // Arredondamentos
-    const precoFinal = Math.round(price_recommended / 50) * 50;
-    const precoMinimo = Math.round(price_min / 50) * 50;
-    const precoPremium = Math.round(price_premium / 50) * 50;
-    const precoPorVideo = Math.round(precoFinal / q);
-
-    // Formatar como string amigável
-    const fmt = (v: number) => `R$ ${v.toLocaleString('pt-BR')}`;
-
-    // Detalhamento do Cálculo Item por Item
-    const detalhamento = [
-      { label: 'Valor Hora Base', valor: fmt(valor_hora_base), desc: 'Custo de vida + amortização de equipamentos + licenças.' },
-      { label: 'Tempo Técnico Estimado', valor: `${horas_estimadas.toFixed(1)}h`, desc: 'Captação, edição, roteiro e revisões (com desconto de volume).' },
-      { label: 'Custo Técnico Fixo', valor: fmt(technical_cost), desc: 'Horas totais x Valor da Hora Base.' },
-      { label: 'Custos Diretos', valor: fmt(custos_diretos), desc: 'Deslocamento, alimentação, trilhas e banco de imagens.' },
-      { label: 'Direitos de Imagem', valor: fmt(valor_direitos), desc: `Adicional de ${(direitos_pct * 100).toFixed(0)}% pelo escopo e licença de uso.` },
-      { label: 'Risco Operacional', valor: fmt(operational_risk), desc: 'Fundo de 4% para atrasos, refações e imprevistos.' },
-      { label: 'Subtotal Técnico', valor: fmt(subtotal_com_prazo), desc: deadline_mult > 1.0 ? `Subtotal com adicional de urgência (${((deadline_mult - 1) * 100).toFixed(0)}%).` : 'Custos + Direitos + Risco Operacional.' },
-      { label: 'Impostos e Pagamento', valor: fmt(precoFinal * (imposto_rate + taxa_pagamento)), desc: `Impostos fiscais (${(imposto_rate * 100).toFixed(1)}%) + Taxas de Gateway (${(taxa_pagamento * 100).toFixed(1)}%).` },
-      { label: 'Reserva Comercial / Lucro', valor: fmt(precoFinal * reserva_comercial), desc: `Margem livre de ${(reserva_comercial * 100).toFixed(0)}% para negociação e lucro líquido da agência.` }
-    ];
-
-    // Raciocínio (Mock explicativo atualizado)
-    const argumentoVenda = `Este orçamento considera ${q} vídeos verticais curtos, até ${h_captacao} horas de captação, edição ${edit_complexity.replace('_', ' ')}, legendas, capa simples, e entrega em prazo ${deadline_type}. Não inclui arquivos brutos ou motion avançado.`;
+    // Raciocínio (Mock explicativo)
+    const clientName = client_info.company_name || 'o cliente';
+    const subType = service_details.sub_type ? service_details.sub_type.replace('_', ' ') : 'vídeo mobile';
+    const argumentoVenda = `Orçamento dimensionado para produção de ${q} vídeos de ${subType} para ${clientName}. O cálculo considerou o nível ${creator_level.toUpperCase()}, tempo estimado técnico de ${horas_estimadas.toFixed(1)}h e o custo operacional de manutenção dos seus equipamentos declarados.`;
 
     const resultData = {
-      precoMinimo: fmt(precoMinimo),
-      precoRecomendado: fmt(precoFinal),
-      precoPremium: fmt(precoPremium),
-      precoPorVideo: fmt(precoPorVideo),
-      raciocinio: `A precificação considera ${horas_estimadas.toFixed(1)}h técnicas estimadas. Valor base regional da hora operando a ${fmt(valor_hora_base)}/h. Custos diretos previstos de ${fmt(custos_diretos)}.`,
+      precoMinimo: fmt(roundedMin),
+      precoRecomendado: fmt(roundedFinal),
+      precoPremium: fmt(roundedFinal * 1.4), // Premium = +40% margin
+      precoPorVideo: fmt(roundedFinal / q),
+      raciocinio: `Base técnica de R$ ${custo_tecnico.toFixed(2)} + Extras/Direitos. Gross-up aplicado para proteger ${imposto_rate*100}% de impostos e 15% de margem.`,
       argumentoVenda,
       detalhamento
     };

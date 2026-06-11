@@ -1,179 +1,31 @@
-'use client';
-
-import React, { useState } from 'react';
+import React from 'react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { 
   Sparkles, 
   Check, 
   HelpCircle, 
-  ShieldCheck, 
-  AlertCircle, 
-  Lock, 
-  Mail, 
-  KeyRound, 
-  CreditCard, 
-  QrCode, 
-  FileText, 
-  Loader2, 
-  Copy, 
-  Download,
-  CheckCircle2,
-  ChevronRight,
   TrendingUp,
   Lightbulb,
-  FileCode,
   FileCheck,
   MessageSquare,
   History,
   Briefcase,
   GraduationCap,
-  X,
-  User
+  ArrowRight,
+  Zap,
+  Target,
+  Clock,
+  DollarSign,
+  AlertTriangle,
+  Video,
+  Brain
 } from 'lucide-react';
-import { cn } from '@/lib/utils';
-import { auth, db } from '@/lib/firebase';
-import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
-import { doc, setDoc } from 'firebase/firestore';
+import PricingSection from './PricingSection';
 
 export default function LandingPage() {
-  const router = useRouter();
-
-  // State for checkout modal
-  const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
-  const [selectedPlan, setSelectedPlan] = useState<any>(null);
-  const [isProcessing, setIsProcessing] = useState(false);
-  const [checkoutError, setCheckoutError] = useState('');
-
-  // Form states
-  const [customerName, setCustomerName] = useState('');
-  const [customerEmail, setCustomerEmail] = useState('');
-  const [customerPassword, setCustomerPassword] = useState('');
-
-  const plans = [
-    {
-      name: 'Start',
-      price: 'R$ 67',
-      description: 'Para quem está começando a profissionalizar sua criação e quer ter acesso às principais ferramentas para analisar, precificar e estruturar melhor seus serviços.',
-      subText: 'Ideal para criadores que querem sair do improviso e começar a vender com mais clareza.',
-      features: [
-        'Acesso ao Diagnóstico de Perfil',
-        'Acesso à Calculadora de Orçamento',
-        'Acesso limitado ao Gerador de Ideias',
-        'Acesso limitado ao Gerador de Propostas',
-        'Apoio do Assistente de IA básico',
-        'Controle básico de Ações'
-      ],
-      buttonText: 'Começar com o plano Start',
-      featured: false
-    },
-    {
-      name: 'Elite',
-      price: 'R$ 197',
-      description: 'Para quem quer acessar a Creator Lab no nível mais completo, com ferramentas, conteúdos, gestão e suporte estratégico para operar com mais profissionalismo, consistência e visão de crescimento.',
-      subText: 'Ideal para criadores, social medias e profissionais que querem levar a criação mobile para outro patamar.',
-      features: [
-        'Todos os recursos do plano Pro',
-        'Suporte estratégico prioritário',
-        'Acesso aos Cursos, Aulas e Lives com Luisera',
-        'Conteúdos exclusivos de posicionamento B2B',
-        'Consultoria de marca pessoal em grupo'
-      ],
-      buttonText: 'Quero o plano Elite',
-      featured: true
-    },
-    {
-      name: 'Pro',
-      price: 'R$ 117',
-      description: 'Para quem já atende clientes ou quer acelerar sua evolução com mais recursos, mais estrutura e mais capacidade de transformar análises, ideias e orçamentos em propostas comerciais completas.',
-      subText: 'Ideal para quem quer vender com mais autoridade e organizar melhor sua operação.',
-      features: [
-        'Acesso completo a todas as ferramentas',
-        'Análises de Perfil Ilimitadas',
-        'Gerador de Ideias & Propostas avançados',
-        'Apoio do Assistente de IA completo',
-        'Histórico e Controle de Ações completo',
-        'Gestão de Clientes integrada'
-      ],
-      buttonText: 'Entrar no plano Pro',
-      featured: false
-    }
-  ];
-
-  const handleInitiatePayment = (plan: any) => {
-    setSelectedPlan(plan);
-    setCheckoutError('');
-    setIsCheckoutOpen(true);
-  };
-
-  const handleCheckoutSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsProcessing(true);
-    setCheckoutError('');
-
-    if (!customerName || !customerEmail || !customerPassword) {
-      setCheckoutError('Por favor, preencha todos os campos.');
-      setIsProcessing(false);
-      return;
-    }
-
-    if (customerPassword.length < 6) {
-      setCheckoutError('A senha de acesso deve conter no mínimo 6 caracteres.');
-      setIsProcessing(false);
-      return;
-    }
-
-    try {
-      // 1. Create user in Firebase Auth
-      const userCredential = await createUserWithEmailAndPassword(auth, customerEmail, customerPassword);
-      const user = userCredential.user;
-
-      // 2. Update Profile Name
-      await updateProfile(user, { displayName: customerName });
-
-      // 3. Create Firestore Doc
-      await setDoc(doc(db, 'users', user.uid), {
-        name: customerName,
-        email: customerEmail,
-        plan: 'free',
-        credits: 20,
-        createdAt: new Date().toISOString()
-      });
-
-      // 4. Get Token and Call Stripe Checkout
-      const token = await user.getIdToken();
-      const response = await fetch('/api/stripe/checkout', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify({ planName: selectedPlan.name })
-      });
-
-      const resData = await response.json();
-
-      if (!response.ok || !resData.url) {
-        throw new Error(resData.error || 'Erro ao iniciar o Stripe Checkout.');
-      }
-
-      // 5. Redirect to Stripe
-      window.location.href = resData.url;
-
-    } catch (err: any) {
-      console.error(err);
-      if (err.code === 'auth/email-already-in-use') {
-        setCheckoutError('Este E-mail já está em uso! Feche esta tela, clique em "Entrar no App" e assine por dentro do painel.');
-      } else {
-        setCheckoutError(err.message || 'Falha ao criar conta. Tente novamente.');
-      }
-    } finally {
-      setIsProcessing(false);
-    }
-  };
-
   return (
     <div className="min-h-screen bg-transparent overflow-hidden selection:bg-brand-emerald/30">
       
@@ -187,12 +39,13 @@ export default function LandingPage() {
       {/* Navigation Header */}
       <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-8 border border-white/5">
         <div className="flex items-center gap-3">
-          <img src="/logo.png" alt="Creator Lab Logo" className="w-8 h-8 rounded-lg" />
-          <img src="/logo-text.png" alt="Creator Lab" className="w-40 md:w-48 object-contain" />
+          <Image src="/logo.png" alt="Creator Lab Logo" width={32} height={32} className="rounded-lg" />
+          <Image src="/logo-text.png" alt="Creator Lab" width={192} height={40} className="w-40 md:w-48 object-contain" />
         </div>
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
-          <a href="#features" className="hover:text-brand-mint transition-colors">Recursos</a>
-          <a href="#pricing" className="hover:text-brand-mint transition-colors">Preços</a>
+          <a href="#features" className="hover:text-brand-mint transition-colors">Ferramentas</a>
+          <a href="#formacao" className="hover:text-brand-mint transition-colors">Formação</a>
+          <a href="#pricing" className="hover:text-brand-mint transition-colors">Planos</a>
           <Link href="/login" className="text-white hover:text-brand-mint transition-colors">Entrar no App</Link>
         </nav>
       </header>
@@ -204,22 +57,41 @@ export default function LandingPage() {
         <section className="flex flex-col items-center text-center space-y-8 pt-10">
           <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full neo-glass text-brand-mint text-xs font-semibold mb-4 border border-brand-emerald/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
             <Sparkles className="w-4 h-4 text-brand-emerald" />
-            <span>O Sistema Operacional de Inteligência para Criadores Mobile</span>
+            <span>Do zero ao profissional. Do profissional ao próximo nível.</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-            Produza <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-jade drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">Melhor.</span><br />
-            Cobre <span className="text-transparent bg-clip-text bg-gradient-to-r from-white to-gray-500">Mais.</span>
+            Criação mobile
+            <br />
+            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-jade drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
+              com método.
+            </span>
           </h1>
           <p className="text-base md:text-lg text-gray-400 max-w-2xl leading-relaxed font-light">
-            Criar conteúdo pelo celular deixou de ser apenas uma habilidade criativa. Hoje, o mercado exige algo maior: análise, estratégia, proposta, organização, clareza comercial e capacidade de transformar uma simples ideia em um projeto que o cliente entenda, valorize e queira pagar.
+            Não importa se você acabou de pegar o celular pela primeira vez ou já atende clientes há anos. A Creator Lab foi feita para que <strong className="text-white font-semibold">quem está começando já inicie na frente</strong> — e para que <strong className="text-white font-semibold">quem já está no mercado pare de deixar dinheiro na mesa.</strong>
           </p>
-          <div className="flex items-center gap-4 pt-4">
+          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
             <a href="#pricing">
-              <Button size="lg" className="glow-border text-black px-8">Ver Planos e Assinar</Button>
+              <Button size="lg" className="glow-border text-black px-8 flex items-center gap-2">
+                Quero entrar no laboratório <ArrowRight className="w-4 h-4" />
+              </Button>
             </a>
             <Link href="/login">
               <Button size="lg" variant="ghost" className="px-8 border border-white/5 hover:bg-white/5">Entrar no App</Button>
             </Link>
+          </div>
+
+          {/* Stat bar */}
+          <div className="w-full max-w-2xl grid grid-cols-3 gap-4 pt-4">
+            {[
+              { value: '+ Ticket', label: 'médio por projeto' },
+              { value: '- Tempo', label: 'perdido em orçamentos' },
+              { value: '360°', label: 'do técnico ao comercial' },
+            ].map((stat) => (
+              <div key={stat.label} className="p-4 rounded-2xl neo-glass border border-white/5 text-center">
+                <div className="text-lg font-extrabold text-brand-emerald">{stat.value}</div>
+                <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{stat.label}</div>
+              </div>
+            ))}
           </div>
 
           {/* Video Player */}
@@ -240,256 +112,377 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 2. Manifesto Introduction */}
+        {/* 2. Pain point — raw storytelling */}
         <section className="py-8 border-t border-white/5">
           <div className="grid md:grid-cols-2 gap-12 items-center">
             <div className="space-y-6">
               <h2 className="text-3xl font-bold text-white tracking-tight leading-snug">
-                A Creator Lab nasceu para isso.
+                Você domina a câmera.<br />
+                <span className="text-gray-500">Mas o mercado exige muito mais do que isso.</span>
               </h2>
               <p className="text-gray-300 text-sm leading-relaxed font-light">
-                Uma plataforma que reúne, em um só lugar, ferramentas práticas, técnicas e inteligentes para ajudar criadores mobile, social medias, videomakers e produtores de conteúdo a trabalharem com mais profissionalismo — da análise do perfil até a proposta final enviada ao cliente.
+                Saber filmar, enquadrar e editar pelo celular é o ponto de partida, não o destino. Os criadores que estão faturando mais não são necessariamente os que fazem os vídeos mais bonitos — são os que sabem <strong className="text-white">posicionar, precificar e apresentar o valor do seu trabalho</strong> com clareza e autoridade.
               </p>
-              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold">
-                Aqui, você não fica preso apenas à execução. Você aprende a pensar como estrategista, cobrar como profissional e entregar com clareza.
+              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
+                Na Creator Lab você não aprende apenas a criar. Você aprende a operar como um profissional de verdade — e as ferramentas fazem o trabalho pesado enquanto você foca no que importa.
               </div>
             </div>
             
-            <GlassCard className="p-8 space-y-6 bg-gradient-to-br from-[#0c0c0c] to-[#050505] border-white/5">
-              <h3 className="text-lg font-bold text-white">
-                O problema não é só criar vídeos bons. <br/>
-                <span className="text-brand-emerald">O problema é transformar sua criação em um serviço valorizado.</span>
-              </h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Muitos criadores sabem gravar, editar e entregar conteúdos visualmente bonitos. Mas, na hora de fechar um cliente, surgem as dúvidas comerciais.
-              </p>
-              <div className="grid grid-cols-1 gap-2.5 text-xs text-gray-300 font-mono">
-                <div className="flex gap-2 items-center opacity-75"><HelpCircle className="w-3.5 h-3.5 text-brand-neon" /> “Quanto eu devo cobrar?”</div>
-                <div className="flex gap-2 items-center opacity-75"><HelpCircle className="w-3.5 h-3.5 text-brand-neon" /> “O perfil desse cliente realmente tem potencial?”</div>
-                <div className="flex gap-2 items-center opacity-75"><HelpCircle className="w-3.5 h-3.5 text-brand-neon" /> “Que tipo de conteúdo eu proporia?”</div>
-                <div className="flex gap-2 items-center opacity-75"><HelpCircle className="w-3.5 h-3.5 text-brand-neon" /> “Como justifico meu orçamento?”</div>
-                <div className="flex gap-2 items-center opacity-75"><HelpCircle className="w-3.5 h-3.5 text-brand-neon" /> “Como envio uma proposta profissional?”</div>
+            <GlassCard className="p-8 space-y-5 bg-gradient-to-br from-[#0c0c0c] to-[#050505] border-white/5">
+              <div className="flex items-center gap-2 mb-2">
+                <AlertTriangle className="w-4 h-4 text-amber-400" />
+                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Reconhece alguma dessas situações?</h3>
+              </div>
+              <div className="grid grid-cols-1 gap-3 text-xs text-gray-300 font-mono">
+                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>"Quanto eu cobro? Fico inseguro toda vez que um cliente pergunta o preço."</span>
+                </div>
+                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>"Perco horas criando proposta do zero e o cliente nem lê direito."</span>
+                </div>
+                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>"Não sei se vale a pena prospectar esse perfil. Fico de olho mesmo."</span>
+                </div>
+                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>"Entrego vídeos bons, mas continuo recebendo preço de iniciante."</span>
+                </div>
+                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
+                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
+                  <span>"Quero evoluir tecnicamente — 3D, IA — mas não sei por onde começar."</span>
+                </div>
               </div>
             </GlassCard>
           </div>
         </section>
 
-        {/* 3. The Improvisation Problem */}
-        <section className="py-8 border-t border-white/5 text-center max-w-3xl mx-auto space-y-8">
-          <h2 className="text-2xl md:text-3xl font-extrabold text-white">E, no fim, o criador acaba improvisando.</h2>
-          <p className="text-gray-400 text-sm leading-relaxed font-light">
-            Analisa o perfil “no olho”. Passa preço com insegurança. Cria ideias sem estratégia. Manda proposta pelo WhatsApp de qualquer jeito. E perde autoridade antes mesmo de começar o projeto.
-          </p>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            <div className="p-5 rounded-2xl border border-red-500/10 bg-red-500/5 space-y-2">
-              <span className="text-xs font-bold text-red-400 uppercase tracking-widest block">O Velho Improviso</span>
-              <p className="text-xs text-gray-300 leading-relaxed">Achismo, planilhas confusas, perda de tempo criando orçamentos do zero e propostas informais enviadas por áudio ou chat.</p>
-            </div>
-            <div className="p-5 rounded-2xl border border-brand-emerald/10 bg-brand-emerald/5 space-y-2">
-              <span className="text-xs font-bold text-brand-emerald uppercase tracking-widest block">A Solução Creator Lab</span>
-              <p className="text-xs text-gray-300 leading-relaxed">Operação profissional baseada em dados, com ferramentas dedicadas e processos integrados de ponta a ponta.</p>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. The Tool Stack */}
-        <section id="features" className="py-8 border-t border-white/5 space-y-12">
-          <div className="text-center space-y-3">
-            <h2 className="text-3xl font-bold text-white tracking-tight">O que você encontra dentro da Creator Lab</h2>
-            <p className="text-gray-400 text-sm font-light">Uma plataforma integrada para quem quer parar de parecer amador.</p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            
-            {/* Tool 1 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <Sparkles className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">1. Diagnóstico de Perfil</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Antes de vender conteúdo, você precisa entender o cenário do cliente. Analise qualquer perfil do Instagram usando apenas o @. Extraia dados como engajamento, consistência, tom de comunicação, problemas e oportunidades de melhoria para embasar seus argumentos.
-              </p>
-            </GlassCard>
-
-            {/* Tool 2 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <TrendingUp className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">2. Calculadora de Orçamento</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Cobrar no “achismo” é uma das formas mais rápidas de desvalorizar seu trabalho. Nossa calculadora considera parâmetros do projeto para gerar um valor claro, objetivo e justificado de esforço, complexidade e valor profissional.
-              </p>
-            </GlassCard>
-
-            {/* Tool 3 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <Lightbulb className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">3. Gerador de Ideias</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Gere ideias de vídeos alinhadas ao perfil analisado e ao orçamento gerado. Cada sugestão detalha cena, texto/roteiro, estrutura audiovisual e tempo sugerido, agindo como um braço direito criativo e estratégico.
-              </p>
-            </GlassCard>
-
-            {/* Tool 4 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <FileCheck className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">4. Gerador de Proposta</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Conecte tudo e transforme o diagnóstico, o orçamento e as ideias em uma proposta comercial clara e organizada em PDF prontinha para enviar. O cliente entende o problema, a solução e percebe seu valor estratégico.
-              </p>
-            </GlassCard>
-
-            {/* Tool 5 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <MessageSquare className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">5. Assistente de IA</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Um assistente de IA focado em filmmaking (CapCut, BlackMagic Cam, Node Video) e business B2B para tirar dúvidas rápidas, destravar roteiros, sugerir técnicas de edição e estruturar argumentos de negociação.
-              </p>
-            </GlassCard>
-
-            {/* Tool 6 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <History className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">6. Controle de Ações</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Visualize e gerencie seu histórico de ações dentro do laboratório. Acesse diagnósticos passados, propostas criadas e orçamentos calculados a qualquer momento com total rastreabilidade.
-              </p>
-            </GlassCard>
-
-            {/* Tool 7 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <Briefcase className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">7. Gestão de Clientes</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Painel para gerenciar clientes ativos, acompanhar entregas, marcar status de vídeos, anexar links de aprovação de materiais e monitorar pagamentos. Tudo organizado em um local exclusivo.
-              </p>
-            </GlassCard>
-
-            {/* Tool 8 */}
-            <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-              <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald">
-                <GraduationCap className="w-5 h-5" />
-              </div>
-              <h3 className="text-lg font-bold text-white">8. Cursos, aulas e lives com Luisera</h3>
-              <p className="text-gray-400 text-xs leading-relaxed font-light">
-                Acesso completo a videoaulas e lives gravadas pelo Luisera sobre técnicas avançadas de gravação, luz, enquadramento e edição pelo celular. Enquanto as ferramentas executam, as aulas ensinam você a pensar.
-              </p>
-            </GlassCard>
-
-          </div>
-        </section>
-
-        {/* 5. Target Audience & Transformation */}
-        <section className="py-8 border-t border-white/5 grid md:grid-cols-2 gap-12">
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">Para quem é a Creator Lab?</h3>
-            <p className="text-gray-400 text-xs leading-relaxed font-light">
-              Criadores mobile que querem cobrar melhor, social medias em busca de propostas mais fortes, produtores de conteúdo e videomakers que desejam vender estratégia, não apenas edição pelo celular. Tanto para iniciantes quanto para quem já atende clientes e precisa de estrutura e processos claros.
+        {/* 3. Before / After */}
+        <section className="py-8 border-t border-white/5 text-center max-w-3xl mx-auto space-y-10">
+          <div className="space-y-4">
+            <h2 className="text-2xl md:text-3xl font-extrabold text-white">
+              Esses gargalos têm nome: <span className="text-brand-emerald">falta de sistema.</span>
+            </h2>
+            <p className="text-gray-400 text-sm leading-relaxed font-light">
+              Não é falta de talento. Não é falta de esforço. É que ninguém ensinou você a montar uma operação de criação mobile com método — da técnica ao comercial. A Creator Lab existe exatamente para fechar essa lacuna.
             </p>
-            <div className="space-y-2 text-xs text-gray-300">
-              <div className="flex gap-2 items-center"><Check className="w-3.5 h-3.5 text-brand-emerald" /> Criadores Mobile</div>
-              <div className="flex gap-2 items-center"><Check className="w-3.5 h-3.5 text-brand-emerald" /> Social Medias & Freelancers</div>
-              <div className="flex gap-2 items-center"><Check className="w-3.5 h-3.5 text-brand-emerald" /> Videomakers & Produtores</div>
-            </div>
           </div>
-          
-          <div className="space-y-6">
-            <h3 className="text-xl font-bold text-white">O que muda na sua rotina?</h3>
-            <div className="space-y-3.5 text-xs text-gray-400">
-              <p>📉 <strong className="text-white">Antes:</strong> Orçamentos com insegurança, propostas desorganizadas, diagnósticos superficiais baseados no "olho" e perda de clientes antes de começar.</p>
-              <p>📈 <strong className="text-brand-emerald">Depois:</strong> Argumentação embasada em dados brutos, precificação justificada por complexidade, propostas em PDF premium e gestão profissional das entregas.</p>
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
+            <div className="p-6 rounded-2xl border border-red-500/15 bg-red-500/5 space-y-4">
+              <span className="text-xs font-bold text-red-400 uppercase tracking-widest block">Antes da Creator Lab</span>
+              <ul className="space-y-2.5 text-xs text-gray-400 leading-relaxed">
+                <li className="flex gap-2">❌ Precificação no achismo, cliente barganha fácil</li>
+                <li className="flex gap-2">❌ Proposta improvisada no WhatsApp ou Google Docs</li>
+                <li className="flex gap-2">❌ Prospecção no "olhômetro" sem dados do perfil</li>
+                <li className="flex gap-2">❌ Sem processo de gestão: cliente some, prazo passa</li>
+                <li className="flex gap-2">❌ Técnica estagnada, sem evolução para 3D ou IA</li>
+              </ul>
+            </div>
+            <div className="p-6 rounded-2xl border border-brand-emerald/15 bg-brand-emerald/5 space-y-4">
+              <span className="text-xs font-bold text-brand-emerald uppercase tracking-widest block">Depois da Creator Lab</span>
+              <ul className="space-y-2.5 text-xs text-gray-300 leading-relaxed">
+                <li className="flex gap-2">✅ Orçamento preciso, baseado em dados, sem insegurança</li>
+                <li className="flex gap-2">✅ Proposta em PDF profissional em minutos, não horas</li>
+                <li className="flex gap-2">✅ Diagnóstico de perfil real antes de qualquer contato</li>
+                <li className="flex gap-2">✅ Gestão de clientes, status e entregas em um só lugar</li>
+                <li className="flex gap-2">✅ Aulas de 3D mobile, IA na criação e muito mais</li>
+              </ul>
             </div>
           </div>
         </section>
 
-        {/* 6. Pricing Section (Cards) */}
-        <section id="pricing" className="py-8 border-t border-white/5 space-y-12">
-          <div className="text-center space-y-3">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full">
-              Assinatura Premium
+        {/* 4. What's inside */}
+        <section id="features" className="py-8 border-t border-white/5 space-y-14">
+          <div className="text-center space-y-4">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
+              A Plataforma
             </span>
-            <h2 className="text-3xl font-extrabold text-white tracking-tight">Escolha seu plano</h2>
-            <p className="text-gray-400 text-sm font-light">Tenha acesso a todo o laboratório no nível ideal para sua operação.</p>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              Tudo o que você precisa para parar de improvisar e começar a escalar
+            </h2>
+            <p className="text-gray-400 text-sm font-light max-w-2xl mx-auto">
+              Ferramentas que trabalham juntas. Cada uma resolve um gargalo real da sua operação como criador mobile.
+            </p>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <GlassCard 
-                key={plan.name}
-                glow={plan.featured}
-                className={cn(
-                  "p-8 flex flex-col h-full relative group transition-all duration-500 border-white/5",
-                  plan.featured ? "border-brand-emerald/30 shadow-[0_10px_30px_rgba(16,185,129,0.15)] md:scale-105" : "hover:border-white/10"
-                )}
-              >
-                {plan.featured && (
-                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 bg-brand-emerald text-black text-[10px] font-extrabold px-3 py-1 rounded-full uppercase tracking-widest shadow-[0_0_20px_rgba(16,185,129,0.4)]">
-                    Melhor Valor
+          {/* Formation block */}
+          <div id="formacao" className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-px bg-brand-emerald/40" />
+              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Formação Técnica</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <GraduationCap className="w-5 h-5" />
                   </div>
-                )}
-                
-                <div className="mb-8">
-                  <h3 className="text-xl font-extrabold text-white mb-2">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-extrabold text-white">{plan.price}</span>
-                    <span className="text-gray-500 text-sm">/mês</span>
+                  <div>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Do zero ao avançado</span>
+                    <h3 className="text-base font-bold text-white mt-1">Aulas & Cursos com Luisera</h3>
                   </div>
-                  <p className="text-xs text-gray-400 leading-relaxed min-h-[48px]">{plan.description}</p>
                 </div>
-
-                <div className="space-y-3.5 flex-1 mb-8">
-                  {plan.features.map((feature) => (
-                    <div key={feature} className="flex items-start gap-2.5 text-xs text-gray-300 leading-relaxed">
-                      <Check className="w-4 h-4 text-brand-emerald flex-shrink-0 mt-0.5" />
-                      <span>{feature}</span>
-                    </div>
-                  ))}
-                </div>
-
-                <p className="text-[10px] text-gray-500 mb-4 leading-normal italic text-center">{plan.subText}</p>
-
-                <Button 
-                  onClick={() => handleInitiatePayment(plan)}
-                  variant={plan.featured ? "primary" : "outline"}
-                  className={cn(
-                    "w-full h-11 uppercase font-bold text-xs tracking-wider transition-all",
-                    plan.featured && "shadow-[0_0_15px_rgba(16,185,129,0.3)] text-black"
-                  )}
-                >
-                  {plan.buttonText}
-                </Button>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Formação completa com Luisera: do básico de gravação mobile à produção cinematográfica pelo celular. Aprenda enquadramento, luz, movimento de câmera, edição profissional no CapCut e BlackMagic Cam. Quem está começando tem o caminho claro. Quem já sabe tem onde evoluir.
+                </p>
               </GlassCard>
-            ))}
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Brain className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novos cursos</span>
+                    <h3 className="text-base font-bold text-white mt-1">3D pelo Celular & IA para Mobile</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Vá além do convencional. Aulas de criação em 3D usando o celular — efeitos, motion e renders que impressionam qualquer cliente. E um curso completo de IA na produção de conteúdo: automatize roteiros, ideias e edições com as ferramentas que estão moldando o futuro da criação mobile.
+                </p>
+              </GlassCard>
+            </div>
           </div>
+
+          {/* Business tools block */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-px bg-brand-emerald/40" />
+              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Ferramentas de Negócio</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Sparkles className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Prospecção inteligente</span>
+                    <h3 className="text-base font-bold text-white mt-1">Diagnóstico de Perfil</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Chega de prospectar no escuro. Analise qualquer perfil do Instagram com o @ e receba um diagnóstico completo: engajamento real, consistência de postagens, tom de comunicação, lacunas visuais e oportunidades de conteúdo. Você entra na conversa já sabendo exatamente onde o cliente dói.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <DollarSign className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Fim do achismo</span>
+                    <h3 className="text-base font-bold text-white mt-1">Calculadora de Orçamento</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Uma calculadora séria, feita para criador mobile. Informe o tipo de conteúdo, complexidade, deslocamento, uso de equipamento e prazos — e receba um valor justo, detalhado e justificado. Nunca mais o cliente vai te pedir desconto sem você ter um argumento sólido na mão.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Lightbulb className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Criatividade com contexto</span>
+                    <h3 className="text-base font-bold text-white mt-1">Gerador de Ideias</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Com base no diagnóstico do perfil do cliente, a plataforma gera ideias de vídeo alinhadas ao nicho, ao tom e às lacunas identificadas. Cada ideia já vem com estrutura de cena, roteiro sugerido e duração estimada. Você apresenta como estrategista, não como executor.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <FileCheck className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Fechamento profissional</span>
+                    <h3 className="text-base font-bold text-white mt-1">Gerador de Proposta Comercial</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Transforme diagnóstico, orçamento e ideias em uma proposta comercial em PDF — personalizada, visualmente bonita e com argumentação sólida. O cliente recebe um documento que explica o problema dele, a solução proposta e o valor que você entrega. Isso fecha contratos.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Briefcase className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Operação organizada</span>
+                    <h3 className="text-base font-bold text-white mt-1">Gestão de Clientes</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Chega de perder o fio da meada. Acompanhe cada cliente ativo, status das entregas, links de aprovação e histórico de projetos — tudo em um painel integrado. Quanto mais clientes você tiver, mais você vai precisar disso.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <MessageSquare className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Suporte especializado</span>
+                    <h3 className="text-base font-bold text-white mt-1">Assistente de IA</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Um assistente treinado para criadores mobile: CapCut, BlackMagic Cam, Node Video, edição, luz, roteiro, argumentação de venda, negociação com cliente B2B. Pergunte, desbloqueie, avance. Sem precisar de mentor particular para cada dúvida do dia a dia.
+                </p>
+              </GlassCard>
+
+            </div>
+          </div>
+        </section>
+
+        {/* 5. Dual journey — Beginners + Experienced */}
+        <section className="py-8 border-t border-white/5 space-y-14">
+          <div className="text-center space-y-4">
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">
+              Dois pontos de partida. Um mesmo destino.
+            </h2>
+            <p className="text-gray-400 text-sm font-light max-w-xl mx-auto">
+              A Creator Lab fala igual com quem está começando e com quem já atende clientes. Veja onde você se encaixa.
+            </p>
+          </div>
+
+          {/* Dual track cards */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+            {/* Beginner track */}
+            <div className="rounded-3xl border border-brand-emerald/15 bg-gradient-to-br from-brand-emerald/5 to-transparent p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-brand-emerald/15 border border-brand-emerald/25 flex items-center justify-center text-brand-emerald">
+                  <Video className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand-emerald block">Para quem está começando</span>
+                  <h3 className="text-lg font-extrabold text-white">Você já inicia na frente.</h3>
+                </div>
+              </div>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                A maioria dos criadores aprende criação durante anos e só depois descobre como vender. Aqui é diferente: você aprende a técnica <em>e</em> os processos de negócio ao mesmo tempo.
+              </p>
+              <ul className="space-y-3 text-xs text-gray-300">
+                {[
+                  { icon: '🎬', text: 'Aulas do zero: gravação, enquadramento, luz e edição pelo celular' },
+                  { icon: '🧠', text: 'Assistente de IA para tirar dúvidas técnicas no momento certo' },
+                  { icon: '💰', text: 'Calculadora de orçamento: você já cobra certo desde o primeiro cliente' },
+                  { icon: '📋', text: 'Proposta comercial pronta: não chega improvisando na conversa' },
+                  { icon: '🚀', text: 'Cursos de 3D e IA mobile: você avança enquanto outros ainda estão na base' },
+                ].map((item) => (
+                  <li key={item.text} className="flex gap-2.5 items-start">
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="p-4 rounded-2xl bg-brand-emerald/8 border border-brand-emerald/10 text-brand-mint text-xs font-semibold leading-relaxed">
+                Quem começa com sistema não desenvolve os vícios que levam anos para desfazer. Aqui você vai construir certo desde o primeiro dia.
+              </div>
+            </div>
+
+            {/* Experienced track */}
+            <div className="rounded-3xl border border-white/8 bg-gradient-to-br from-white/3 to-transparent p-8 space-y-6">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-white">
+                  <TrendingUp className="w-5 h-5" />
+                </div>
+                <div>
+                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block">Para quem já está no mercado</span>
+                  <h3 className="text-lg font-extrabold text-white">Chega de deixar dinheiro na mesa.</h3>
+                </div>
+              </div>
+              <p className="text-gray-300 text-sm leading-relaxed">
+                Você já sabe criar. O problema é que a operação ainda depende de improviso — no preço, na proposta, na prospecção. E isso tem um custo invisivel que você paga todo mês.
+              </p>
+              <ul className="space-y-3 text-xs text-gray-300">
+                {[
+                  { icon: '🔍', text: 'Diagnóstico de perfil: sabe exatamente o que o cliente precisa antes de falar' },
+                  { icon: '📊', text: 'Orçamento justificado: para de perder para quem cobra mais barato' },
+                  { icon: '📄', text: 'Proposta em PDF: eleva a percepção de valor na hora certa' },
+                  { icon: '🗂️', text: 'Gestão de clientes: operação organizada que suporta mais volume' },
+                  { icon: '⚡', text: 'Conteúdo avançado: 3D mobile e IA que separam você da concorrência' },
+                ].map((item) => (
+                  <li key={item.text} className="flex gap-2.5 items-start">
+                    <span className="flex-shrink-0">{item.icon}</span>
+                    <span>{item.text}</span>
+                  </li>
+                ))}
+              </ul>
+              <div className="p-4 rounded-2xl bg-white/3 border border-white/8 text-gray-300 text-xs font-semibold leading-relaxed">
+                O mercado não vai te pagar mais só porque você faz vídeos melhores. Vai pagar mais quando você apresentar seu trabalho com mais autoridade e clareza.
+              </div>
+            </div>
+          </div>
+
+          {/* Common outcome strip */}
+          <div className="rounded-2xl border border-white/5 bg-white/2 p-8">
+            <div className="text-center mb-8 space-y-2">
+              <h3 className="text-xl font-bold text-white">O que muda para os dois</h3>
+              <p className="text-gray-500 text-xs">Independente de onde você está, o resultado aponta para o mesmo lugar.</p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              {[
+                { icon: <DollarSign className="w-5 h-5" />, title: 'Ticket mais alto', desc: 'Argumentação embasada que justifica o preço sem descontos' },
+                { icon: <Clock className="w-5 h-5" />, title: 'Mais tempo', desc: 'Ferramentas que fazem em minutos o que tomava horas' },
+                { icon: <Target className="w-5 h-5" />, title: 'Prospecção certa', desc: 'Dados reais antes de qualquer contato com o cliente' },
+                { icon: <Zap className="w-5 h-5" />, title: 'Técnica que diferencia', desc: '3D e IA mobile que a concorrência ainda não sabe fazer' },
+              ].map((item) => (
+                <div key={item.title} className="p-5 rounded-2xl neo-glass border border-white/5 space-y-3 text-center">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald mx-auto">
+                    {item.icon}
+                  </div>
+                  <div className="text-sm font-bold text-white">{item.title}</div>
+                  <p className="text-[11px] text-gray-500 leading-relaxed">{item.desc}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 6. Pricing Section */}
+        <section id="pricing" className="py-8 border-t border-white/5 space-y-12">
+          <div className="text-center space-y-4">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
+              Assinatura
+            </span>
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">Escolha o nível da sua operação</h2>
+            <p className="text-gray-400 text-sm font-light max-w-xl mx-auto">
+              Cada plano foi desenhado para um estágio diferente da sua jornada como criador profissional. Comece onde faz sentido, evolua quando quiser.
+            </p>
+          </div>
+
+          <PricingSection />
         </section>
 
         {/* Expert Profile Section */}
         <section className="py-12 md:py-16 border-t border-white/5">
           <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center">
-            {/* Image column — compact on mobile, full-height on desktop */}
+            {/* Image column */}
             <div className="col-span-12 md:col-span-5 relative group md:self-stretch md:flex md:flex-col md:justify-stretch">
-              {/* Ambient Glow — reduced on mobile to avoid bleed */}
               <div className="absolute -inset-2 md:-inset-3 rounded-[1.5rem] md:rounded-[2rem] bg-gradient-to-tr from-brand-emerald/20 via-brand-mint/5 to-brand-jade/25 blur-xl md:blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
-
-              {/* Image Card */}
               <div className="relative rounded-2xl overflow-hidden border border-brand-emerald/25 bg-gradient-to-b from-[#0a0a0a] to-[#040404] shadow-[0_0_40px_rgba(16,185,129,0.2)] group-hover:border-brand-emerald/40 group-hover:shadow-[0_0_70px_rgba(16,185,129,0.45)] transition-all duration-500 md:flex-1 md:flex md:flex-col">
                 <img
                   src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/imagem%20siteapp.png?alt=media&token=4465413b-007c-491a-a60e-398ce647e398"
                   alt="Luisera - Creator Lab Expert"
                   className="w-full object-cover object-top h-[280px] sm:h-[340px] md:h-full md:min-h-[580px] hover:scale-[1.03] transition-transform duration-700"
+                  loading="lazy"
                 />
               </div>
             </div>
@@ -497,24 +490,31 @@ export default function LandingPage() {
             {/* Description column */}
             <div className="col-span-12 md:col-span-7 space-y-5 md:space-y-6">
               <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-                O Idealizador
+                Quem construiu isso
               </span>
               <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
-                Criada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">Luisera</span>, para criadores que querem jogar em outro nível
+                Criada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">Luisera</span>, a partir de uma dor real.
               </h2>
               <div className="space-y-4 text-gray-300 text-sm leading-relaxed font-light">
                 <p>
-                  A Creator Lab foi desenvolvida a partir da experiência prática do Luisera, criador mobile que ensina profissionais a produzirem vídeos de alta qualidade usando apenas o celular, unindo técnica audiovisual, edição, posicionamento e visão comercial.
+                  Luisera passou pelos mesmos gargalos que você. Anos criando conteúdo mobile de alta qualidade, ensinando técnica para outros criadores, e percebendo que o problema não era a câmera — era a ausência de estrutura de negócio.
                 </p>
                 <p>
-                  Depois de anos criando, ensinando e entendendo as maiores dificuldades de quem trabalha com conteúdo mobile, Luisera reuniu na plataforma as ferramentas que gostaria que todo criador tivesse antes de atender clientes: diagnóstico de perfil, precificação inteligente, geração de ideias, propostas comerciais, gestão de entregas e aprendizado contínuo.
+                  A Creator Lab nasceu dessa frustração: não existia um lugar que reunisse formação técnica séria <em>com</em> as ferramentas práticas de quem quer viver de criação mobile com profissionalismo e escala.
                 </p>
                 <p>
-                  A Creator Lab nasce dessa visão: ajudar o criador mobile a deixar de operar no improviso e começar a trabalhar com método, clareza e autoridade.
+                  Cada feature da plataforma foi desenhada a partir de um gargalo real — vivido por Luisera ou pelos criadores que ele ensinou. Aqui, nada é teórico.
                 </p>
               </div>
               <div className="p-4 md:p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
-                "Porque o mercado não valoriza apenas quem cria bons vídeos. Valoriza quem sabe transformar criação em estratégia."
+                "O mercado não paga mais por quem grava bem. Paga por quem sabe transformar criação em resultado comercial."
+              </div>
+              <div className="pt-2">
+                <a href="#pricing">
+                  <Button className="glow-border text-black flex items-center gap-2">
+                    Quero entrar no laboratório <ArrowRight className="w-4 h-4" />
+                  </Button>
+                </a>
               </div>
             </div>
           </div>
@@ -526,106 +526,6 @@ export default function LandingPage() {
       <footer className="border-t border-white/5 py-12 bg-[#050505] text-center relative z-10">
         <p className="text-gray-600 text-xs">© 2026 Creator Lab. Desenvolvido para criadores profissionais. Todos os direitos reservados.</p>
       </footer>
-
-      {/* Checkout & Auto Registration Modal Overlay */}
-      {isCheckoutOpen && selectedPlan && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
-          <div className="relative bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-[0_20px_50px_rgba(0,0,0,0.9)] space-y-6 animate-in fade-in zoom-in-95 duration-200 my-8">
-            
-            {/* Close */}
-            <button 
-              onClick={() => setIsCheckoutOpen(false)}
-              className="absolute top-4 right-4 text-gray-400 hover:text-white p-1 rounded-full bg-white/5 hover:bg-white/10 transition-colors"
-            >
-              <X className="w-5 h-5" />
-            </button>
-
-            {/* Modal Content */}
-            <form onSubmit={handleCheckoutSubmit} className="space-y-6">
-              {/* Header */}
-              <div>
-                <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-2 py-0.5 rounded">
-                  Registro & Pagamento Seguro
-                </span>
-                <h3 className="text-2xl font-bold text-white mt-2">Assinar Plano {selectedPlan.name}</h3>
-                <p className="text-gray-400 text-sm mt-1">
-                  Crie sua conta para prosseguir com o pagamento seguro no Stripe.
-                </p>
-              </div>
-
-              {checkoutError && (
-                <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs">
-                  {checkoutError}
-                </div>
-              )}
-
-              {/* Section 1: Billing info */}
-              <div className="space-y-4">
-                <h4 className="text-xs font-bold text-white uppercase tracking-wider flex items-center gap-1.5">
-                  <User className="w-3.5 h-3.5 text-brand-emerald" /> Credenciais de Acesso
-                </h4>
-                <div className="space-y-3">
-                  <input 
-                    type="text" 
-                    required
-                    value={customerName}
-                    onChange={(e) => setCustomerName(e.target.value)}
-                    placeholder="Seu Nome Completo"
-                    autoComplete="off"
-                    className="w-full glass-input text-xs"
-                  />
-                  <input 
-                    type="email" 
-                    required
-                    value={customerEmail}
-                    onChange={(e) => setCustomerEmail(e.target.value)}
-                    placeholder="E-mail de Login"
-                    autoComplete="off"
-                    className="w-full glass-input text-xs"
-                  />
-                  <input 
-                    type="password" 
-                    required
-                    value={customerPassword}
-                    onChange={(e) => setCustomerPassword(e.target.value)}
-                    placeholder="Defina uma Senha (mín. 6 caracteres)"
-                    autoComplete="new-password"
-                    className="w-full glass-input text-xs"
-                  />
-                </div>
-              </div>
-
-              <div className="p-4 rounded-xl bg-brand-emerald/5 border border-brand-emerald/10 text-gray-300 text-xs leading-relaxed">
-                Você será redirecionado(a) para o checkout criptografado oficial do **Stripe** onde poderá escolher a melhor forma de pagamento.
-              </div>
-
-              {/* Submit Action */}
-              <div className="pt-2">
-                <Button 
-                  type="submit"
-                  disabled={isProcessing}
-                  className="w-full h-12 text-xs font-bold uppercase tracking-wider relative overflow-hidden group shadow-[0_0_20px_rgba(16,185,129,0.3)] text-black"
-                >
-                  {isProcessing ? (
-                    <span className="flex items-center justify-center gap-2">
-                      <Loader2 className="w-4 h-4 animate-spin text-black" /> Criando conta e redirecionando...
-                    </span>
-                  ) : (
-                    <span className="flex items-center justify-center gap-2">
-                      <Lock className="w-4 h-4" /> Avançar para Pagamento
-                    </span>
-                  )}
-                </Button>
-                <div className="flex items-center justify-center gap-1.5 text-[9px] text-gray-500 mt-4">
-                  <ShieldCheck className="w-3.5 h-3.5 text-brand-emerald" />
-                  <span>Ambiente criptografado e homologado pela Stripe Inc.</span>
-                </div>
-              </div>
-            </form>
-
-          </div>
-        </div>
-      )}
 
     </div>
   );

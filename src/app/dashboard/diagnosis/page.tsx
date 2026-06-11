@@ -3,7 +3,7 @@
 import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle, LayoutTemplate } from 'lucide-react';
+import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle, LayoutTemplate, Globe, ExternalLink, ThumbsUp, ThumbsDown, Minus, Info } from 'lucide-react';
 import * as htmlToImage from 'html-to-image';
 import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
@@ -44,7 +44,6 @@ export default function DiagnosisPage() {
   }, [user]);
 
   const handleGenerate = async () => {
-    // Check access and consume 1 credit
     const creditResult = await consumeCredit('diagnosis');
     if (!creditResult.ok) {
       setError(creditResult.reason === 'no_credits'
@@ -100,7 +99,7 @@ export default function DiagnosisPage() {
 
     } catch (err: any) {
       console.error("Erro completo da auditoria:", err);
-      setError("Não foi possível analisar este perfil no momento. Verifique o @ digitado ou tente novamente mais tarde.");
+      setError(err.message || "Não foi possível analisar este perfil no momento.");
     } finally {
       setLoading(false);
     }
@@ -236,7 +235,7 @@ export default function DiagnosisPage() {
                   <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
                 )}
                 {!loading && <CreditNotice toolId="diagnosis" />}
-                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Extraindo publicações e calculando engajamento (30s)...</p>}
+                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Extraindo dados do Instagram e Web (até 60s)...</p>}
               </div>
             </div>
           </GlassCard>
@@ -248,11 +247,10 @@ export default function DiagnosisPage() {
             <GlassCard className="h-full min-h-[400px] flex flex-col items-center justify-center opacity-50 border-white/5">
               <Target className="w-16 h-16 text-brand-jade/30 mb-4" />
               <p className="text-gray-400 font-medium text-center px-8">
-                Insira o @ do perfil para rodar o algoritmo determinístico de maturidade.
+                Insira o @ do perfil para rodar o algoritmo de maturidade e busca de menções.
               </p>
             </GlassCard>
           ) : (
-            
             <div id="pdf-report-content" className="space-y-6 animate-in fade-in slide-in-from-bottom-4 duration-700 bg-transparent rounded-3xl p-2 pb-6">
               
               {/* Score Header */}
@@ -260,7 +258,6 @@ export default function DiagnosisPage() {
                 <div className="absolute top-0 right-0 w-64 h-64 bg-brand-jade/5 rounded-bl-full -z-10 blur-3xl"></div>
                 
                 <div className="flex flex-col md:flex-row gap-8 items-center md:items-start">
-                  
                   {/* Big Number */}
                   <div className="flex-shrink-0 flex flex-col items-center">
                     <div className={`w-32 h-32 rounded-full border-4 flex items-center justify-center shadow-lg ${getScoreColor(result.notaGeral)} ${getScoreBg(result.notaGeral)}`}>
@@ -307,37 +304,125 @@ export default function DiagnosisPage() {
               {result.identidade && (
                 <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
                   <GlassCard className="p-4 border-white/5 flex items-start gap-3">
-                    <div className="p-2 bg-brand-jade/10 rounded-lg text-brand-jade">
+                    <div className="p-2 bg-brand-jade/10 rounded-lg text-brand-jade shrink-0">
                       <Target className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Nicho / Segmento</p>
-                      <p className="text-sm font-semibold text-white">{result.identidade.nicho}</p>
+                      <p className="text-sm font-semibold text-white leading-tight">{result.identidade.nicho}</p>
                     </div>
                   </GlassCard>
                   
                   <GlassCard className="p-4 border-white/5 flex items-start gap-3">
-                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400">
+                    <div className="p-2 bg-blue-500/10 rounded-lg text-blue-400 shrink-0">
                       <MessageCircle className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Tom de Voz</p>
-                      <p className="text-sm font-semibold text-white">{result.identidade.tom}</p>
+                      <p className="text-sm font-semibold text-white leading-tight">{result.identidade.tom}</p>
                     </div>
                   </GlassCard>
                   
                   <GlassCard className="p-4 border-white/5 flex items-start gap-3">
-                    <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400">
+                    <div className="p-2 bg-purple-500/10 rounded-lg text-purple-400 shrink-0">
                       <LayoutTemplate className="w-4 h-4" />
                     </div>
                     <div>
                       <p className="text-[10px] text-gray-500 uppercase font-bold mb-1">Formato Predominante</p>
-                      <p className="text-sm font-semibold text-white">{result.identidade.formatoPrincipal}</p>
+                      <p className="text-sm font-semibold text-white leading-tight">{result.identidade.formatoPrincipal}</p>
                     </div>
                   </GlassCard>
                 </div>
               )}
 
+              {/* Análise de Sentimento dos Comentários */}
+              {result.analiseSentimento && (
+                <GlassCard className="p-6 border-white/5 bg-gradient-to-br from-white/5 to-transparent">
+                  <div className="flex flex-col md:flex-row md:items-center justify-between mb-6 border-b border-white/10 pb-4 gap-4">
+                    <h4 className="text-lg font-bold text-white flex items-center gap-2">
+                      <MessageCircle className="w-5 h-5 text-brand-jade" /> Sentimento da Audiência
+                    </h4>
+                    <div className="flex items-center gap-2 bg-black/40 px-3 py-1.5 rounded-full text-xs text-gray-400 border border-white/5">
+                      <Info className="w-3.5 h-3.5" /> Amostra: {result.analiseSentimento.amostraTotal || 0} comentários processados
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-start mb-8">
+                    <div className="space-y-4">
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-emerald-500/20 flex items-center justify-center text-emerald-400 shrink-0"><ThumbsUp className="w-4 h-4" /></div>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">Positivo</span><span className="font-bold text-emerald-400">{result.analiseSentimento.positivo}%</span></div>
+                          <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden"><div className="bg-emerald-400 h-full" style={{width: `${result.analiseSentimento.positivo}%`}}></div></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-gray-500/20 flex items-center justify-center text-gray-400 shrink-0"><Minus className="w-4 h-4" /></div>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">Neutro</span><span className="font-bold text-gray-400">{result.analiseSentimento.neutro}%</span></div>
+                          <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden"><div className="bg-gray-400 h-full" style={{width: `${result.analiseSentimento.neutro}%`}}></div></div>
+                        </div>
+                      </div>
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 h-8 rounded-full bg-red-500/20 flex items-center justify-center text-red-400 shrink-0"><ThumbsDown className="w-4 h-4" /></div>
+                        <div className="flex-1">
+                          <div className="flex justify-between text-sm mb-1"><span className="text-gray-300">Negativo</span><span className="font-bold text-red-400">{result.analiseSentimento.negativo}%</span></div>
+                          <div className="w-full bg-black/40 h-2 rounded-full overflow-hidden"><div className="bg-red-400 h-full" style={{width: `${result.analiseSentimento.negativo}%`}}></div></div>
+                        </div>
+                      </div>
+                    </div>
+                    <div className="bg-black/30 p-5 rounded-2xl border border-white/5 h-full flex items-center">
+                      <p className="text-sm text-gray-300 leading-relaxed italic border-l-2 border-brand-jade pl-4">
+                        "{result.analiseSentimento.resumo}"
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Detalhamento por Post */}
+                  {result.analiseSentimento.porPost && result.analiseSentimento.porPost.length > 0 && (
+                    <div className="mt-6">
+                      <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-4">Quebra por Publicação Recente</h5>
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        {result.analiseSentimento.porPost.map((postData: any, idx: number) => (
+                          <div key={idx} className="bg-black/20 border border-white/5 p-4 rounded-xl flex flex-col h-full">
+                            <div className="flex justify-between items-start mb-2">
+                              <a href={postData.url?.includes('http') ? postData.url : `https://instagram.com/p/${postData.url}`} target="_blank" rel="noreferrer" className="text-brand-jade hover:underline text-xs font-medium truncate pr-2">
+                                Link do Post
+                              </a>
+                              <span className="text-[10px] bg-white/5 px-2 py-0.5 rounded text-gray-400 shrink-0">{postData.amostra} coment.</span>
+                            </div>
+                            <div className="flex gap-1 h-1.5 w-full rounded-full overflow-hidden mb-3">
+                              <div className="bg-emerald-500" style={{width: `${postData.positivo}%`}}></div>
+                              <div className="bg-gray-500" style={{width: `${postData.neutro}%`}}></div>
+                              <div className="bg-red-500" style={{width: `${postData.negativo}%`}}></div>
+                            </div>
+                            <p className="text-xs text-gray-400 leading-relaxed mb-3">"{postData.resumo}"</p>
+                            
+                            {postData.comentariosAvaliados && postData.comentariosAvaliados.length > 0 && (
+                              <div className="mt-auto pt-3 border-t border-white/5 space-y-2">
+                                <span className="text-[10px] uppercase text-gray-500 font-bold tracking-wider">Avaliação Individual</span>
+                                <div className="max-h-32 overflow-y-auto pr-1 space-y-1.5 custom-scrollbar">
+                                  {postData.comentariosAvaliados.map((com: any, cIdx: number) => {
+                                    let badgeColor = 'bg-gray-500/20 text-gray-400';
+                                    if (com.sentimento === 'positivo') badgeColor = 'bg-emerald-500/20 text-emerald-400';
+                                    if (com.sentimento === 'negativo') badgeColor = 'bg-red-500/20 text-red-400';
+                                    return (
+                                      <div key={cIdx} className="flex gap-2 items-start bg-black/40 p-2 rounded-lg border border-white/5">
+                                        <div className={`w-2 h-2 rounded-full mt-1 shrink-0 ${badgeColor.split(' ')[0].replace('/20', '')}`}></div>
+                                        <p className="text-[11px] text-gray-300 leading-snug line-clamp-2">"{com.texto}"</p>
+                                      </div>
+                                    );
+                                  })}
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </GlassCard>
+              )}
 
               {/* Sub-Scores Matrix */}
               <GlassCard className="p-6 border-white/5">
@@ -427,7 +512,9 @@ export default function DiagnosisPage() {
                    </div>
                  </GlassCard>
               </div>
-              
+
+
+
             </div>
           )}
         </div>

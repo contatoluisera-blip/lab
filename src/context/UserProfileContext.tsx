@@ -22,6 +22,10 @@ export interface UserProfile {
   plan: PlanId;
   credits: number;
   trialUsed: Partial<Record<ToolId, boolean>>;
+  calculator_presets?: {
+    customCosts: { id: string; name: string; value: number }[];
+    customEquipment: { id: string; name: string; value: number }[];
+  };
   createdAt: string;
 }
 
@@ -43,6 +47,8 @@ interface UserProfileContextType {
   refundCredit: (tool: ToolId) => Promise<{ ok: boolean }>;
   /** Refresh profile from Firestore */
   refreshProfile: () => Promise<void>;
+  /** Save calculator custom settings */
+  saveCalculatorPresets: (presets: UserProfile['calculator_presets']) => Promise<void>;
 }
 
 const UserProfileContext = createContext<UserProfileContextType>({
@@ -53,6 +59,7 @@ const UserProfileContext = createContext<UserProfileContextType>({
   consumeCredit: async () => ({ ok: false, reason: 'no_access' }),
   refundCredit: async () => ({ ok: false }),
   refreshProfile: async () => {},
+  saveCalculatorPresets: async () => {},
 });
 
 export const useUserProfile = () => useContext(UserProfileContext);
@@ -200,6 +207,20 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     [user, userProfile]
   );
 
+  const saveCalculatorPresets = useCallback(
+    async (presets: UserProfile['calculator_presets']) => {
+      if (!user || !userProfile) return;
+      try {
+        const userRef = doc(db, 'users', user.uid);
+        await updateDoc(userRef, { calculator_presets: presets });
+        setUserProfile(prev => prev ? { ...prev, calculator_presets: presets } : prev);
+      } catch (e) {
+        console.error('[UserProfile] Failed to save calculator presets:', e);
+      }
+    },
+    [user, userProfile]
+  );
+
   return (
     <UserProfileContext.Provider
       value={{
@@ -210,6 +231,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
         consumeCredit,
         refundCredit,
         refreshProfile: fetchProfile,
+        saveCalculatorPresets,
       }}
     >
       {children}
