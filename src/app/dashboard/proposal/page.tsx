@@ -11,8 +11,6 @@ import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
-import * as htmlToImage from 'html-to-image';
-import { jsPDF } from 'jspdf';
 
 export default function ProposalPage() {
   const { user } = useAuth();
@@ -218,6 +216,9 @@ export default function ProposalPage() {
 
     setLoadingPdf(true);
     try {
+      const htmlToImage = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
       const imgData = await htmlToImage.toPng(reportElement, { 
         backgroundColor: '#0a0a0a',
         pixelRatio: 2

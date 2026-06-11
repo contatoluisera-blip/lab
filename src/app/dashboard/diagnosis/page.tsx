@@ -4,8 +4,6 @@ import React, { useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { ScanSearch, Sparkles, CheckCircle, AlertTriangle, Activity, Target, LineChart, FileDown, AtSign, TrendingUp, AlertCircle, Heart, MessageCircle, LayoutTemplate, Globe, ExternalLink, ThumbsUp, ThumbsDown, Minus, Info } from 'lucide-react';
-import * as htmlToImage from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
@@ -111,6 +109,9 @@ export default function DiagnosisPage() {
 
     setLoadingPdf(true);
     try {
+      const htmlToImage = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
       const imgData = await htmlToImage.toPng(reportElement, { 
         backgroundColor: '#0a0a0a',
         pixelRatio: 2

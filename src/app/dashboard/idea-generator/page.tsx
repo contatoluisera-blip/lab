@@ -15,8 +15,6 @@ import {
   PlayCircle,
   FileDown
 } from 'lucide-react';
-import * as htmlToImage from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
@@ -212,6 +210,9 @@ export default function IdeaGeneratorPage() {
 
     setLoadingPdf(true);
     try {
+      const htmlToImage = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
       // Temporarily hide the copy buttons before taking screenshot
       const copyButtons = reportElement.querySelectorAll('.copy-btn');
       copyButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');

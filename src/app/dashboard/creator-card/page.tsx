@@ -12,8 +12,6 @@ import {
   IdCard, Sparkles, Download, Image as ImageIcon, Briefcase, 
   User, Link as LinkIcon, Settings, Target, Zap
 } from 'lucide-react';
-import { toPng } from 'html-to-image';
-import { jsPDF } from 'jspdf';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
@@ -148,7 +146,10 @@ export default function CreatorCardPage() {
       const pdfWidth = 108;
       const pdfHeight = (cardRect.height * pdfWidth) / cardRect.width;
 
-      const imgData = await toPng(cardEl, {
+      const htmlToImage = await import('html-to-image');
+      const { jsPDF } = await import('jspdf');
+
+      const imgData = await htmlToImage.toPng(cardEl, {
         pixelRatio: 2,
         style: {
           borderRadius: '0px', // Remove a borda arredondada na hora de tirar a foto para preencher o PDF
