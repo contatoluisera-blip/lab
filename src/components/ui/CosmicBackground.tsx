@@ -74,10 +74,6 @@ export function CosmicBackground() {
         ctx.arc(this.x, this.y, this.size, 0, Math.PI * 2);
         ctx.closePath();
         ctx.fill();
-        
-        // Glow effect
-        ctx.shadowBlur = 15;
-        ctx.shadowColor = this.colorSet.glow;
       }
 
       update() {
@@ -116,8 +112,8 @@ export function CosmicBackground() {
 
     const initParticles = () => {
       particles = [];
-      // Divisor diminished heavily to increase the sheer quantity of particles
-      const numberOfParticles = Math.floor((canvas.width * canvas.height) / 4000);
+      // Optimize particle count to prevent main thread starvation
+      const numberOfParticles = Math.floor((canvas.width * canvas.height) / 15000);
       for (let i = 0; i < numberOfParticles; i++) {
         let x = Math.random() * canvas.width;
         let y = Math.random() * canvas.height;
