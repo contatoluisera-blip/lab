@@ -5,7 +5,7 @@ import { Fase3 } from "./Fase3";
 import { CosmicDust } from "./CosmicDust";
 import { EstudoScreen } from "./EstudoScreen";
 import { IaQuestionScreen } from "./IaQuestionScreen";
-import { PricingScreen } from "./PricingScreen";
+import { CallToActionScreen } from "./CallToActionScreen";
 
 export const Apresentacao: React.FC = () => {
   return (
@@ -35,7 +35,7 @@ export const Apresentacao: React.FC = () => {
         </Sequence>
 
         <Sequence from={1940} durationInFrames={300}>
-          <PricingScreen />
+          <CallToActionScreen />
         </Sequence>
       </div>
     </AbsoluteFill>

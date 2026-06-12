@@ -3,8 +3,6 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
-import { db } from '@/lib/firebase';
-import { collection, addDoc, serverTimestamp } from 'firebase/firestore';
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Mail, Phone, ShieldCheck, Smartphone, User } from 'lucide-react';
 
 export default function PreListaForm() {
@@ -27,18 +25,29 @@ export default function PreListaForm() {
       return;
     }
     try {
-      await addDoc(collection(db, 'pre_list'), {
-        name,
-        email,
-        instagram,
-        whatsapp,
-        status: 'registered',
-        createdAt: serverTimestamp(),
+      const response = await fetch('/api/prelista', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name,
+          email,
+          instagram,
+          whatsapp,
+        }),
       });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        throw new Error(data.error || 'Ocorreu um erro ao registrar.');
+      }
+
       setIsSuccess(true);
     } catch (err: any) {
       console.error('Erro ao registrar:', err);
-      setError('Ocorreu um erro. Tente novamente.');
+      setError(err.message || 'Ocorreu um erro. Tente novamente.');
     } finally {
       setIsSubmitting(false);
     }

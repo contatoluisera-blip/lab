@@ -66,20 +66,19 @@ export const FinalCardsScreen: React.FC<{ frame: number, fps: number }> = ({ fra
 
         {/* Container dos Cards */}
         {frame >= fps * 43.5 && (() => {
-            // Slide Out animation starts at 50.0s
             const slideOutX = interpolate(
                 frame,
                 [fps * 50.0, fps * 50.8],
-                [0, -3000],
+                [0, -4500],
                 { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) }
             );
 
             return (
                 <div style={{
-                    display: 'flex',
-                    flexDirection: 'column',
-                    gap: '64px', // Aumentado o gap
-                    width: '2000px', // Aumentado a largura dos cards para preencher melhor a tela
+                    display: 'grid',
+                    gridTemplateColumns: '1fr 1fr',
+                    gap: '64px', 
+                    width: '3200px', // Aumentado para 2 colunas
                     padding: '40px',
                     transform: `translateX(${slideOutX}px)`
                 }}>

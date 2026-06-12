@@ -21,12 +21,30 @@ export const RemotionRoot: React.FC = () => {
       />
 
       <Composition
+        id="PreviaCreatorLabHorizontal"
+        component={PreviaCreatorLab}
+        durationInFrames={1770}
+        fps={30}
+        width={3840}
+        height={2160}
+      />
+
+      <Composition
         id="ChutaAi"
         component={Apresentacao}
         durationInFrames={2240}
         fps={30}
-        width={2160}
-        height={3840}
+        width={3840}
+        height={2160}
+      />
+
+      <Composition
+        id="CreatorLab4"
+        component={Apresentacao}
+        durationInFrames={2240}
+        fps={30}
+        width={3840}
+        height={2160}
       />
 
       <Composition

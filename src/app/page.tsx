@@ -21,9 +21,10 @@ import {
   DollarSign,
   AlertTriangle,
   Video,
-  Brain
+  Brain,
+  CheckCircle2
 } from 'lucide-react';
-import PricingSection from './PricingSection';
+import PreListaForm from '@/app/lista/PreListaForm';
 
 export default function LandingPage() {
   return (
@@ -45,7 +46,7 @@ export default function LandingPage() {
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
           <a href="#features" className="hover:text-brand-mint transition-colors">Ferramentas</a>
           <a href="#formacao" className="hover:text-brand-mint transition-colors">Formação</a>
-          <a href="#pricing" className="hover:text-brand-mint transition-colors">Planos</a>
+          <a href="#pre-lista" className="hover:text-brand-mint transition-colors">Pré-lista</a>
           <Link href="/login" className="text-white hover:text-brand-mint transition-colors">Entrar no App</Link>
         </nav>
       </header>
@@ -60,19 +61,19 @@ export default function LandingPage() {
             <span>Do zero ao profissional. Do profissional ao próximo nível.</span>
           </div>
           <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-            Criação mobile
+            Você cria pelo celular.
             <br />
             <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-jade drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              com método.
+              Chegou a hora de escalar.
             </span>
           </h1>
           <p className="text-base md:text-lg text-gray-400 max-w-2xl leading-relaxed font-light">
-            Não importa se você acabou de pegar o celular pela primeira vez ou já atende clientes há anos. A Creator Lab foi feita para que <strong className="text-white font-semibold">quem está começando já inicie na frente</strong> — e para que <strong className="text-white font-semibold">quem já está no mercado pare de deixar dinheiro na mesa.</strong>
+            A <strong className="text-white">Creator Lab</strong> reúne cursos de criação mobile, ferramentas de diagnóstico, orçamento, geração de ideias e um assistente de IA 24h — tudo para você produzir mais, errar menos e cobrar o que o seu trabalho realmente vale.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
-            <a href="#pricing">
+            <a href="#pre-lista">
               <Button size="lg" className="glow-border text-black px-8 flex items-center gap-2">
-                Quero entrar no laboratório <ArrowRight className="w-4 h-4" />
+                Garantir vaga na pré-lista <ArrowRight className="w-4 h-4" />
               </Button>
             </a>
             <Link href="/login">
@@ -101,8 +102,8 @@ export default function LandingPage() {
             
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.2)] bg-[#050505] aspect-video">
               <iframe
-                id="panda-39e7fff9-00f5-4e62-9505-0b4e625104b8"
-                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=39e7fff9-00f5-4e62-9505-0b4e625104b8&autoplay=true"
+                id="panda-07c0c55c-deb7-40ad-8f99-6859e00c03cf"
+                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=07c0c55c-deb7-40ad-8f99-6859e00c03cf&autoplay=true"
                 style={{ border: 'none' }}
                 className="w-full h-full"
                 allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
@@ -456,19 +457,63 @@ export default function LandingPage() {
           </div>
         </section>
 
-        {/* 6. Pricing Section */}
-        <section id="pricing" className="py-8 border-t border-white/5 space-y-12">
-          <div className="text-center space-y-4">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-              Assinatura
-            </span>
-            <h2 className="text-3xl font-extrabold text-white tracking-tight">Escolha o nível da sua operação</h2>
-            <p className="text-gray-400 text-sm font-light max-w-xl mx-auto">
-              Cada plano foi desenhado para um estágio diferente da sua jornada como criador profissional. Comece onde faz sentido, evolua quando quiser.
-            </p>
-          </div>
+        {/* 6. Pre-Lista Section */}
+        <section id="pre-lista" className="py-8 border-t border-white/5 scroll-mt-24">
+          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-start">
+            {/* Left: benefits */}
+            <div className="space-y-8">
+              <div className="space-y-3">
+                <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
+                  Pré-Lista
+                </span>
+                <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+                  Inscreva-se agora.<br />
+                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">
+                    Quem chega primeiro,<br />fica melhor.
+                  </span>
+                </h2>
+                <p className="text-gray-400 text-sm leading-relaxed font-light pt-2">
+                  A Creator Lab abre as portas em breve. Os inscritos na pré-lista terão condições que <strong className="text-white">nunca mais serão repetidas</strong> — porque quem acredita no começo merece ser reconhecido.
+                </p>
+              </div>
 
-          <PricingSection />
+              <div className="space-y-4">
+                {[
+                  {
+                    tag: 'Desconto de Fundadores',
+                    text: 'Acesso com o menor preço que a Creator Lab vai oferecer na história da plataforma.',
+                  },
+                  {
+                    tag: 'Acesso Antecipado',
+                    text: 'Você entra antes de todo mundo — e já começa a usar as ferramentas enquanto a abertura oficial não acontece.',
+                  },
+                  {
+                    tag: 'Voz Ativa',
+                    text: 'Feedbacks seus moldam o roadmap. Você ajuda a construir o app que vai transformar a sua operação.',
+                  },
+                ].map(({ tag, text }) => (
+                  <div key={tag} className="flex items-start gap-4">
+                    <CheckCircle2 className="w-5 h-5 text-brand-emerald flex-shrink-0 mt-0.5" />
+                    <div>
+                      <p className="text-sm font-semibold text-white">{tag}</p>
+                      <p className="text-xs text-gray-500 font-light leading-relaxed mt-0.5">{text}</p>
+                    </div>
+                  </div>
+                ))}
+              </div>
+
+              {/* Luisera quote */}
+              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 space-y-3">
+                <p className="text-sm text-brand-mint font-semibold italic leading-relaxed">
+                  "Criar pelo celular é acessível. Criar bem, de forma consistente e lucrativa — isso exige método. A Creator Lab é esse método."
+                </p>
+                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">— Luisera, criador mobile e idealizador</p>
+              </div>
+            </div>
+
+            {/* Right: Form */}
+            <PreListaForm />
+          </div>
         </section>
 
         {/* Expert Profile Section */}
@@ -510,9 +555,9 @@ export default function LandingPage() {
                 "O mercado não paga mais por quem grava bem. Paga por quem sabe transformar criação em resultado comercial."
               </div>
               <div className="pt-2">
-                <a href="#pricing">
+                <a href="#pre-lista">
                   <Button className="glow-border text-black flex items-center gap-2">
-                    Quero entrar no laboratório <ArrowRight className="w-4 h-4" />
+                    Garantir vaga na pré-lista <ArrowRight className="w-4 h-4" />
                   </Button>
                 </a>
               </div>

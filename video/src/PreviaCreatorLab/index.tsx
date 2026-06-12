@@ -11,7 +11,10 @@ import { PricingScreen } from './PricingScreen';
 import { IntroScreen } from './IntroScreen';
 
 const MainSequence: React.FC = () => {
-  const { width, height, fps } = useVideoConfig();
+  const { width: screenWidth, height: screenHeight, fps } = useVideoConfig();
+  const scaleRatio = screenHeight / 3830;
+  const phoneAreaWidth = 2160 * scaleRatio;
+  const phoneAreaHeight = 3830 * scaleRatio;
   const frame = useCurrentFrame();
 
   const showOrcamento = frame >= fps * 35.8;
@@ -28,7 +31,7 @@ const MainSequence: React.FC = () => {
   });
 
   // Movimento de deslize da direita para o centro
-  const translateX = interpolate(slideProgress, [0, 1], [width / 2 + 800, 0]);
+  const translateX = interpolate(slideProgress, [0, 1], [screenWidth / 2 + 800, 0]);
 
   // Rotação inicial de entrada
   const initialRotateY = interpolate(slideProgress, [0, 1], [45, -25]); // Mais inclinado para mostrar a lateral
@@ -36,9 +39,9 @@ const MainSequence: React.FC = () => {
   const initialRotateZ = interpolate(slideProgress, [0, 1], [-15, -8]);
 
   // Flutuação contínua lenta após a entrada
-  const floatingY = Math.sin(frame / 90) * 4;
-  const floatingX = Math.cos(frame / 110) * 3;
-  const floatingYOffset = Math.sin(frame / 60) * 35; // Sobe e desce mais visível com o zoom
+  const floatingY = Math.sin(frame / 90) * 4 * scaleRatio;
+  const floatingX = Math.cos(frame / 110) * 3 * scaleRatio;
+  const floatingYOffset = Math.sin(frame / 60) * 35 * scaleRatio; // Sobe e desce mais visível com o zoom
   // Zoom out de volta para mostrar o celular inteiro (segundo 9 ao 10)
   const zoomProgress = interpolate(
     frame,
@@ -75,9 +78,9 @@ const MainSequence: React.FC = () => {
   const rotateZ = baseRotateZ;
 
   // Zoom massivo para a tela de estudos (início no zoom)
-  const scaleZoomIn = 6.8; 
+  const scaleZoomIn = 6.8 * scaleRatio; 
   // Zoom out de volta para mostrar o celular inteiro (com tamanho agradável)
-  const scale = interpolate(zoomProgress, [0, 1], [scaleZoomIn, 3.5]); 
+  const scale = interpolate(zoomProgress, [0, 1], [scaleZoomIn, 3.5 * scaleRatio]); 
   
   // Pan animation no segundo 4 para descer a câmera (mover o celular para cima e para a esquerda)
   const panProgress = interpolate(
@@ -87,11 +90,11 @@ const MainSequence: React.FC = () => {
     { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.cubic) }
   );
 
-  const panOffsetX = interpolate(panProgress, [0, 1], [0, -width * 0.4]);
-  const panOffsetY = interpolate(panProgress, [0, 1], [0, -height * 0.35]);
+  const panOffsetX = interpolate(panProgress, [0, 1], [0, -phoneAreaWidth * 0.4]);
+  const panOffsetY = interpolate(panProgress, [0, 1], [0, -phoneAreaHeight * 0.35]);
 
-  const slideX = interpolate(slideProgress, [0, 1], [width / 2 + 1500, width * 0.15]);
-  const slideY = height * 0.15;
+  const slideX = interpolate(slideProgress, [0, 1], [screenWidth / 2 + 1500, phoneAreaWidth * 0.15]);
+  const slideY = phoneAreaHeight * 0.15;
 
   // Posição no final do pan (segundo 7.5)
   const preZoomX = slideX + panOffsetX;
@@ -165,34 +168,34 @@ const MainSequence: React.FC = () => {
 
   if (frame >= fps * 10) {
      // Apply Jump Zoom (Aggressive focus on the text field)
-     finalScale = interpolate(jumpZoomSpring, [0, 1], [3.5, 8.0]);
+     finalScale = interpolate(jumpZoomSpring, [0, 1], [3.5 * scaleRatio, 8.0 * scaleRatio]);
      // Input starts slightly to the left, move right
-     finalX = interpolate(jumpZoomSpring, [0, 1], [0, 640]);
+     finalX = interpolate(jumpZoomSpring, [0, 1], [0, 640 * scaleRatio]);
      // Reduce positive Y to bring the box higher up into the dead center
-     finalY = interpolate(jumpZoomSpring, [0, 1], [floatingYOffset, 450 + floatingYOffset]);
+     finalY = interpolate(jumpZoomSpring, [0, 1], [floatingYOffset, 450 * scaleRatio + floatingYOffset]);
      
      // Apply Typing Pan (moves screen left to keep cursor centered as it types)
-     finalX = interpolate(typingPanSpring, [0, 1], [finalX, 240]);
+     finalX = interpolate(typingPanSpring, [0, 1], [finalX, 240 * scaleRatio]);
      
      // Apply Button Focus
      // Diminuir o retorno de escala (ficar mais em plano detalhe) -> 6.0
-     finalScale = interpolate(buttonFocusSpring, [0, 1], [finalScale, 6.0]);
+     finalScale = interpolate(buttonFocusSpring, [0, 1], [finalScale, 6.0 * scaleRatio]);
      finalX = interpolate(buttonFocusSpring, [0, 1], [finalX, 0]);
      // Movimentar agressivamente para cima (Y negativo) para revelar o botão
-     finalY = interpolate(buttonFocusSpring, [0, 1], [finalY, -1300 + floatingYOffset]);
+     finalY = interpolate(buttonFocusSpring, [0, 1], [finalY, -1300 * scaleRatio + floatingYOffset]);
 
      // Apply Final Zoom Out after click
-     finalScale = interpolate(finalZoomOutSpring, [0, 1], [finalScale, 3.5]);
+     finalScale = interpolate(finalZoomOutSpring, [0, 1], [finalScale, 3.5 * scaleRatio]);
      finalX = interpolate(finalZoomOutSpring, [0, 1], [finalX, 0]);
      finalY = interpolate(finalZoomOutSpring, [0, 1], [finalY, floatingYOffset]);
 
      // Apply 3D Perspective Approach for Results
-     finalScale = interpolate(resultsPerspectiveSpring, [0, 1], [finalScale, 5.0]);
+     finalScale = interpolate(resultsPerspectiveSpring, [0, 1], [finalScale, 5.0 * scaleRatio]);
      finalRotateX += interpolate(resultsPerspectiveSpring, [0, 1], [0, 25]); // Foco inicial de cima para baixo (como estava antes)
      finalRotateY += interpolate(resultsPerspectiveSpring, [0, 1], [0, -15]); // Tilt right
-     finalX = interpolate(resultsPerspectiveSpring, [0, 1], [finalX, -100]); // Adjust pan
+     finalX = interpolate(resultsPerspectiveSpring, [0, 1], [finalX, -100 * scaleRatio]); // Adjust pan
      // Move down slightly so the top of the screen is well visible
-     finalY = interpolate(resultsPerspectiveSpring, [0, 1], [finalY, 200 + floatingYOffset]); 
+     finalY = interpolate(resultsPerspectiveSpring, [0, 1], [finalY, 200 * scaleRatio + floatingYOffset]); 
 
      // Apply Perspective Shift during scroll
      const scrollPerspectiveProgress = interpolate(
@@ -204,14 +207,14 @@ const MainSequence: React.FC = () => {
      // Vai do olhar de cima para baixo (+25) para o ângulo hero (-20)
      finalRotateX += interpolate(scrollPerspectiveProgress, [0, 1], [0, -45]);
      // Ajuste em Y suave para compensar o pivot
-     finalY += interpolate(scrollPerspectiveProgress, [0, 1], [0, 100]);
+     finalY += interpolate(scrollPerspectiveProgress, [0, 1], [0, 100 * scaleRatio]);
      // Jump Zoom: a câmera se aproxima significativamente durante a rolagem para detalhar os cards
-     finalScale += interpolate(scrollPerspectiveProgress, [0, 1], [0, 2.0]);
+     finalScale += interpolate(scrollPerspectiveProgress, [0, 1], [0, 2.0 * scaleRatio]);
   }
 
   // Final Transition to Calculadora
   if (frame >= fps * 24.0) {
-     finalScale = interpolate(transitionToCalcSpring, [0, 1], [finalScale, 3.5]);
+     finalScale = interpolate(transitionToCalcSpring, [0, 1], [finalScale, 3.5 * scaleRatio]);
      finalRotateX = interpolate(transitionToCalcSpring, [0, 1], [finalRotateX, 0]);
      finalRotateY = interpolate(transitionToCalcSpring, [0, 1], [finalRotateY, 0]);
      finalX = interpolate(transitionToCalcSpring, [0, 1], [finalX, 0]);
@@ -220,24 +223,24 @@ const MainSequence: React.FC = () => {
 
   // Jump Zoom na Calculadora
   if (frame >= fps * 24.7) {
-     finalScale = interpolate(calcJumpZoomProgress, [0, 1], [finalScale, 7.5]);
+     finalScale = interpolate(calcJumpZoomProgress, [0, 1], [finalScale, 7.5 * scaleRatio]);
      finalRotateX = interpolate(calcJumpZoomProgress, [0, 1], [finalRotateX, 15]); 
      finalRotateY = interpolate(calcJumpZoomProgress, [0, 1], [finalRotateY, 25]); // Rotação no sentido oposto (olhando pela esquerda)
      finalRotateZ = interpolate(calcJumpZoomProgress, [0, 1], [finalRotateZ, 10]); // Variação do Z invertida e restaurada ao valor anterior
      
      // Move o celular para a direita (X positivo) para que a margem esquerda (onde o texto começa) não corte. Aumentado para ver a borda.
-     finalX = interpolate(calcJumpZoomProgress, [0, 1], [finalX, 380]);
+     finalX = interpolate(calcJumpZoomProgress, [0, 1], [finalX, 380 * scaleRatio]);
      // Move o celular para baixo (Y positivo) para focar no topo
-     finalY = interpolate(calcJumpZoomProgress, [0, 1], [finalY, 550 + floatingYOffset]); 
+     finalY = interpolate(calcJumpZoomProgress, [0, 1], [finalY, 550 * scaleRatio + floatingYOffset]); 
 
      // Animação de Scroll (enquadrando parte direita inferior)
-     finalX += interpolate(calcScrollProgress, [0, 1], [0, -400]); // Move celular para a esquerda para revelar a borda direita
-     finalY += interpolate(calcScrollProgress, [0, 1], [0, -650]); // Move celular para cima para revelar parte inferior
+     finalX += interpolate(calcScrollProgress, [0, 1], [0, -400 * scaleRatio]); // Move celular para a esquerda para revelar a borda direita
+     finalY += interpolate(calcScrollProgress, [0, 1], [0, -650 * scaleRatio]); // Move celular para cima para revelar parte inferior
      finalRotateX += interpolate(calcScrollProgress, [0, 1], [0, -20]); // Muda ângulo para olhar de baixo para cima
      
      // Leve zoom contínuo a partir de 29s para não deixar a imagem estática
      const continuousZoomProgress = interpolate(frame, [fps * 29.0, fps * 35.5], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' });
-     finalScale += interpolate(continuousZoomProgress, [0, 1], [0, 1.2]); // Ganho leve de escala
+     finalScale += interpolate(continuousZoomProgress, [0, 1], [0, 1.2 * scaleRatio]); // Ganho leve de escala
   }
 
   // Final Transition to Orcamento (Recenter phone and zoom slightly)
@@ -245,7 +248,7 @@ const MainSequence: React.FC = () => {
      const orcamentoProgress = interpolate(frame, [fps * 35.5, fps * 36.5], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.inOut(Easing.ease) });
      
      // Zoom out so the phone doesn't fill the whole frame, e.g. finalScale = 3.5
-     finalScale = interpolate(orcamentoProgress, [0, 1], [finalScale, 3.5]);
+     finalScale = interpolate(orcamentoProgress, [0, 1], [finalScale, 3.5 * scaleRatio]);
      finalX = interpolate(orcamentoProgress, [0, 1], [finalX, 0]);
      finalY = interpolate(orcamentoProgress, [0, 1], [finalY, floatingYOffset]);
      finalRotateX = interpolate(orcamentoProgress, [0, 1], [finalRotateX, 0]);
@@ -260,10 +263,10 @@ const MainSequence: React.FC = () => {
      finalRotateX += interpolate(orcamentoHeroProgress, [0, 1], [0, -40]);
      
      // Sharp jump zoom
-     finalScale += interpolate(orcamentoHeroProgress, [0, 1], [0, 4.0]);
+     finalScale += interpolate(orcamentoHeroProgress, [0, 1], [0, 4.0 * scaleRatio]);
      
      // Ajusta Y para garantir que o rodapé da tela fique visível
-     finalY += interpolate(orcamentoHeroProgress, [0, 1], [0, -40]);
+     finalY += interpolate(orcamentoHeroProgress, [0, 1], [0, -40 * scaleRatio]);
   }
 
   // Saída do Celular (starts at 41.5s)
@@ -271,14 +274,11 @@ const MainSequence: React.FC = () => {
      const phoneExitProgress = interpolate(frame, [fps * 41.5, fps * 42.5], [0, 1], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp', easing: Easing.in(Easing.cubic) });
      
      // Joga a tela pra baixo para fora do frame (aumentado para 4500 devido à escala massiva)
-     finalY += interpolate(phoneExitProgress, [0, 1], [0, 4500]);
+     finalY += interpolate(phoneExitProgress, [0, 1], [0, 4500 * scaleRatio]);
   }
 
   return (
     <AbsoluteFill style={{ perspective: '4000px', overflow: 'hidden' }}>
-      {/* Luz ambiente para destacar o 3D */}
-      <div style={{ position: 'absolute', top: '0%', right: '0%', width: '1000px', height: '1000px', background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)', filter: 'blur(100px)' }} />
-
       {/* Cards Finais renderizados atrás do celular */}
       <FinalCardsScreen frame={frame} fps={fps} />
 
@@ -321,6 +321,15 @@ import { Sequence } from 'remotion';
 
 export const PreviaCreatorLab: React.FC = () => {
   const { fps } = useVideoConfig();
+  const frame = useCurrentFrame();
+
+  // Opacidade do brilho cresce de 0 a 1 nos primeiros 5 segundos (fps * 5)
+  const ambientLightOpacity = interpolate(
+    frame,
+    [0, fps * 5],
+    [0, 1],
+    { extrapolateRight: 'clamp', extrapolateLeft: 'clamp' }
+  );
   
   return (
     <AbsoluteFill style={{ backgroundColor: '#050505' }}>
@@ -328,6 +337,21 @@ export const PreviaCreatorLab: React.FC = () => {
         <AbsoluteFill style={{ zIndex: 0 }}>
             <CosmicDust />
         </AbsoluteFill>
+
+        {/* Luz ambiente global que destaca o 3D (agora aparece suavemente) */}
+        <div 
+          style={{ 
+            position: 'absolute', 
+            top: '0%', 
+            right: '0%', 
+            width: '1000px', 
+            height: '1000px', 
+            background: 'radial-gradient(circle, rgba(16,185,129,0.15) 0%, transparent 70%)', 
+            filter: 'blur(100px)',
+            opacity: ambientLightOpacity,
+            zIndex: 0
+          }} 
+        />
 
         {/* Intro Screen de 7 segundos (mantém logo enquanto o celular cobre) */}
         <Sequence from={0} durationInFrames={fps * 7}>

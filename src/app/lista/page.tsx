@@ -103,8 +103,21 @@ export default function PreListaPage() {
             <p className="text-xs text-gray-500">Gratuito · Sem compromisso · Vagas limitadas</p>
           </div>
 
+          {/* Video Embed */}
+          <div className="w-full max-w-4xl mx-auto mt-12 rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(16,185,129,0.15)] bg-black relative z-20">
+             <div style={{ position: 'relative', paddingBottom: '56.25%' }}>
+                 <iframe 
+                    id="panda-07c0c55c-deb7-40ad-8f99-6859e00c03cf" 
+                    src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=07c0c55c-deb7-40ad-8f99-6859e00c03cf" 
+                    style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
+                    allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture" 
+                    allowFullScreen={true}
+                 />
+             </div>
+          </div>
+
           {/* Scroll cue */}
-          <div className="mt-20 flex flex-col items-center gap-2 opacity-40 animate-bounce">
+          <div className="mt-12 flex flex-col items-center gap-2 opacity-40 animate-bounce">
             <span className="text-[10px] uppercase tracking-widest text-gray-500">Saiba mais</span>
             <ChevronDown className="w-4 h-4 text-gray-500" />
           </div>

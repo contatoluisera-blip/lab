@@ -89,9 +89,9 @@ export const CreatorCardScreen: React.FC = () => {
 
                <div>
                  <label className="text-[8px] font-bold text-gray-500 block mb-1 uppercase tracking-wider">Foto de Perfil</label>
-                 <div className="flex items-center gap-3">
+                  <div className="flex items-center gap-3">
                    <div className="w-10 h-10 rounded-lg overflow-hidden border border-white/10 relative">
-                      <Img src={staticFile("imagem siteapp.png")} className="w-full h-full object-cover" />
+                      <img src={staticFile("imagem siteapp.png")} className="w-full h-full object-cover" />
                    </div>
                    <button className="bg-[#1a222c] border border-white/10 rounded px-3 py-1.5 text-[9px] font-bold text-gray-300">Escolher Imagem</button>
                  </div>
@@ -181,7 +181,7 @@ export const CreatorCardScreen: React.FC = () => {
                  
                  {/* Image Header */}
                  <div className="h-[250px] w-full relative">
-                    <Img src={staticFile("imagem siteapp.png")} className="w-full h-full object-cover object-top opacity-80" />
+                    <img src={staticFile("imagem siteapp.png")} className="w-full h-full object-cover object-top opacity-80" />
                     <div className="absolute inset-0 bg-gradient-to-t from-[#0a0a0a] via-[#0a0a0a]/50 to-transparent" />
                     
                     <div className="absolute bottom-4 left-6">
