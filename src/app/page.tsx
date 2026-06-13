@@ -22,9 +22,40 @@ import {
   AlertTriangle,
   Video,
   Brain,
-  CheckCircle2
+  CheckCircle2,
+  Star,
+  PlayCircle
 } from 'lucide-react';
 import PreListaForm from '@/app/lista/PreListaForm';
+
+const feedbacks = [
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint1.jpeg?alt=media&token=84a37184-0121-45af-93ca-a017124e91e2",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint10.jpeg?alt=media&token=fc755d1d-39df-4c4d-9613-6be8f7009433",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint11.jpeg?alt=media&token=c05cb365-b451-48de-98a5-85520ebf0283",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint12.jpeg?alt=media&token=a78632e2-2ffd-4312-acc4-d333d44c58b7",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint13.jpeg?alt=media&token=6d9abd66-75c2-45e9-9f2b-902f30752b5f",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint14.jpeg?alt=media&token=ed7a1b73-3258-4031-8eeb-bb25718f0cb6",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint15.jpeg?alt=media&token=f5d6983a-3fb0-41d0-b969-b2ef635c40e0",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint16.jpeg?alt=media&token=672201d1-d6e9-4e7d-a9f5-e4e40d5ea853",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint17.jpeg?alt=media&token=70dd18c0-0dc3-4dea-83af-9f9301d7582a",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint18.jpeg?alt=media&token=d81f23ec-20f0-421c-af5c-263556ccad3d",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint2.jpeg?alt=media&token=d63ae003-533c-4e74-9e30-c16a51742ef0",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint3.jpeg?alt=media&token=faf8d697-e0d9-4ec3-a869-666aa77dd09a",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint4.jpeg?alt=media&token=15673ef5-df6f-44a3-9d42-984f7d6a7dfe",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint5.jpeg?alt=media&token=fe4d00e4-94f7-4e30-88a7-e9e75b566761",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint6.jpeg?alt=media&token=3ea761d0-0877-4f9f-89d9-6ff255ddd246",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint7.jpeg?alt=media&token=adc53f02-08a2-4c99-87c7-531375c5c3cc",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint8.jpeg?alt=media&token=fb28488e-7c54-4ea4-9b08-0cecee11fc1f",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint9.jpeg?alt=media&token=1eafdc48-4cb0-4337-8d48-7443b19358ef",
+  "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint%2019.jpeg?alt=media&token=c10f71cd-02dc-4f49-b7ba-ae8712b0ca05"
+];
+
+const videos3D = [
+  "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=50be0413-d146-4bf7-808d-7357a22afcfa",
+  "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=7053dfb0-5cb3-493f-8135-edeaa696c5ed",
+  "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=2d6aa720-5db7-4529-b230-3fe6ba54b644",
+  "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=552167a4-3920-4e63-bfef-6298160641e3"
+];
 
 export default function LandingPage() {
   return (
@@ -455,6 +486,91 @@ export default function LandingPage() {
               ))}
             </div>
           </div>
+        </section>
+
+        {/* 5.5 Feedbacks e Resultados */}
+        <section className="py-16 border-t border-white/5 space-y-16 overflow-hidden">
+          
+          {/* Feedbacks Header */}
+          <div className="text-center space-y-4 max-w-2xl mx-auto px-6">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 text-brand-emerald text-xs font-bold uppercase tracking-widest">
+              <Star className="w-3.5 h-3.5" /> Comunidade Ativa
+            </div>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              O que os criadores estão vivendo
+            </h2>
+            <p className="text-gray-400 text-sm font-light">
+              Resultados reais de alunos e profissionais que já aplicaram a metodologia técnica e comercial da formação.
+            </p>
+          </div>
+
+          {/* Infinite Carousel Feedbacks */}
+          <div className="relative w-full flex overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-16 before:bg-gradient-to-r before:from-[#050505] before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-16 after:bg-gradient-to-l after:from-[#050505] after:to-transparent">
+            <style>{`
+              @keyframes slide {
+                0% { transform: translateX(0); }
+                100% { transform: translateX(-50%); }
+              }
+              .animate-slide {
+                animation: slide 50s linear infinite;
+              }
+              .animate-slide:hover {
+                animation-play-state: paused;
+              }
+            `}</style>
+            
+            <div className="flex animate-slide gap-6 w-max px-4">
+              {/* Duplicated list to create the infinite loop effect */}
+              {[...feedbacks, ...feedbacks].map((src, index) => (
+                <div key={index} className="w-[200px] h-[320px] sm:w-[240px] sm:h-[380px] flex-shrink-0 relative group rounded-2xl overflow-hidden border border-white/5 bg-[#0a0a0a] flex items-center justify-center p-2">
+                  <img 
+                    src={src} 
+                    alt={`Feedback ${index + 1}`} 
+                    className="w-full h-full object-contain rounded-xl transition-transform duration-500 group-hover:scale-105" 
+                    loading="lazy"
+                  />
+                  <div className="absolute inset-0 bg-brand-emerald/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none mix-blend-overlay" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Videos 3D Header */}
+          <div className="text-center space-y-4 max-w-2xl mx-auto px-6 mt-16 pt-8 border-t border-white/5">
+            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-widest">
+              <PlayCircle className="w-3.5 h-3.5" /> Na Prática
+            </div>
+            <h2 className="text-3xl font-extrabold text-white tracking-tight">
+              Resultados em 3D pelo celular
+            </h2>
+            <p className="text-gray-400 text-sm font-light">
+              Projetos reais finalizados por alunos dominando as técnicas de 3D Mobile para elevar o nível de suas entregas.
+            </p>
+          </div>
+
+          {/* 4 Videos Grid */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 px-6 max-w-6xl mx-auto pb-8">
+            {videos3D.map((src, idx) => (
+              <div key={idx} className="relative group mx-auto w-full max-w-[260px]">
+                {/* Backlight / Retroiluminação */}
+                <div className="absolute -inset-1 bg-gradient-to-tr from-brand-emerald/40 via-brand-mint/10 to-brand-jade/40 rounded-[1.5rem] blur-lg opacity-40 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                
+                {/* Video Container */}
+                <div className="relative aspect-[9/16] rounded-2xl overflow-hidden border border-brand-emerald/20 bg-[#050505] shadow-2xl">
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none z-10" />
+                  <iframe
+                    src={`${src}&autoplay=false`}
+                    className="w-full h-full absolute top-0 left-0"
+                    style={{ border: 'none' }}
+                    allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                    allowFullScreen
+                    loading="lazy"
+                  />
+                </div>
+              </div>
+            ))}
+          </div>
+
         </section>
 
         {/* 6. Pre-Lista Section */}

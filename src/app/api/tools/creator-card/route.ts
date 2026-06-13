@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 
 export const maxDuration = 300;
 
@@ -51,7 +52,17 @@ FORMATO OBRIGATÓRIO DE RESPOSTA (JSON Exato):
     });
 
     const responseContent = completion.choices[0].message.content || '{}';
-    return NextResponse.json(JSON.parse(responseContent));
+    const parsedData = JSON.parse(responseContent);
+
+    // Log the action
+    await logPlatformAction(
+      'anon', // Nao temos o corpo todo, deixaremos anon ou pegamos se tiver
+      'Anônimo',
+      'creator-card',
+      `Gerou cartão comercial para ${nicho}`
+    );
+
+    return NextResponse.json(parsedData);
 
   } catch (error) {
     console.error('Erro na API creator-card:', error);

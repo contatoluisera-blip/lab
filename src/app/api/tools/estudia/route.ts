@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { adminStorage, adminDb } from '@/lib/firebase/admin';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 export const maxDuration = 300; 
 
 const KIE_AI_API_KEY = process.env.KIE_AI_API_KEY || '';
@@ -560,6 +561,14 @@ export async function POST(request: Request) {
         createdAt: new Date().toISOString()
       });
     }
+
+    // Log platform action
+    await logPlatformAction(
+      userId || 'anon',
+      body.userEmail || 'Anônimo',
+      'estudia',
+      'Solicitou geração de foto de estúdio (IA)'
+    );
 
     // 3. Retorna o taskId para o frontend fazer o polling
     return NextResponse.json({ success: true, taskId });

@@ -3,8 +3,8 @@
 import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { Lock, Mail, KeyRound, ShieldCheck, AlertCircle } from 'lucide-react';
-import { signInWithEmailAndPassword } from 'firebase/auth';
+import { Lock, Mail, KeyRound, ShieldCheck, AlertCircle, CheckCircle2 } from 'lucide-react';
+import { signInWithEmailAndPassword, sendPasswordResetEmail } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
+  const [resetMessage, setResetMessage] = useState('');
   const [loadingLocal, setLoadingLocal] = useState(false);
   
   const router = useRouter();
@@ -45,6 +46,31 @@ export default function LoginPage() {
     } catch (err: any) {
       console.error(err);
       setError(`Erro Firebase: ${err.message}`);
+    } finally {
+      setLoadingLocal(false);
+    }
+  };
+
+  const handleResetPassword = async () => {
+    if (!email) {
+      setError('Digite seu e-mail no campo acima para redefinir a senha.');
+      return;
+    }
+    
+    setLoadingLocal(true);
+    setError('');
+    setResetMessage('');
+    
+    try {
+      await sendPasswordResetEmail(auth, email);
+      setResetMessage('Link de redefinição enviado! Verifique seu e-mail (e a caixa de spam).');
+    } catch (err: any) {
+      console.error(err);
+      if (err.code === 'auth/user-not-found') {
+        setError('E-mail não encontrado no sistema.');
+      } else {
+        setError(`Erro: ${err.message}`);
+      }
     } finally {
       setLoadingLocal(false);
     }
@@ -103,6 +129,13 @@ export default function LoginPage() {
                 </div>
               )}
 
+              {resetMessage && (
+                <div className="p-3 rounded-lg bg-green-500/10 border border-green-500/20 text-green-400 flex items-center gap-2 text-sm">
+                  <CheckCircle2 className="w-4 h-4 flex-shrink-0" />
+                  <span>{resetMessage}</span>
+                </div>
+              )}
+
               <div className="space-y-4">
                 <div>
                   <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
@@ -119,8 +152,17 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="text-sm font-medium text-gray-300 mb-1.5 flex items-center gap-2">
-                     <KeyRound className="w-4 h-4 text-brand-emerald" /> Senha
+                  <label className="text-sm font-medium text-gray-300 mb-1.5 flex justify-between items-center w-full">
+                    <span className="flex items-center gap-2">
+                      <KeyRound className="w-4 h-4 text-brand-emerald" /> Senha
+                    </span>
+                    <button 
+                      type="button" 
+                      onClick={handleResetPassword}
+                      className="text-xs text-brand-emerald hover:text-brand-mint hover:underline bg-transparent border-none p-0"
+                    >
+                      Esqueceu a senha?
+                    </button>
                   </label>
                   <input 
                     type="password"

@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 
 export const maxDuration = 300;
 
@@ -122,6 +123,14 @@ Abaixo estão os dados preenchidos manualmente pelo usuário (briefing). Crie id
       const responseContent = completion.choices[0].message.content || '{}';
       jsonResult = JSON.parse(responseContent);
     }
+
+    // Log the action
+    await logPlatformAction(
+      body.userId || 'anon',
+      body.userEmail || 'Anônimo',
+      'idea-generator',
+      `Gerou ${body.quantidadeIdeias || 5} ideias criativas (modo: ${modo})`
+    );
 
     return NextResponse.json({ success: true, data: jsonResult });
   } catch (error: any) {

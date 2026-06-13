@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 
 const CONFIG = {
   hourly_rates: {
@@ -247,6 +248,14 @@ export async function POST(request: Request) {
       argumentoVenda,
       detalhamento
     };
+
+    // Log the action
+    await logPlatformAction(
+      body.userId || 'anon',
+      body.userEmail || 'Anônimo',
+      'calculadora',
+      `Orçamento gerado para ${q} vídeos (R$ ${roundedFinal})`
+    );
 
     return NextResponse.json({ success: true, data: resultData });
   } catch (error: any) {

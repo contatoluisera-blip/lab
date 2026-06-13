@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import OpenAI from 'openai';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 
 export async function POST(request: Request) {
   try {
@@ -54,6 +55,14 @@ Responda sempre em português brasileiro de forma extremamente técnica, tática
       answer: answer,
       timestamp: new Date().toISOString()
     };
+
+    // Log the action
+    await logPlatformAction(
+      body.userId || 'anon',
+      body.userEmail || 'Anônimo',
+      'assistant',
+      `Realizou uma consulta de conhecimento (IA)`
+    );
 
     return NextResponse.json({ success: true, data: mockOutput });
   } catch (error: any) {

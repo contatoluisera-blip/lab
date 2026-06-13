@@ -56,7 +56,7 @@ export async function POST(req: Request) {
         
         const productId = subscription.items.data[0].price.product as string;
         
-        let plan = 'free';
+        let plan = '';
         if (status === 'active' || status === 'trialing') {
           if (productId === process.env.STRIPE_PRODUCT_START) plan = 'start';
           else if (productId === process.env.STRIPE_PRODUCT_PRO) plan = 'pro';
@@ -69,11 +69,15 @@ export async function POST(req: Request) {
         
         if (!snapshot.empty) {
           const userDoc = snapshot.docs[0];
-          await userDoc.ref.update({
-            plan: plan,
+          const updates: any = {
             stripeSubscriptionStatus: status,
             updatedAt: new Date().toISOString()
-          });
+          };
+          // Só atualiza o plano se ele foi de fato mapeado corretamente
+          if (plan !== '') {
+            updates.plan = plan;
+          }
+          await userDoc.ref.update(updates);
         }
         break;
       }
