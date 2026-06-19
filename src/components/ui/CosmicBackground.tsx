@@ -95,14 +95,14 @@ export function CosmicBackground() {
     <div className="fixed inset-0 pointer-events-none z-[-3] bg-[#020202] overflow-hidden">
       <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_transparent_0%,_#050505_100%)] opacity-90 mix-blend-multiply" />
       
-      {/* Lightweight Canvas Particles */}
+      {/* Lightweight Canvas Particles (Hidden on mobile for performance) */}
       <canvas
         ref={canvasRef}
-        className="absolute inset-0 z-0 opacity-80"
+        className="absolute inset-0 z-0 opacity-80 hidden md:block"
       />
       
-      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-brand-jade/10 blur-[150px] rounded-full mix-blend-screen animate-pulse-slow" />
-      <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-emerald-500/5 blur-[200px] rounded-full mix-blend-screen animate-pulse-slow delay-1000" />
+      <div className="absolute top-[-20%] left-[-10%] w-[50vw] h-[50vw] bg-brand-jade/10 blur-[60px] md:blur-[150px] rounded-full mix-blend-screen animate-pulse-slow will-change-transform" />
+      <div className="absolute bottom-[-10%] right-[-10%] w-[60vw] h-[60vw] bg-emerald-500/5 blur-[80px] md:blur-[200px] rounded-full mix-blend-screen animate-pulse-slow delay-1000 will-change-transform" />
     </div>
   );
 }

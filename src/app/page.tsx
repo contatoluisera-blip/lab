@@ -133,8 +133,8 @@ export default function LandingPage() {
             
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.2)] bg-[#050505] aspect-video">
               <iframe
-                id="panda-07c0c55c-deb7-40ad-8f99-6859e00c03cf"
-                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=07c0c55c-deb7-40ad-8f99-6859e00c03cf&autoplay=true"
+                id="panda-87b7b00f-d11b-4656-99d7-d5326cdc36f9"
+                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=87b7b00f-d11b-4656-99d7-d5326cdc36f9&autoplay=true"
                 style={{ border: 'none' }}
                 className="w-full h-full"
                 allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
