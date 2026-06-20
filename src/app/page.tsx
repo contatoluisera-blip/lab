@@ -133,8 +133,8 @@ export default function LandingPage() {
             
             <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.2)] bg-[#050505] aspect-video">
               <iframe
-                id="panda-87b7b00f-d11b-4656-99d7-d5326cdc36f9"
-                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=87b7b00f-d11b-4656-99d7-d5326cdc36f9&autoplay=true"
+                id="panda-20b25815-5523-4c8d-abbc-27c4bcf8839f"
+                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=20b25815-5523-4c8d-abbc-27c4bcf8839f&autoplay=true"
                 style={{ border: 'none' }}
                 className="w-full h-full"
                 allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
@@ -580,35 +580,46 @@ export default function LandingPage() {
             <div className="space-y-8">
               <div className="space-y-3">
                 <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-                  Pré-Lista
+                  Plano Fundador
                 </span>
                 <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Inscreva-se agora.<br />
+                  Seja um Fundador.<br />
                   <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">
-                    Quem chega primeiro,<br />fica melhor.
+                    Benefícios que ninguém<br />mais vai ter.
                   </span>
                 </h2>
                 <p className="text-gray-400 text-sm leading-relaxed font-light pt-2">
-                  A Creator Lab abre as portas em breve. Os inscritos na pré-lista terão condições que <strong className="text-white">nunca mais serão repetidas</strong> — porque quem acredita no começo merece ser reconhecido.
+                  Os primeiros a acreditar merecem ser tratados de forma diferente. Os membros Fundadores da Creator Lab entram com{' '}
+                  <strong className="text-white">vantagens exclusivas e permanentes</strong>{' '}
+                  que não estarão disponíveis após o lançamento ao público geral.
                 </p>
               </div>
 
-              <div className="space-y-4">
+              {/* Benefits list */}
+              <div className="space-y-3">
                 {[
                   {
-                    tag: 'Desconto de Fundadores',
-                    text: 'Acesso com o menor preço que a Creator Lab vai oferecer na história da plataforma.',
+                    tag: 'Acesso Total às Ferramentas',
+                    text: 'Diagnóstico de perfil, calculadora de orçamento, gerador de ideias, proposta comercial, gestão de clientes e assistente de IA — tudo liberado para testar desde o primeiro dia.',
                   },
                   {
-                    tag: 'Acesso Antecipado',
-                    text: 'Você entra antes de todo mundo — e já começa a usar as ferramentas enquanto a abertura oficial não acontece.',
+                    tag: 'Aulas ao Vivo de IA Mobile',
+                    text: 'Participe de aulas ao vivo sobre criação de conteúdo com Inteligência Artificial pelo celular, com Luisera. Interação direta, perguntas reais, prática imediata.',
                   },
                   {
-                    tag: 'Voz Ativa',
-                    text: 'Feedbacks seus moldam o roadmap. Você ajuda a construir o app que vai transformar a sua operação.',
+                    tag: 'Updates em Primeira Mão',
+                    text: 'Cada nova funcionalidade chega primeiro para Fundadores. Você experimenta, valida e dá feedback antes de qualquer outra pessoa.',
+                  },
+                  {
+                    tag: 'Desafios com Premiação',
+                    text: 'Fundadores participam de desafios exclusivos valendo prêmios. Competição interna, reconhecimento e incentivo para evoluir.',
+                  },
+                  {
+                    tag: 'Voto nas Decisões da Plataforma',
+                    text: 'Sua opinião molda o roadmap. Você vota nas próximas ferramentas, no formato das aulas e nas direções estratégicas da Creator Lab.',
                   },
                 ].map(({ tag, text }) => (
-                  <div key={tag} className="flex items-start gap-4">
+                  <div key={tag} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-brand-emerald/15 transition-colors">
                     <CheckCircle2 className="w-5 h-5 text-brand-emerald flex-shrink-0 mt-0.5" />
                     <div>
                       <p className="text-sm font-semibold text-white">{tag}</p>
@@ -616,6 +627,34 @@ export default function LandingPage() {
                     </div>
                   </div>
                 ))}
+              </div>
+
+              {/* Pricing highlight */}
+              <div className="rounded-2xl border border-brand-emerald/25 bg-gradient-to-br from-brand-emerald/8 to-transparent overflow-hidden">
+                <div className="px-6 pt-6 pb-4 space-y-3">
+                  <div className="flex items-center gap-2">
+                    <DollarSign className="w-4 h-4 text-brand-emerald" />
+                    <span className="text-xs font-bold uppercase tracking-widest text-brand-emerald">Preço de Fundador — Travado Para Sempre</span>
+                  </div>
+                  <div className="flex items-end gap-3">
+                    <div>
+                      <p className="text-3xl font-extrabold text-white">50% OFF</p>
+                      <p className="text-xs text-gray-400 mt-0.5">do valor que o consumidor final vai pagar.</p>
+                    </div>
+                    <span className="text-brand-emerald text-xs font-semibold bg-brand-emerald/10 border border-brand-emerald/20 px-2 py-1 rounded-full mb-1">Garantido</span>
+                  </div>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    O preço de Fundador é bloqueado no momento da sua assinatura e nunca aumenta — enquanto você mantiver o plano ativo.
+                  </p>
+                </div>
+                {/* Terms strip */}
+                <div className="bg-black/30 border-t border-white/5 px-6 py-3 flex items-start gap-2">
+                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />
+                  <p className="text-[11px] text-gray-500 leading-relaxed">
+                    Para garantir todos os benefícios, a assinatura precisa ser realizada{' '}
+                    <strong className="text-gray-400">antes do lançamento ao público geral</strong>. Em caso de cancelamento do plano, os benefícios de Fundador são perdidos e não poderão ser recuperados.
+                  </p>
+                </div>
               </div>
 
               {/* Luisera quote */}
@@ -631,6 +670,7 @@ export default function LandingPage() {
             <PreListaForm />
           </div>
         </section>
+
 
         {/* Expert Profile Section */}
         <section className="py-12 md:py-16 border-t border-white/5">

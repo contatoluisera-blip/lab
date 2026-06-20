@@ -18,6 +18,7 @@ export default function PricingSection() {
   const [customerName, setCustomerName] = useState('');
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPassword, setCustomerPassword] = useState('');
+  const [termsAccepted, setTermsAccepted] = useState(false);
 
   const plans = [
     {
@@ -82,6 +83,12 @@ export default function PricingSection() {
 
     if (!customerName || !customerEmail || !customerPassword) {
       setCheckoutError('Por favor, preencha todos os campos.');
+      setIsProcessing(false);
+      return;
+    }
+
+    if (!termsAccepted) {
+      setCheckoutError('Você precisa concordar com os Termos de Uso e a Política de Privacidade para prosseguir.');
       setIsProcessing(false);
       return;
     }
@@ -249,6 +256,22 @@ export default function PricingSection() {
                     className="w-full glass-input text-xs"
                   />
                 </div>
+              </div>
+
+              <div className="flex items-start gap-3 mt-4">
+                <input
+                  type="checkbox"
+                  id="terms"
+                  checked={termsAccepted}
+                  onChange={(e) => setTermsAccepted(e.target.checked)}
+                  className="mt-0.5 w-4 h-4 rounded border-white/20 bg-black/50 text-brand-emerald focus:ring-brand-emerald/50 accent-brand-emerald flex-shrink-0 cursor-pointer"
+                />
+                <label htmlFor="terms" className="text-[11px] text-gray-400 leading-tight cursor-pointer">
+                  Eu li e concordo com os{' '}
+                  <a href="/termos-de-uso" target="_blank" className="text-brand-emerald hover:underline">Termos de Uso</a>{' '}
+                  e a{' '}
+                  <a href="/politica-de-privacidade" target="_blank" className="text-brand-emerald hover:underline">Política de Privacidade</a>.
+                </label>
               </div>
 
               <div className="p-4 rounded-xl bg-brand-emerald/5 border border-brand-emerald/10 text-gray-300 text-xs leading-relaxed">
