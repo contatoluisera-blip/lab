@@ -6,9 +6,7 @@
   SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
 
 [functions]
-  # Aumenta o timeout máximo para funções síncronas (26s no plano Netlify Starter)
-  included_files = ["**"]
-  node_bundler = "esbuild"
+  # Configurações globais de funções
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
