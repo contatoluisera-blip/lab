@@ -19,7 +19,8 @@ import {
   Calendar,
   User,
   Shield,
-  CheckCircle2
+  CheckCircle2,
+  RefreshCw
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
@@ -170,6 +171,33 @@ export default function BillingPage() {
     }
   };
 
+  const [syncSuccess, setSyncSuccess] = useState('');
+
+  const handleSyncCredits = async () => {
+    setIsProcessing(true);
+    setSyncSuccess('');
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/stripe/sync-credits', {
+        method: 'POST',
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
+      const data = await res.json();
+      if (data.success) {
+        setSyncSuccess(`Créditos sincronizados! Agora você tem ${data.credits} créditos.`);
+        // Refresh profile data
+        setUserCredits(data.credits);
+      } else {
+        throw new Error(data.error || 'Erro ao sincronizar créditos');
+      }
+    } catch (e: any) {
+      console.error(e);
+      alert(e.message || 'Erro ao sincronizar créditos.');
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   // Pagar.me modal logic removed in favor of Stripe Checkout.
 
   return (
@@ -232,15 +260,28 @@ export default function BillingPage() {
                 {currentTier === 3 ? 'R$ 197,00' : currentTier === 2 ? 'R$ 117,00' : currentTier === 1 ? 'R$ 67,00' : '—'}
               </p>
               {currentTier > 0 && (
-                <Button 
-                  onClick={handleManageSubscription}
-                  disabled={isProcessing}
-                  variant="outline"
-                  className="w-full text-xs py-2 h-auto"
-                >
-                  {isProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
-                  Gerenciar Assinatura
-                </Button>
+                <div className="flex flex-col gap-2 w-full">
+                  <Button 
+                    onClick={handleManageSubscription}
+                    disabled={isProcessing}
+                    variant="outline"
+                    className="w-full text-xs py-2 h-auto"
+                  >
+                    {isProcessing ? <Loader2 className="w-3 h-3 animate-spin mr-2" /> : null}
+                    Gerenciar Assinatura
+                  </Button>
+                  <button
+                    onClick={handleSyncCredits}
+                    disabled={isProcessing}
+                    className="w-full text-xs text-brand-mint hover:text-brand-emerald transition-colors py-1 flex items-center justify-center gap-1.5 disabled:opacity-40"
+                  >
+                    <RefreshCw className="w-3 h-3" />
+                    Sincronizar créditos com Stripe
+                  </button>
+                  {syncSuccess && (
+                    <p className="text-xs text-brand-emerald text-center mt-1">{syncSuccess}</p>
+                  )}
+                </div>
               )}
             </div>
           </div>
