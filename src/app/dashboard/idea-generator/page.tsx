@@ -78,11 +78,11 @@ export default function IdeaGeneratorPage() {
 
         const diags = diagSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as any))
-          .sort((a, b) => b.createdAt - a.createdAt);
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
         
         const calcs = calcSnap.docs
           .map(d => ({ id: d.id, ...d.data() } as any))
-          .sort((a, b) => b.createdAt - a.createdAt);
+          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
 
         setDiagnostics(diags);
         setCalculations(calcs);
@@ -362,7 +362,7 @@ CTA: ${idea.cta}
                       <option value="">-- Não vincular --</option>
                       {calculations.map((c) => (
                         <option key={c.id} value={c.id}>
-                          Pacote: {c.video_quantity} vídeos - {c.precoRecomendado} ({new Date(c.createdAt).toLocaleDateString('pt-BR')})
+                          {c.clientName ? `${c.clientName} - ` : ''}Pacote: {c.video_quantity} vídeos - {c.precoRecomendado} ({new Date(c.createdAt).toLocaleDateString('pt-BR')})
                         </option>
                       ))}
                     </select>

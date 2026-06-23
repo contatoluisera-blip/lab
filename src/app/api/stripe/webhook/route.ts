@@ -61,6 +61,9 @@ export async function POST(req: Request) {
           if (productId === process.env.STRIPE_PRODUCT_START) plan = 'start';
           else if (productId === process.env.STRIPE_PRODUCT_PRO) plan = 'pro';
           else if (productId === process.env.STRIPE_PRODUCT_ELITE) plan = 'elite';
+        } else {
+          // If status is past_due, unpaid, or canceled, lock out the user immediately.
+          plan = 'free';
         }
 
         // Buscar usuário pelo stripeCustomerId
@@ -73,11 +76,53 @@ export async function POST(req: Request) {
             stripeSubscriptionStatus: status,
             updatedAt: new Date().toISOString()
           };
-          // Só atualiza o plano se ele foi de fato mapeado corretamente
           if (plan !== '') {
             updates.plan = plan;
           }
           await userDoc.ref.update(updates);
+        }
+        break;
+      }
+
+      case 'invoice.paid': {
+        const invoice = event.data.object as Stripe.Invoice;
+        const customerId = invoice.customer as string;
+
+        // Só renovamos créditos se for o pagamento recorrente da assinatura ou a criação inicial
+        if (invoice.billing_reason === 'subscription_cycle' || invoice.billing_reason === 'subscription_create') {
+          const subscriptionId = invoice.subscription as string;
+          if (subscriptionId) {
+            // Descobre o plano para saber quantos créditos adicionar
+            let plan = 'free';
+            let creditsToAdd = 0;
+            const lines = invoice.lines.data;
+            if (lines.length > 0) {
+              const productId = lines[0].price?.product as string;
+              if (productId === process.env.STRIPE_PRODUCT_START) {
+                plan = 'start';
+                creditsToAdd = 20;
+              } else if (productId === process.env.STRIPE_PRODUCT_PRO) {
+                plan = 'pro';
+                creditsToAdd = 50;
+              } else if (productId === process.env.STRIPE_PRODUCT_ELITE) {
+                plan = 'elite';
+                creditsToAdd = 100;
+              }
+            }
+
+            if (creditsToAdd > 0) {
+              const usersRef = adminDb.collection('users');
+              const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
+              if (!snapshot.empty) {
+                const userDoc = snapshot.docs[0];
+                await userDoc.ref.update({
+                  plan,
+                  credits: creditsToAdd, // Reset credits or use admin.firestore.FieldValue.increment(creditsToAdd)? Usually monthly credits reset, so setting them to the limit is common.
+                  updatedAt: new Date().toISOString()
+                });
+              }
+            }
+          }
         }
         break;
       }

@@ -119,8 +119,8 @@ Create a professional head-and-shoulders studio portrait.
 
 Preferred framing:
 
-- vertical portrait orientation;
-- 4:5 aspect ratio;
+- horizontal landscape orientation;
+- 16:9 aspect ratio;
 - subject centered or subtly offset;
 - face occupying a significant portion of the frame;
 - crop between the upper chest and mid-torso;
@@ -525,7 +525,7 @@ export async function POST(request: Request) {
       input: {
         prompt: PROMPT,
         image_input: [publicUrl],
-        aspect_ratio: '3:4',
+        aspect_ratio: '16:9',
         resolution: '1K',
         output_format: 'jpg'
       }

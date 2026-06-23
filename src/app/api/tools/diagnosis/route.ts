@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import 'proxy-agent'; // Força o Vercel a empacotar o proxy-agent
 import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 

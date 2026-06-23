@@ -279,7 +279,7 @@ export default function ActionsPage() {
                       <div className="flex justify-between items-start mb-6">
                         <div className="flex items-center gap-2 text-emerald-400">
                           <TrendingUp className="w-5 h-5" />
-                          <span className="font-bold tracking-tight capitalize">{calc.offer_mode?.replace('_', ' ')}</span>
+                          <span className="font-bold tracking-tight capitalize">{calc.clientName || calc.offer_mode?.replace('_', ' ') || calc.service_type?.replace('_', ' ')}</span>
                         </div>
                         <div className="px-3 py-1 rounded-full text-xs font-bold bg-emerald-400/20 text-emerald-400">
                           {calc.video_quantity} vídeos

@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
+import Anthropic from '@anthropic-ai/sdk';
 
 export const maxDuration = 300;
 
@@ -50,18 +50,22 @@ export async function POST(request: Request) {
         proximo_passo: "Caso o escopo e os valores estejam alinhados com o momento da marca, basta responder a este documento com 'DE ACORDO' e enviaremos o contrato digital para darmos o start imediato no onboarding."
       };
     } else {
-      const openai = new OpenAI({
-        apiKey: process.env.OPENAI_API_KEY,
+      if (!process.env.ANTHROPIC_API_KEY) {
+         throw new Error("ANTHROPIC_API_KEY não configurada.");
+      }
+
+      const anthropic = new Anthropic({
+        apiKey: process.env.ANTHROPIC_API_KEY,
       });
 
       const prompt = `
-Você é um Estrategista Comercial Sênior e Copywriter B2B especializado em produção de conteúdo de alto valor (High-Ticket) para Instagram e redes sociais. 
+Você é um Estrategista Comercial Sênior e Copywriter especializado em produção de conteúdo de alto valor (High-Ticket) para Instagram e redes sociais. 
 Seu objetivo é transformar os dados fornecidos em uma Proposta Comercial Irrecusável, Profunda e Altamente Persuasiva.
 
 A proposta não deve parecer genérica. Ela deve transpirar autoridade, demonstrando domínio absoluto sobre retenção, algoritmos, conversão e percepção de marca. 
 Fuja de clichês amadores (ex: "vou bombar seu instagram"). Use termos de negócios e neuromarketing (ex: "Ecossistema de conversão", "Retenção algorítmica", "Arquitetura de autoridade", "Funil de conteúdo", "Quebra de objeções").
 
-ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Retorne EXATAMENTE este JSON sem marcações markdown extra):
+ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Retorne EXATAMENTE este JSON sem marcações markdown extra ou blocos de código \`\`\`json):
 {
   "capa": { 
     "titulo": "Título de alto impacto comercial (ex: Plano Estratégico de Posicionamento e Conversão)", 
@@ -88,34 +92,46 @@ ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Retorne EXATAMENTE este JSON sem marcações
 Modo de Geração Selecionado: ${modoGeração}
 (Se Premium: Seja exaustivo nos argumentos de autoridade e robustez. Se Profissional: Direto, extremamente tático e elegante. Se Rápido: Mais focado na resolução e na entrega).
 
-DADOS DO CLIENTE E PROJETO:
-- Cliente/Marca: ${cliente}
+DADOS DO CLIENTE / PARA QUEM ESTAMOS VENDENDO (ELES):
+- Nome da Empresa/Cliente: ${cliente}
 - Objetivo Principal de Negócio: ${objetivo}
+
+DADOS DA SUA AGÊNCIA / QUEM VOCÊ É (NÓS):
+- Nome do Profissional/Agência: ${profissional?.name || 'Não informado'}
+- Email: ${profissional?.email || 'Não informado'}
 
 DADOS DO DIAGNÓSTICO DO PERFIL (Gargalos atuais e Notas):
 ${diagnostico ? JSON.stringify(diagnostico, null, 2) : 'Nenhum diagnóstico fornecido. Construa um contexto focado nas dores inerentes do objetivo principal.'}
 
 DADOS DO ORÇAMENTO E PACOTE SIMULADO (Atenção ao Valor e Quantidade):
-${orcamento ? JSON.stringify(orcamento, null, 2) : 'Nenhum orçamento fornecido. Invente um escopo padrão de R$ 3.500 para produção B2B.'}
+${orcamento ? JSON.stringify(orcamento, null, 2) : 'Nenhum orçamento fornecido. Invente um escopo padrão de R$ 3.500 para produção de conteúdo.'}
 
-DADOS DO PROFISSIONAL APRESENTANDO A PROPOSTA:
-- Nome/Agência: ${profissional?.name || 'Não informado'}
-- Email: ${profissional?.email || 'Não informado'}
-
-INSTRUÇÃO FINAL E CRÍTICA:
-Você deve escrever textos de altíssimo nível. Demonstre saber como o Instagram funciona tecnicamente e venda a ideia de que o cliente precisa urgente do profissional. NUNCA DEVOLVA ALGO BÁSICO. O resultado deve valer um contrato de milhares de reais.
+INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
+1. IDENTIDADE E PERSPECTIVA: Você é "${profissional?.name}". Escreva ABSOLUTAMENTE TUDO em primeira pessoa (Eu ou Nós). Nunca escreva de forma impessoal, abstrata ou em terceira pessoa. Comunique-se de "Profissional para Cliente". Exemplo do que FAZER: "Eu vou estruturar o seu conteúdo", "Nosso método vai curar sua dor". Exemplo do que NÃO FAZER: "O profissional estruturará", "A produção em vídeo curará".
+2. TONS E OBJETIVOS: Demonstre saber como a percepção visual afeta o fechamento de vendas. Venda a ideia de que o cliente precisa de você imediatamente.
+3. ESTILO DE ESCRITA: Humanizado, estratégico, técnico, altamente persuasivo e DIRETO (curto, sem enrolação e fácil de ler).
+4. O output OBRIGATORIAMENTE deve ser um JSON válido e cru (raw), sem estar envelopado em marcações de bloco markdown.
 `;
 
-      const completion = await openai.chat.completions.create({
-        model: "gpt-4o",
+      const msg = await anthropic.messages.create({
+        model: "claude-sonnet-4-6",
+        max_tokens: 4000,
+        temperature: 0.7,
+        system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
         messages: [
-          { role: "system", content: "Você é um Copywriter Executivo especialista em produção audiovisual e social media." },
           { role: "user", content: prompt }
-        ],
-        response_format: { type: "json_object" }
+        ]
       });
 
-      const responseContent = completion.choices[0].message.content || '{}';
+      let responseContent = '{}';
+      if (msg.content && msg.content.length > 0 && msg.content[0].type === 'text') {
+        responseContent = msg.content[0].text.trim();
+        // Fallback cleanup in case Claude wraps it in ```json anyway
+        if (responseContent.startsWith('```json')) {
+           responseContent = responseContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+        }
+      }
+      
       jsonResult = JSON.parse(responseContent);
     }
 

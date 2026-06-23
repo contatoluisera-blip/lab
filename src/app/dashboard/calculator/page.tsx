@@ -12,7 +12,7 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
 
 export default function CalculatorPage() {
@@ -23,6 +23,7 @@ export default function CalculatorPage() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
+  const [savedDocId, setSavedDocId] = useState<string | null>(null);
 
   // --- STEP 1: SOBRE VOCÊ ---
   const [personal_info, setPersonalInfo] = useState({
@@ -209,6 +210,23 @@ export default function CalculatorPage() {
 
       if (user && resData.data) {
         addNotification(user.uid, 'Cálculo Concluído', `Orçamento gerado com sucesso!`, 'success');
+        
+        // Auto-save just like other tools
+        try {
+          const docRef = await addDoc(collection(db, 'calculations'), {
+            userId: user.uid,
+            clientName: client_info.company_name || 'Cliente Avulso',
+            status: 'draft',
+            service_type: service_details.sub_type,
+            video_quantity: Number(service_details.video_quantity),
+            precoRecomendado: resData.data.precoRecomendado,
+            resultado_json: resData.data,
+            createdAt: new Date().toISOString()
+          });
+          setSavedDocId(docRef.id);
+        } catch (dbErr) {
+          console.error("Falha ao salvar orçamento automaticamente:", dbErr);
+        }
       }
     } catch (err: any) {
       setError(err.message);
@@ -218,34 +236,22 @@ export default function CalculatorPage() {
   };
 
   const saveToDraft = async () => {
-    if (!user || !result) return;
+    if (!user || !result || !savedDocId) return;
     try {
-      await addDoc(collection(db, 'calculations'), {
-        userId: user.uid,
-        status: 'draft',
-        service_type: service_details.sub_type,
-        video_quantity: Number(service_details.video_quantity),
-        precoRecomendado: result.precoRecomendado,
-        resultado_json: result,
-        createdAt: new Date().toISOString()
+      await updateDoc(doc(db, 'calculations', savedDocId), {
+        status: 'draft'
       });
-      addNotification(user.uid, 'Salvo', `Orçamento salvo como rascunho.`, 'info');
+      addNotification(user.uid, 'Salvo', `Orçamento mantido como rascunho.`, 'info');
     } catch (e) {
       console.error(e);
     }
   };
 
   const approveBudget = async () => {
-    if (!user || !result) return;
+    if (!user || !result || !savedDocId) return;
     try {
-      await addDoc(collection(db, 'calculations'), {
-        userId: user.uid,
-        status: 'approved',
-        service_type: service_details.sub_type,
-        video_quantity: Number(service_details.video_quantity),
-        precoRecomendado: result.precoRecomendado,
-        resultado_json: result,
-        createdAt: new Date().toISOString()
+      await updateDoc(doc(db, 'calculations', savedDocId), {
+        status: 'approved'
       });
       addNotification(user.uid, 'Aprovado', `Orçamento aprovado e registrado.`, 'success');
     } catch (e) {

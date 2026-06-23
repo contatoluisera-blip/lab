@@ -33,6 +33,9 @@ export default function BillingPage() {
   const [currentPlanName, setCurrentPlanName] = useState('');
   const [userCredits, setUserCredits] = useState<number | null>(null);
   const [profileLoading, setProfileLoading] = useState(true);
+  const [nextBillingDate, setNextBillingDate] = useState<number | null>(null);
+  const [billingHistory, setBillingHistory] = useState<any[]>([]);
+  const [historyLoading, setHistoryLoading] = useState(true);
 
   // Load real plan from Firestore
   useEffect(() => {
@@ -57,7 +60,30 @@ export default function BillingPage() {
         setProfileLoading(false);
       }
     };
+
+    const fetchInvoices = async () => {
+      if (!user) return;
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/stripe/invoices', {
+          headers: { 'Authorization': `Bearer ${token}` }
+        });
+        const data = await res.json();
+        if (data.invoices) {
+          setBillingHistory(data.invoices);
+        }
+        if (data.nextBillingDate) {
+          setNextBillingDate(data.nextBillingDate);
+        }
+      } catch (e) {
+        console.error('Erro ao carregar faturas:', e);
+      } finally {
+        setHistoryLoading(false);
+      }
+    };
+
     fetchProfile();
+    fetchInvoices();
   }, [user]);
 
   const [isProcessing, setIsProcessing] = useState(false);
@@ -94,11 +120,7 @@ export default function BillingPage() {
     }
   ];
 
-  const [billingHistory, setBillingHistory] = useState([
-    { id: '1', date: '15 Abr, 2024', amount: 'R$ 79,00', status: 'Pago', method: '•••• 4242', plan: 'Creator Pro' },
-    { id: '2', date: '15 Mar, 2024', amount: 'R$ 79,00', status: 'Pago', method: '•••• 4242', plan: 'Creator Pro' },
-    { id: '3', date: '15 Fev, 2024', amount: 'R$ 79,00', status: 'Pago', method: '•••• 4242', plan: 'Creator Pro' },
-  ]);
+  // Histórico de faturamento agora carregado dinamicamente via API
 
   const handleInitiatePayment = async (plan: any) => {
     setIsProcessing(true);
@@ -181,7 +203,9 @@ export default function BillingPage() {
                 }
               </h2>
               <p className="text-gray-400 mt-1">
-                Sua assinatura renova em {new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.
+                {nextBillingDate 
+                  ? `Sua assinatura renova em ${new Date(nextBillingDate).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.`
+                  : 'Data de renovação indisponível.'}
               </p>
             </div>
 
@@ -322,10 +346,14 @@ export default function BillingPage() {
                       </span>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <button className="inline-flex items-center gap-2 text-brand-mint hover:text-brand-emerald transition-colors text-xs font-medium">
-                        <Download className="w-3 h-3" />
-                        PDF
-                      </button>
+                      {item.pdfUrl ? (
+                        <a href={item.pdfUrl} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-2 text-brand-mint hover:text-brand-emerald transition-colors text-xs font-medium">
+                          <Download className="w-3 h-3" />
+                          PDF
+                        </a>
+                      ) : (
+                        <span className="text-xs text-gray-500">N/A</span>
+                      )}
                     </td>
                   </tr>
                 ))}

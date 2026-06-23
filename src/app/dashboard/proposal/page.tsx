@@ -11,6 +11,23 @@ import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { Settings2, Palette, Type } from 'lucide-react';
+
+const COLORS = [
+  { id: 'brand-mint', label: 'Verde Mint', value: '#34d399', textClass: 'text-emerald-400', borderClass: 'border-emerald-400/50', bgClass: 'bg-emerald-400', gradient: 'from-[#064e3b] via-[#022c22] to-[#0a0a0a]', isLight: false },
+  { id: 'purple', label: 'Roxo Metálico', value: '#a855f7', textClass: 'text-purple-400', borderClass: 'border-purple-400/50', bgClass: 'bg-purple-400', gradient: 'from-[#3b0764] via-[#2e1065] to-[#0a0a0a]', isLight: false },
+  { id: 'blue', label: 'Azul Oceano', value: '#3b82f6', textClass: 'text-blue-400', borderClass: 'border-blue-400/50', bgClass: 'bg-blue-400', gradient: 'from-[#172554] via-[#1e3a8a] to-[#0a0a0a]', isLight: false },
+  { id: 'gold', label: 'Ouro Queimado', value: '#eab308', textClass: 'text-yellow-400', borderClass: 'border-yellow-400/50', bgClass: 'bg-yellow-400', gradient: 'from-[#451a03] via-[#291506] to-[#0a0a0a]', isLight: false },
+  { id: 'rose', label: 'Vermelho Carmim', value: '#f43f5e', textClass: 'text-rose-400', borderClass: 'border-rose-400/50', bgClass: 'bg-rose-400', gradient: 'from-[#881337] via-[#4c0519] to-[#0a0a0a]', isLight: false },
+  { id: 'black', label: 'Preto Puro', value: '#222222', textClass: 'text-gray-300', borderClass: 'border-white/20', bgClass: 'bg-black', gradient: 'from-[#1a1a1a] via-[#0a0a0a] to-[#000000]', isLight: false },
+  { id: 'white', label: 'Branco Minimalista', value: '#e5e7eb', textClass: 'text-black', borderClass: 'border-black/20', bgClass: 'bg-white', gradient: 'from-[#f9fafb] via-[#f3f4f6] to-[#e5e7eb]', isLight: true },
+];
+
+const FONTS = [
+  { id: 'sans', label: 'Moderno (Sans)', class: 'font-sans' },
+  { id: 'serif', label: 'Elegante (Serif)', class: 'font-serif' },
+  { id: 'mono', label: 'Tech (Mono)', class: 'font-mono' },
+];
 
 export default function ProposalPage() {
   const { user } = useAuth();
@@ -29,6 +46,114 @@ export default function ProposalPage() {
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [result, setResult] = useState<any>(null);
   const [error, setError] = useState('');
+
+  const [docColor, setDocColor] = useState(COLORS[0]);
+  const [docFont, setDocFont] = useState(FONTS[0]);
+  const [editingBlock, setEditingBlock] = useState<string | null>(null);
+
+  const isLight = docColor.isLight;
+  const txtPrimary = isLight ? 'text-black' : 'text-white';
+  const txtSecondary = isLight ? 'text-gray-700' : 'text-gray-300';
+  const txtMuted = isLight ? 'text-gray-500' : 'text-gray-400';
+  const borderMuted = isLight ? 'border-black/10' : 'border-white/10';
+  const bgCard = isLight ? 'bg-black/[0.03]' : 'bg-white/[0.03]';
+  const bgInvest = isLight ? 'bg-white/80' : 'bg-black/60';
+
+  const EditableBlock = ({ id, value, onSave, label, renderDisplay }: { id: string, value: string, onSave: (val: string) => void, label: string, renderDisplay?: (val: string) => React.ReactNode }) => {
+    const isEditing = editingBlock === id;
+    const [localVal, setLocalVal] = useState(value);
+    const [localPrompt, setLocalPrompt] = useState('');
+    const [rewriting, setRewriting] = useState(false);
+    
+    useEffect(() => { setLocalVal(value); }, [value]);
+
+    const handleSave = () => {
+      onSave(localVal);
+      setEditingBlock(null);
+    };
+
+    const handleRewrite = async () => {
+       if (!localPrompt) return;
+       const creditResult = await consumeCredit('proposal');
+       if (!creditResult.ok) {
+         addNotification(user?.uid || '', 'Sem créditos', 'Você precisa de créditos para reescrever.', 'warning');
+         return;
+       }
+       
+       try {
+         setRewriting(true);
+         const res = await fetch('/api/tools/proposal/rewrite', {
+           method: 'POST',
+           headers: { 'Content-Type': 'application/json' },
+           body: JSON.stringify({ text: localVal, prompt: localPrompt })
+         });
+         const data = await res.json();
+         if (data.success) {
+           setLocalVal(data.data);
+           setLocalPrompt('');
+         } else {
+           throw new Error(data.error);
+         }
+       } catch (err: any) {
+         addNotification(user?.uid || '', 'Erro', err.message, 'error');
+       } finally {
+         setRewriting(false);
+       }
+    };
+
+    if (!isEditing) {
+      return (
+        <div className="relative group cursor-pointer" onClick={() => setEditingBlock(id)}>
+          <div className={`absolute -inset-4 ${isLight ? 'group-hover:bg-black/5' : 'group-hover:bg-white/5'} bg-transparent rounded-xl transition-all duration-200`}></div>
+          <div className="absolute top-0 right-0 opacity-0 group-hover:opacity-100 bg-brand-mint text-black font-bold text-xs px-3 py-1.5 rounded-md z-20 flex items-center gap-2 shadow-xl"><Settings2 className="w-3 h-3"/> Editar Bloco</div>
+          <div className="relative z-10 pointer-events-none">
+            {renderDisplay ? renderDisplay(value) : (
+              <p className={`${txtSecondary} font-light leading-relaxed tracking-wide text-[15px] whitespace-pre-wrap`}>{value}</p>
+            )}
+          </div>
+        </div>
+      );
+    }
+
+    return (
+      <div className="bg-black/60 border border-white/20 p-5 rounded-2xl space-y-4 relative z-30 shadow-2xl backdrop-blur-xl">
+        <div className="flex justify-between items-center mb-2">
+           <span className="text-sm font-bold text-white flex items-center gap-2"><Settings2 className="w-4 h-4"/> Editando: {label}</span>
+           <button onClick={() => {setEditingBlock(null); setLocalVal(value);}} className="text-gray-400 hover:text-white text-sm">Cancelar</button>
+        </div>
+        
+        <textarea 
+          className="w-full bg-white/5 border border-white/10 rounded-lg p-4 text-white text-sm min-h-[160px] focus:border-brand-mint/50 focus:ring-1 focus:ring-brand-mint/50 outline-none transition-all"
+          value={localVal}
+          onChange={e => setLocalVal(e.target.value)}
+        />
+
+        <div className="flex flex-col gap-3 pt-2">
+          <label className="text-xs text-brand-mint font-semibold uppercase tracking-widest flex items-center gap-2"><Sparkles className="w-3 h-3"/> IA: O que deseja alterar neste bloco?</label>
+          <div className="flex gap-2">
+            <input 
+              type="text" 
+              placeholder="Ex: Refaça este texto com um tom mais focado em vendas e escassez..." 
+              className="flex-1 bg-brand-mint/5 border border-brand-mint/20 text-white text-sm rounded-lg px-4 focus:border-brand-mint outline-none"
+              value={localPrompt}
+              onChange={e => setLocalPrompt(e.target.value)}
+              onKeyDown={e => e.key === 'Enter' && handleRewrite()}
+            />
+            <Button 
+              onClick={handleRewrite} 
+              disabled={rewriting || !localPrompt}
+              className="bg-brand-mint text-black hover:bg-emerald-400 text-sm font-bold whitespace-nowrap"
+            >
+              {rewriting ? 'Processando...' : '✨ Reescrever (1 Crédito)'}
+            </Button>
+          </div>
+        </div>
+        <div className="flex justify-end pt-4 border-t border-white/10 mt-2">
+          <Button onClick={handleSave} className="bg-white text-black hover:bg-gray-200 text-sm font-bold px-8">Salvar Alterações</Button>
+        </div>
+      </div>
+    );
+  };
 
   useEffect(() => {
     if (!user) return;
@@ -249,7 +374,7 @@ export default function ProposalPage() {
       <div className="flex flex-col gap-2 mb-8">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-mint bg-brand-mint/10 text-sm font-medium w-fit mb-2">
           <FileText className="w-4 h-4" />
-          <span className="text-white">Motor Comercial B2B</span>
+          <span className="text-white">Motor Comercial</span>
         </div>
         <h1 className="text-3xl font-bold text-white tracking-tight">Gerador de Propostas</h1>
         <p className="text-gray-400 font-light tracking-wide">Compile argumentos comerciais inquebráveis conectando dados do seu diagnóstico e valores da calculadora.</p>
@@ -386,8 +511,44 @@ export default function ProposalPage() {
       {result && (
         <div className="animate-in fade-in slide-in-from-top-6 duration-700 space-y-6 mt-12">
           
-          <div className="flex justify-between items-center mb-6">
+          <div className="flex flex-col md:flex-row justify-between items-start md:items-center mb-6 gap-4">
             <h2 className="text-2xl font-bold tracking-tight text-white">Visualização da Proposta</h2>
+            
+            <div className="flex flex-wrap items-center gap-4 bg-black/40 border border-white/10 p-2 rounded-xl">
+              {/* Seletor de Cores */}
+              <div className="flex items-center gap-2 border-r border-white/10 pr-4">
+                <Palette className="w-4 h-4 text-gray-400" />
+                <div className="flex gap-1.5">
+                  {COLORS.map(c => (
+                    <button 
+                      key={c.id} 
+                      onClick={() => setDocColor(c)}
+                      className={`w-6 h-6 rounded-full border-2 transition-all ${docColor.id === c.id ? 'border-white scale-110' : 'border-transparent opacity-70 hover:opacity-100'}`}
+                      style={{ backgroundColor: c.value }}
+                      title={c.label}
+                    />
+                  ))}
+                </div>
+              </div>
+              
+              {/* Seletor de Fonte */}
+              <div className="flex items-center gap-2">
+                <Type className="w-4 h-4 text-gray-400" />
+                <div className="flex gap-2">
+                  {FONTS.map(f => (
+                    <button 
+                      key={f.id} 
+                      onClick={() => setDocFont(f)}
+                      className={`text-xs px-2 py-1 rounded transition-all ${docFont.id === f.id ? 'bg-white/20 text-white' : 'text-gray-400 hover:text-white'}`}
+                      title={f.label}
+                    >
+                      {f.id.toUpperCase()}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            </div>
+
             <Button 
               onClick={downloadPDF} 
               className="bg-brand-mint/20 text-brand-mint hover:bg-brand-mint hover:text-black border border-brand-mint/50 font-bold"
@@ -398,124 +559,200 @@ export default function ProposalPage() {
             </Button>
           </div>
 
-          {/* Document Render Area (A4 style visually) */}
-          <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-8 md:p-14 overflow-hidden relative shadow-2xl" id="proposal-pdf-content">
+          {/* Document Render Area (Mobile-First Layout) */}
+          <div className={`rounded-2xl overflow-hidden shadow-2xl mx-auto w-full max-w-[450px] ${isLight ? 'bg-white' : 'bg-[#0a0a0a]'}`}>
+            <div className={`p-6 md:p-8 min-h-[800px] relative w-full h-full bg-gradient-to-b ${docColor.gradient} ${docFont.class}`} id="proposal-pdf-content">
              
-             {/* Background glow effects for premium look */}
-             <div className="absolute top-0 right-0 w-96 h-96 bg-brand-mint/5 rounded-full blur-[100px] pointer-events-none -translate-y-1/2 translate-x-1/3"></div>
+             {/* Background glow effects */}
+             <div className="absolute top-0 right-0 w-full h-64 blur-[80px] pointer-events-none opacity-40 mix-blend-screen" style={{ backgroundColor: docColor.value }}></div>
              
              {/* Capa */}
-             <div className="min-h-[60vh] flex flex-col justify-center mb-24 relative z-10 border-b border-white/5 pb-24">
-                <div className="w-20 h-1 bg-brand-mint mb-8 rounded-full"></div>
-                <h1 className="text-4xl md:text-5xl font-extrabold tracking-tighter text-white mb-4 leading-tight">
-                  {result.capa?.titulo || `Proposta Comercial de Conteúdo`}
-                </h1>
-                <p className="text-xl md:text-2xl font-light text-gray-400 tracking-wide mb-12">
-                  {result.capa?.subtitulo || `Desenvolvida para ${cliente}`}
-                </p>
-                <div className="mt-auto pt-12">
-                  <p className="text-sm text-gray-500 uppercase tracking-widest font-semibold mb-1">Apresentado por</p>
-                  <p className="text-lg font-bold text-gray-200">{JSON.parse(localStorage.getItem('asa_settings') || '{}').nome_completo || user?.displayName || 'Criador'}</p>
-                  <p className="text-sm font-light text-gray-400 mt-1">{new Date().toLocaleDateString('pt-BR')}</p>
+             <div className={`min-h-[70vh] flex flex-col justify-center mb-16 relative z-10 pt-10 pb-16 ${isLight ? 'border-b border-black/5' : ''}`}>
+                <div className="w-16 h-1 mb-6 rounded-full opacity-80" style={{ backgroundColor: docColor.value }}></div>
+                <EditableBlock 
+                  id="capa_titulo"
+                  label="Título da Capa"
+                  value={result.capa?.titulo || `Plano de Conversão`}
+                  onSave={(val) => setResult({...result, capa: {...result.capa, titulo: val}})}
+                  renderDisplay={(val) => <h1 className={`text-4xl font-extrabold tracking-tighter ${txtPrimary} mb-4 leading-[1.1]`}>{val}</h1>}
+                />
+                <EditableBlock 
+                  id="capa_subtitulo"
+                  label="Subtítulo da Capa"
+                  value={result.capa?.subtitulo || `Para ${cliente}`}
+                  onSave={(val) => setResult({...result, capa: {...result.capa, subtitulo: val}})}
+                  renderDisplay={(val) => <p className={`text-lg font-light ${txtSecondary} tracking-wide mb-10 opacity-90`}>{val}</p>}
+                />
+                <div className={`mt-auto pt-10 border-t ${borderMuted}`}>
+                  <p className={`text-[10px] ${txtMuted} uppercase tracking-widest font-semibold mb-1 opacity-70`}>Apresentado por</p>
+                  <p className={`text-base font-bold ${txtPrimary}`}>{JSON.parse(localStorage.getItem('asa_settings') || '{}').nome_completo || user?.displayName || 'Criador'}</p>
+                  <p className={`text-xs font-light ${txtMuted} mt-0.5`}>{new Date().toLocaleDateString('pt-BR')}</p>
                 </div>
              </div>
 
-             {/* Corpo da Proposta */}
-             <div className="space-y-16 relative z-10 max-w-4xl">
+             {/* Corpo da Proposta (Mobile Cards) */}
+             <div className="space-y-6 relative z-10 w-full pb-10">
                 
                 {/* Apresentação */}
-                <section>
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Apresentação</h2>
-                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
-                    {result.apresentacao}
-                  </p>
+                <section className={`${bgCard} p-6 rounded-2xl border ${borderMuted} shadow-lg backdrop-blur-md`}>
+                  <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-4`}>Apresentação</h2>
+                  <EditableBlock 
+                    id="apresentacao"
+                    label="Apresentação"
+                    value={result.apresentacao}
+                    onSave={(val) => setResult({...result, apresentacao: val})}
+                    renderDisplay={(val) => <p className={`${txtSecondary} font-light leading-relaxed tracking-wide text-[15px] whitespace-pre-wrap`}>{val}</p>}
+                  />
                 </section>
 
                 {/* Contexto & Diagnóstico */}
-                <section className="bg-white/[0.02] p-8 rounded-2xl border border-white/5">
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6 flex items-center gap-3">
-                    <Target className="w-6 h-6 text-brand-mint" /> O Cenário Atual
+                <section className={`${bgCard} p-6 rounded-2xl border ${borderMuted} shadow-lg backdrop-blur-md relative overflow-hidden`}>
+                  <div className="absolute top-0 right-0 w-32 h-32 opacity-10 rounded-bl-full pointer-events-none" style={{ backgroundColor: docColor.value }}></div>
+                  <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-4 flex items-center gap-2 relative z-10`}>
+                    <Target className={`w-5 h-5 ${docColor.textClass}`} /> O Cenário Atual
                   </h2>
-                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
-                    {result.contexto}
-                  </p>
+                  <div className="relative z-10">
+                    <EditableBlock 
+                      id="contexto"
+                      label="O Cenário Atual"
+                      value={result.contexto}
+                      onSave={(val) => setResult({...result, contexto: val})}
+                      renderDisplay={(val) => <p className={`${txtSecondary} font-light leading-relaxed tracking-wide text-[15px] whitespace-pre-wrap`}>{val}</p>}
+                    />
+                  </div>
                 </section>
 
                 {/* Solução */}
-                <section>
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">A Solução</h2>
-                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap">
-                    {result.solucao}
-                  </p>
+                <section className={`${bgCard} p-6 rounded-2xl border ${borderMuted} shadow-lg backdrop-blur-md`}>
+                  <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-4`}>A Solução</h2>
+                  <EditableBlock 
+                    id="solucao"
+                    label="A Solução"
+                    value={result.solucao}
+                    onSave={(val) => setResult({...result, solucao: val})}
+                    renderDisplay={(val) => <p className={`${txtSecondary} font-light leading-relaxed tracking-wide text-[15px] whitespace-pre-wrap`}>{val}</p>}
+                  />
                 </section>
 
                 {/* Escopo */}
-                <section>
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Escopo do Projeto</h2>
-                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-lg whitespace-pre-wrap mb-8">
-                    {result.escopo}
-                  </p>
+                <section className={`${bgCard} p-6 rounded-2xl border ${borderMuted} shadow-lg backdrop-blur-md`}>
+                  <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-4`}>Escopo do Projeto</h2>
+                  <div className="mb-6">
+                    <EditableBlock 
+                      id="escopo"
+                      label="Escopo Geral"
+                      value={result.escopo}
+                      onSave={(val) => setResult({...result, escopo: val})}
+                      renderDisplay={(val) => <p className={`${txtSecondary} font-light leading-relaxed tracking-wide text-[15px] whitespace-pre-wrap`}>{val}</p>}
+                    />
+                  </div>
 
-                  <div className="grid grid-cols-1 gap-8">
-                    <div className="bg-brand-mint/5 p-6 rounded-xl border border-brand-mint/10">
-                      <h4 className="text-brand-mint font-bold mb-4 uppercase tracking-wider text-sm flex items-center gap-2">
-                        <CheckCircle2 className="w-4 h-4" /> O que está incluso
-                      </h4>
-                      <ul className="space-y-3">
-                        {Array.isArray(result.o_que_esta_incluso) && result.o_que_esta_incluso.map((item: string, i: number) => (
-                          <li key={i} className="text-gray-300 font-light text-sm flex items-start gap-2">
-                            <span className="text-brand-mint mt-0.5">•</span> {item}
-                          </li>
-                        ))}
-                      </ul>
-                    </div>
+                  <div className={`${isLight ? 'bg-black/5' : 'bg-black/40'} p-5 rounded-xl border ${borderMuted}`}>
+                    <h4 className={`${docColor.textClass} font-bold mb-4 uppercase tracking-wider text-[11px] flex items-center gap-2`}>
+                      <CheckCircle2 className="w-4 h-4" /> O que está incluso
+                    </h4>
+                    <EditableBlock 
+                      id="inclusos"
+                      label="Itens Inclusos (Uma linha por item)"
+                      value={Array.isArray(result.o_que_esta_incluso) ? result.o_que_esta_incluso.join('\n') : result.o_que_esta_incluso}
+                      onSave={(val) => setResult({...result, o_que_esta_incluso: val.split('\n').filter(Boolean)})}
+                      renderDisplay={(val) => (
+                        <ul className="space-y-3">
+                          {val.split('\n').filter(Boolean).map((item: string, i: number) => (
+                            <li key={i} className={`${txtSecondary} font-light text-[14px] flex items-start gap-2`}>
+                              <span className={`${docColor.textClass} mt-0.5`}>•</span> {item}
+                            </li>
+                          ))}
+                        </ul>
+                      )}
+                    />
                   </div>
                 </section>
 
                 {/* Processo de Trabalho */}
-                <section>
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-8">Processo de Trabalho</h2>
-                  <div className="space-y-6">
+                <section className={`${bgCard} p-6 rounded-2xl border ${borderMuted} shadow-lg backdrop-blur-md`}>
+                  <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-6`}>Processo de Trabalho</h2>
+                  <div className={`space-y-0 relative before:absolute before:inset-0 before:ml-[1.125rem] before:-translate-x-px md:before:mx-auto md:before:translate-x-0 before:h-full before:w-0.5 ${isLight ? 'before:bg-black/10' : 'before:bg-white/10'}`}>
                     {Array.isArray(result.processo) && result.processo.map((p: any, i: number) => (
-                      <div key={i} className="flex gap-4">
-                        <div className="flex-shrink-0 w-10 h-10 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-brand-mint font-bold">
-                          {i + 1}
-                        </div>
-                        <div>
-                          <h4 className="text-white font-bold text-lg mb-2 tracking-tight">{p.etapa}</h4>
-                          <p className="text-gray-400 font-light text-sm leading-relaxed">{p.descricao}</p>
-                        </div>
+                      <div key={i} className="relative mb-6 last:mb-0">
+                        <EditableBlock 
+                          id={`processo_${i}`}
+                          label={`Etapa ${i+1}`}
+                          value={`${p.etapa}\n${p.descricao}`}
+                          onSave={(val) => {
+                            const lines = val.split('\n');
+                            const newArr = [...result.processo];
+                            newArr[i] = { etapa: lines[0] || '', descricao: lines.slice(1).join('\n') };
+                            setResult({...result, processo: newArr});
+                          }}
+                          renderDisplay={(val) => {
+                            const lines = val.split('\n');
+                            return (
+                              <div className="flex gap-4 items-start relative z-10">
+                                <div className={`flex-shrink-0 w-9 h-9 rounded-full ${isLight ? 'bg-white border-white ring-black/10' : 'bg-black border-[#0a0a0a] ring-white/10'} border-[3px] ring-2 flex items-center justify-center ${docColor.textClass} font-bold text-sm shadow-md`}>
+                                  {i + 1}
+                                </div>
+                                <div className="pt-1.5 pb-2">
+                                  <h4 className={`${txtPrimary} font-bold text-[15px] mb-1 tracking-tight`}>{lines[0]}</h4>
+                                  <p className={`${txtMuted} font-light text-[13px] leading-relaxed`}>{lines.slice(1).join('\n')}</p>
+                                </div>
+                              </div>
+                            );
+                          }}
+                        />
                       </div>
                     ))}
                   </div>
                 </section>
 
                 {/* Investimento */}
-                <section className="mt-16 bg-gradient-to-br from-brand-mint/10 to-transparent p-10 rounded-3xl border border-brand-mint/20 text-center">
-                  <h2 className="text-2xl font-bold tracking-tight text-white mb-6">Investimento</h2>
-                  <p className="text-gray-300 font-light leading-relaxed tracking-wide text-base mb-8 max-w-2xl mx-auto">
-                    {result.investimento?.texto_introdutorio}
-                  </p>
-                  <p className="text-5xl font-extrabold text-white tracking-tighter mb-4 drop-shadow-lg">
-                    {result.investimento?.valor || 'R$ --'}
-                  </p>
-                  <p className="text-brand-mint font-semibold text-sm tracking-widest uppercase mt-6 mb-2">Condições de Pagamento</p>
-                  <p className="text-gray-400 font-light text-sm">{result.investimento?.condicoes}</p>
+                <section className={`mt-8 ${bgInvest} p-8 rounded-3xl border text-center relative overflow-hidden shadow-2xl`} style={{ borderColor: docColor.value }}>
+                  <div className="absolute inset-0 opacity-20 pointer-events-none" style={{ background: `linear-gradient(to bottom, ${docColor.value}, transparent)` }}></div>
+                  <div className="relative z-10">
+                    <h2 className={`text-xl font-bold tracking-tight ${txtPrimary} mb-4`}>Investimento</h2>
+                    <div className={`mb-6 text-sm ${txtSecondary} font-light`}>
+                      <EditableBlock 
+                        id="investimento_texto"
+                        label="Texto do Investimento"
+                        value={result.investimento?.texto_introdutorio}
+                        onSave={(val) => setResult({...result, investimento: {...result.investimento, texto_introdutorio: val}})}
+                      />
+                    </div>
+                    <p className={`text-4xl md:text-5xl font-extrabold tracking-tighter mb-4 ${isLight ? 'drop-shadow-sm' : 'drop-shadow-lg'}`} style={{ color: isLight ? '#0a0a0a' : docColor.value }}>
+                      {result.investimento?.valor || 'R$ --'}
+                    </p>
+                    <div className={`mt-6 border-t ${borderMuted} pt-4`}>
+                       <p className={`text-[10px] font-semibold tracking-widest uppercase mb-1 ${txtMuted}`}>Condições de Pagamento</p>
+                       <EditableBlock 
+                           id="investimento_condicoes"
+                           label="Condições"
+                           value={result.investimento?.condicoes}
+                           onSave={(val) => setResult({...result, investimento: {...result.investimento, condicoes: val}})}
+                           renderDisplay={(val) => <p className={`${txtSecondary} font-light text-[11px]`}>{val}</p>}
+                       />
+                    </div>
+                  </div>
                 </section>
 
                 {/* Próximos Passos */}
-                <section className="text-center pt-16 border-t border-white/5">
-                  <h2 className="text-xl font-bold tracking-tight text-white mb-4">Próximos Passos</h2>
-                  <p className="text-gray-400 font-light leading-relaxed tracking-wide text-lg max-w-xl mx-auto mb-10">
-                    {result.proximo_passo}
-                  </p>
-                  <div className="inline-flex flex-col items-center opacity-50">
-                    <div className="w-16 h-px bg-gray-500 mb-2"></div>
-                    <p className="text-xs text-gray-500 font-light tracking-widest uppercase">Proposta Válida por 7 dias</p>
+                <section className="text-center pt-8">
+                  <h2 className={`text-lg font-bold tracking-tight ${txtPrimary} mb-3`}>Próximos Passos</h2>
+                  <div className={`mb-8 mx-auto text-sm ${txtMuted} font-light`}>
+                    <EditableBlock 
+                        id="proximo_passo"
+                        label="Próximos Passos"
+                        value={result.proximo_passo}
+                        onSave={(val) => setResult({...result, proximo_passo: val})}
+                    />
+                  </div>
+                  <div className="inline-flex flex-col items-center opacity-40">
+                    <div className={`w-8 h-px ${isLight ? 'bg-black' : 'bg-white'} mb-2`}></div>
+                    <p className={`text-[9px] font-light tracking-widest uppercase ${txtPrimary}`}>Proposta Válida por 7 dias</p>
                   </div>
                 </section>
 
              </div>
+            </div>
           </div>
 
         </div>
