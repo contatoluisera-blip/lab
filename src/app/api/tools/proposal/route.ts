@@ -14,8 +14,8 @@ export async function POST(request: Request) {
 
     let jsonResult;
 
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn("OPENAI_API_KEY não configurada. Usando mock de fallback.");
+    if (!process.env.ANTHROPIC_API_KEY) {
+      console.warn("ANTHROPIC_API_KEY não configurada. Usando mock de fallback.");
       const qtdVideos = orcamento?.video_quantity || orcamento?.video_quantity_total || 'alguns';
       const valorOrcamento = orcamento?.precoRecomendado || orcamento?.valorTotal || "R$ 3.500,00";
       
@@ -50,9 +50,6 @@ export async function POST(request: Request) {
         proximo_passo: "Caso o escopo e os valores estejam alinhados com o momento da marca, basta responder a este documento com 'DE ACORDO' e enviaremos o contrato digital para darmos o start imediato no onboarding."
       };
     } else {
-      if (!process.env.ANTHROPIC_API_KEY) {
-         throw new Error("ANTHROPIC_API_KEY não configurada.");
-      }
 
       const anthropic = new Anthropic({
         apiKey: process.env.ANTHROPIC_API_KEY,
