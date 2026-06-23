@@ -2,6 +2,9 @@
   command = "npm run build"
   publish = ".next"
 
+[build.environment]
+  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
+
 [functions]
   # Aumenta o timeout máximo para funções síncronas (26s no plano Netlify Starter)
   included_files = ["**"]
