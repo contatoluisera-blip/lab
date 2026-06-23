@@ -8,6 +8,18 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
   apiVersion: '2025-02-24.acacia' as any,
 });
 
+const PLAN_CREDITS: Record<string, number> = {
+  [process.env.STRIPE_PRODUCT_START || 'start']: 20,
+  [process.env.STRIPE_PRODUCT_PRO || 'pro']: 50,
+  [process.env.STRIPE_PRODUCT_ELITE || 'elite']: 100,
+};
+
+const PLAN_NAMES: Record<string, string> = {
+  [process.env.STRIPE_PRODUCT_START || 'start']: 'start',
+  [process.env.STRIPE_PRODUCT_PRO || 'pro']: 'pro',
+  [process.env.STRIPE_PRODUCT_ELITE || 'elite']: 'elite',
+};
+
 export async function GET(req: Request) {
   try {
     const authHeader = req.headers.get('authorization');
@@ -24,7 +36,7 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: 'Usuário não encontrado' }, { status: 404 });
     }
 
-    const userData = userDoc.data();
+    const userData = userDoc.data()!;
     const stripeCustomerId = userData?.stripeCustomerId;
 
     if (!stripeCustomerId) {
@@ -36,11 +48,45 @@ export async function GET(req: Request) {
       limit: 12,
     });
 
-    let nextBillingDate = null;
+    let nextBillingDate: number | null = null;
+    let currentPeriodStart: number | null = null;
+
     if (userData.stripeSubscriptionId) {
       try {
         const subscription = await stripe.subscriptions.retrieve(userData.stripeSubscriptionId);
         nextBillingDate = subscription.current_period_end * 1000;
+        currentPeriodStart = subscription.current_period_start * 1000; // ms
+
+        // ─────────────────────────────────────────────────────
+        // AUTO CREDIT RESET: If the billing cycle renewed after
+        // the last recorded credit reset, update credits silently.
+        // ─────────────────────────────────────────────────────
+        if (
+          subscription.status === 'active' ||
+          subscription.status === 'trialing'
+        ) {
+          const creditsResetAt: number = userData.creditsResetAt
+            ? new Date(userData.creditsResetAt).getTime()
+            : 0;
+
+          // currentPeriodStart is when the current cycle started (ms)
+          if (currentPeriodStart > creditsResetAt) {
+            // Cycle renewed since the last reset — update credits now
+            const productId = subscription.items.data[0]?.price?.product as string;
+            const creditsToSet = PLAN_CREDITS[productId];
+            const planName = PLAN_NAMES[productId];
+
+            if (creditsToSet && planName) {
+              await adminDb.collection('users').doc(userId).update({
+                credits: creditsToSet,
+                plan: planName,
+                creditsResetAt: new Date(currentPeriodStart).toISOString(),
+                updatedAt: new Date().toISOString(),
+              });
+              console.log(`[AutoCreditReset] User ${userId}: reset to ${creditsToSet} credits for plan ${planName}`);
+            }
+          }
+        }
       } catch (e) {
         console.error('Erro ao buscar assinatura:', e);
       }
