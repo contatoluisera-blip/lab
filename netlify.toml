@@ -1,0 +1,29 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[functions]
+  # Aumenta o timeout máximo para funções síncronas (26s no plano Netlify Starter)
+  included_files = ["**"]
+  node_bundler = "esbuild"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs"
+
+[functions."api-tools-proposal"]
+  timeout = 26
+
+[functions."api-tools-estudia"]
+  timeout = 26
+
+[functions."api-tools-creator-card"]
+  timeout = 26
+
+[functions."api-tools-diagnosis"]
+  timeout = 26
+
+[functions."api-tools-idea-generator"]
+  timeout = 26
+
+[functions."api-tools-assistant"]
+  timeout = 26
