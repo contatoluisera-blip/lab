@@ -114,7 +114,7 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
 `;
 
       const msg = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+        model: "claude-3-5-sonnet-20240620",
         max_tokens: 4000,
         temperature: 0.7,
         system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
