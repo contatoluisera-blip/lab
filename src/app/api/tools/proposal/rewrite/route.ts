@@ -38,9 +38,9 @@ REGRAS:
 
     const msg = await anthropic.messages.create({
       model: "claude-sonnet-4-6",
-      max_tokens: 1500,
+      max_tokens: 800,
       temperature: 0.7,
-      system: "Você é um Copywriter Executivo. Você responde apenas com o texto final reescrito, sem nenhum comentário ou introdução.",
+      system: "Você é um Copywriter Executivo. Responda apenas com o texto final reescrito, EXTREMAMENTE curto e direto.",
       messages: [
         { role: "user", content: aiPrompt }
       ]

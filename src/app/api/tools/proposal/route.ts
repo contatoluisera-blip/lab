@@ -112,9 +112,9 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
 
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 2000,
+        max_tokens: 800,
         temperature: 0.7,
-        system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
+        system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, estratégicas e EXTREMAMENTE DIRETAS E CURTAS. CRÍTICO: Limite a geração a textos pequenos, use tópicos. Você tem um tempo curtíssimo para responder (max 800 tokens), senão o sistema trava.",
         messages: [
           { role: "user", content: prompt }
         ]
