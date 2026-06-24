@@ -60,7 +60,9 @@ Você é um Estrategista Comercial Sênior e Copywriter especializado em produç
 Seu objetivo é transformar os dados fornecidos em uma Proposta Comercial Irrecusável, Profunda e Altamente Persuasiva.
 
 A proposta não deve parecer genérica. Ela deve transpirar autoridade, demonstrando domínio absoluto sobre retenção, algoritmos, conversão e percepção de marca. 
-Fuja de clichês amadores (ex: "vou bombar seu instagram"). Use termos de negócios e neuromarketing (ex: "Ecossistema de conversão", "Retenção algorítmica", "Arquitetura de autoridade", "Funil de conteúdo", "Quebra de objeções").
+Fuja de clichês amadores. Use termos de negócios e neuromarketing.
+
+REGRA CRÍTICA DE TAMANHO: A proposta inteira não pode ultrapassar 1500 tokens (aprox. 1000 palavras). Seja extremamente PROFUNDO, mas CIRÚRGICO e OBJETIVO. Escreva no máximo 2 parágrafos curtos por seção. Se você escrever demais, o sistema cortará a resposta e ela ficará inválida. O "Premium" significa qualidade do argumento, e não um texto gigante.
 
 ESTRUTURA OBRIGATÓRIA DA PROPOSTA (Retorne EXATAMENTE este JSON sem marcações markdown extra ou blocos de código \`\`\`json):
 {
@@ -112,7 +114,7 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
 
       const msg = await anthropic.messages.create({
         model: "claude-sonnet-4-6",
-        max_tokens: 4000,
+        max_tokens: 2000,
         temperature: 0.7,
         system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
         messages: [
