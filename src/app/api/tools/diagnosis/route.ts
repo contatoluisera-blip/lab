@@ -1,5 +1,4 @@
 import { NextResponse } from 'next/server';
-import { ApifyClient } from 'apify-client';
 import OpenAI from 'openai';
 
 export const maxDuration = 300; 
@@ -50,9 +49,10 @@ const CTA_REGEX = /clique|agende|link|conheça|fale|baixe|orçamento|direct|come
 
 export async function POST(request: Request) {
   try {
-    const apifyClient = new ApifyClient({
-      token: process.env.APIFY_API_TOKEN,
-    });
+    const apifyApiToken = process.env.APIFY_API_TOKEN;
+    if (!apifyApiToken) {
+      return NextResponse.json({ error: 'Token da Apify não configurado.' }, { status: 500 });
+    }
     const body = await request.json();
     let { handle, tipo_perfil = 'criador' } = body;
 
@@ -65,36 +65,42 @@ export async function POST(request: Request) {
     let allPosts: any[] = [];
     console.log(`Buscando Apify para ${handle} (Perfil + 120 Posts)...`);
 
-    const [profileRun, postsRun] = await Promise.all([
-      apifyClient.actor("apify/instagram-scraper").call({
+    async function runApifyActor(actorId: string, input: any) {
+      const runRes = await fetch(\`https://api.apify.com/v2/acts/\${actorId}/runs?token=\${apifyApiToken}&waitForFinish=60\`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input)
+      });
+      const runData = await runRes.json();
+      if (!runData || !runData.data) throw new Error('Falha ao rodar o Apify');
+      
+      const datasetId = runData.data.defaultDatasetId;
+      const itemsRes = await fetch(\`https://api.apify.com/v2/datasets/\${datasetId}/items?token=\${apifyApiToken}\`);
+      return await itemsRes.json();
+    }
+
+    const [profileItems, postsItems] = await Promise.all([
+      runApifyActor("apify/instagram-scraper", {
         addParentData: false,
-        directUrls: [`https://www.instagram.com/${handle}/`],
+        directUrls: [\`https://www.instagram.com/\${handle}/\`],
         resultsType: "details",
         searchType: "user"
       }),
-      apifyClient.actor("apify/instagram-scraper").call({
+      runApifyActor("apify/instagram-scraper", {
         addParentData: false,
-        directUrls: [`https://www.instagram.com/${handle}/`],
+        directUrls: [\`https://www.instagram.com/\${handle}/\`],
         resultsLimit: 120,
         resultsType: "posts",
         searchType: "user"
       })
     ]);
 
-    const [profileDataset, postsDataset] = await Promise.all([
-      apifyClient.dataset(profileRun.defaultDatasetId).listItems(),
-      apifyClient.dataset(postsRun.defaultDatasetId).listItems()
-    ]);
-
-    const profileItems = profileDataset.items;
-    const postsItems = postsDataset.items;
-
     if (profileItems && profileItems.length > 0) {
-      profile = profileItems.find(i => i.followersCount !== undefined) || profileItems[0];
+      profile = profileItems.find((i: any) => i.followersCount !== undefined) || profileItems[0];
     }
     
     if (postsItems && postsItems.length > 0) {
-      allPosts = postsItems.filter(i => i.type || i.shortCode);
+      allPosts = postsItems.filter((i: any) => i.type || i.shortCode);
     }
 
     if (!profile) {
