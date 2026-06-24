@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import Anthropic from '@anthropic-ai/sdk';
 
-export const runtime = 'edge';
+export const maxDuration = 300;
 
 export async function POST(request: Request) {
   try {
