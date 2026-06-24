@@ -37,7 +37,7 @@ REGRAS:
 `;
 
     const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: "claude-3-5-sonnet-20241022",
       max_tokens: 1500,
       temperature: 0.7,
       system: "Você é um Copywriter Executivo. Você responde apenas com o texto final reescrito, sem nenhum comentário ou introdução.",
@@ -54,6 +54,6 @@ REGRAS:
     return NextResponse.json({ success: true, data: responseContent });
   } catch (error: any) {
     console.error("Erro na reescrita de proposta:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    return NextResponse.json({ success: false, error: error.message }, { status: 200 });
   }
 }

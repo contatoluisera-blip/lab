@@ -111,7 +111,7 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
 `;
 
       const msg = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
+        model: "claude-3-5-sonnet-20241022",
         max_tokens: 2000,
         temperature: 0.7,
         system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
@@ -135,7 +135,8 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
     return NextResponse.json({ success: true, data: jsonResult });
   } catch (error: any) {
     console.error("Erro no motor de propostas:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+    // Retornando 200 com success: false para evitar que a Netlify sobreponha o JSON de erro com uma página HTML 500
+    return NextResponse.json({ success: false, error: error.message }, { status: 200 });
   }
 }
 
