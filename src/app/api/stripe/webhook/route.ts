@@ -1,6 +1,10 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
+import { Resend } from 'resend';
 import { adminDb } from '@/lib/firebase/admin';
+import { PlatformWelcome } from '@/emails/PlatformWelcome';
+import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
+import React from 'react';
 
 export const dynamic = 'force-dynamic';
 
@@ -9,6 +13,7 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
 });
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
+const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
@@ -35,15 +40,44 @@ export async function POST(req: Request) {
         const subscriptionId = session.subscription as string;
 
         if (userId) {
-          const planName = session.metadata?.planName || 'free';
-          // Atualiza o documento do usuário com os dados do Stripe e ativa o plano instantaneamente
+          const planId = (session.metadata?.planName?.toLowerCase() || 'start') as PlanId;
+          const planConfig = PLAN_CONFIGS[planId];
+
+          // 1. Ativa o plano no Firestore
           await adminDb.collection('users').doc(userId).set({
             stripeCustomerId: customerId,
             stripeSubscriptionId: subscriptionId,
             stripeSubscriptionStatus: 'active',
-            plan: planName,
+            plan: planId,
             updatedAt: new Date().toISOString()
           }, { merge: true });
+
+          // 2. Busca dados do usuário para personalizar o e-mail
+          try {
+            const userSnap = await adminDb.collection('users').doc(userId).get();
+            const userData = userSnap.data();
+
+            if (userData?.email && planConfig) {
+              const firstName = (userData.name || userData.email).split(' ')[0];
+
+              await resend.emails.send({
+                from: 'Creator Lab <contato@luisera.com.br>',
+                to: userData.email,
+                subject: `${planConfig.label} ativado! Seu acesso à Creator Lab está liberado 🎉`,
+                react: PlatformWelcome({
+                  firstName,
+                  planName: planConfig.label,
+                  planPrice: planConfig.price,
+                  credits: planConfig.credits,
+                  hasCourses: planConfig.courses,
+                  dashboardUrl: 'https://creatorlab.luisera.com.br/dashboard',
+                }) as React.ReactElement,
+              });
+            }
+          } catch (emailErr) {
+            // Não bloqueia o webhook se o e-mail falhar
+            console.error('Erro ao enviar e-mail de boas-vindas:', emailErr);
+          }
         }
         break;
       }

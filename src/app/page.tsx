@@ -26,7 +26,7 @@ import {
   Star,
   PlayCircle
 } from 'lucide-react';
-import PreListaForm from '@/app/lista/PreListaForm';
+import PricingSection from '@/app/PricingSection';
 
 const feedbacks = [
   "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint1.jpeg?alt=media&token=84a37184-0121-45af-93ca-a017124e91e2",
@@ -77,7 +77,7 @@ export default function LandingPage() {
         <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
           <a href="#features" className="hover:text-brand-mint transition-colors">Ferramentas</a>
           <a href="#formacao" className="hover:text-brand-mint transition-colors">Formação</a>
-          <a href="#pre-lista" className="hover:text-brand-mint transition-colors">Pré-lista</a>
+          <a href="#planos" className="hover:text-brand-mint transition-colors">Planos</a>
           <Link href="/login" className="text-white hover:text-brand-mint transition-colors">Entrar no App</Link>
         </nav>
       </header>
@@ -102,9 +102,9 @@ export default function LandingPage() {
             A <strong className="text-white">Creator Lab</strong> reúne cursos de criação mobile, ferramentas de diagnóstico, orçamento, geração de ideias e um assistente de IA 24h — tudo para você produzir mais, errar menos e cobrar o que o seu trabalho realmente vale.
           </p>
           <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
-            <a href="#pre-lista">
+            <a href="#planos">
               <Button size="lg" className="glow-border text-black px-8 flex items-center gap-2">
-                Garantir vaga na pré-lista <ArrowRight className="w-4 h-4" />
+                Escolher Meu Plano <ArrowRight className="w-4 h-4" />
               </Button>
             </a>
             <Link href="/login">
@@ -573,102 +573,21 @@ export default function LandingPage() {
 
         </section>
 
-        {/* 6. Pre-Lista Section */}
-        <section id="pre-lista" className="py-8 border-t border-white/5 scroll-mt-24">
-          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-start">
-            {/* Left: benefits */}
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-                  Plano Fundador
-                </span>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Seja um Fundador.<br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">
-                    Benefícios que ninguém<br />mais vai ter.
-                  </span>
-                </h2>
-                <p className="text-gray-400 text-sm leading-relaxed font-light pt-2">
-                  Os primeiros a acreditar merecem ser tratados de forma diferente. Os membros Fundadores da Creator Lab entram com{' '}
-                  <strong className="text-white">vantagens exclusivas e permanentes</strong>{' '}
-                  que não estarão disponíveis após o lançamento ao público geral.
-                </p>
-              </div>
-
-              {/* Benefits list */}
-              <div className="space-y-3">
-                {[
-                  {
-                    tag: 'Acesso Total às Ferramentas',
-                    text: 'Diagnóstico de perfil, calculadora de orçamento, gerador de ideias, proposta comercial, gestão de clientes e assistente de IA — tudo liberado para testar desde o primeiro dia.',
-                  },
-                  {
-                    tag: 'Aulas ao Vivo de IA Mobile',
-                    text: 'Participe de aulas ao vivo sobre criação de conteúdo com Inteligência Artificial pelo celular, com Luisera. Interação direta, perguntas reais, prática imediata.',
-                  },
-                  {
-                    tag: 'Updates em Primeira Mão',
-                    text: 'Cada nova funcionalidade chega primeiro para Fundadores. Você experimenta, valida e dá feedback antes de qualquer outra pessoa.',
-                  },
-                  {
-                    tag: 'Desafios com Premiação',
-                    text: 'Fundadores participam de desafios exclusivos valendo prêmios. Competição interna, reconhecimento e incentivo para evoluir.',
-                  },
-                  {
-                    tag: 'Voto nas Decisões da Plataforma',
-                    text: 'Sua opinião molda o roadmap. Você vota nas próximas ferramentas, no formato das aulas e nas direções estratégicas da Creator Lab.',
-                  },
-                ].map(({ tag, text }) => (
-                  <div key={tag} className="flex items-start gap-4 p-4 rounded-xl bg-white/[0.02] border border-white/5 hover:border-brand-emerald/15 transition-colors">
-                    <CheckCircle2 className="w-5 h-5 text-brand-emerald flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">{tag}</p>
-                      <p className="text-xs text-gray-500 font-light leading-relaxed mt-0.5">{text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Pricing highlight */}
-              <div className="rounded-2xl border border-brand-emerald/25 bg-gradient-to-br from-brand-emerald/8 to-transparent overflow-hidden">
-                <div className="px-6 pt-6 pb-4 space-y-3">
-                  <div className="flex items-center gap-2">
-                    <DollarSign className="w-4 h-4 text-brand-emerald" />
-                    <span className="text-xs font-bold uppercase tracking-widest text-brand-emerald">Preço de Fundador — Travado Para Sempre</span>
-                  </div>
-                  <div className="flex items-end gap-3">
-                    <div>
-                      <p className="text-3xl font-extrabold text-white">50% OFF</p>
-                      <p className="text-xs text-gray-400 mt-0.5">do valor que o consumidor final vai pagar.</p>
-                    </div>
-                    <span className="text-brand-emerald text-xs font-semibold bg-brand-emerald/10 border border-brand-emerald/20 px-2 py-1 rounded-full mb-1">Garantido</span>
-                  </div>
-                  <p className="text-xs text-gray-500 leading-relaxed">
-                    O preço de Fundador é bloqueado no momento da sua assinatura e nunca aumenta — enquanto você mantiver o plano ativo.
-                  </p>
-                </div>
-                {/* Terms strip */}
-                <div className="bg-black/30 border-t border-white/5 px-6 py-3 flex items-start gap-2">
-                  <AlertTriangle className="w-3.5 h-3.5 text-amber-400/70 flex-shrink-0 mt-0.5" />
-                  <p className="text-[11px] text-gray-500 leading-relaxed">
-                    Para garantir todos os benefícios, a assinatura precisa ser realizada{' '}
-                    <strong className="text-gray-400">antes do lançamento ao público geral</strong>. Em caso de cancelamento do plano, os benefícios de Fundador são perdidos e não poderão ser recuperados.
-                  </p>
-                </div>
-              </div>
-
-              {/* Luisera quote */}
-              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 space-y-3">
-                <p className="text-sm text-brand-mint font-semibold italic leading-relaxed">
-                  "Criar pelo celular é acessível. Criar bem, de forma consistente e lucrativa — isso exige método. A Creator Lab é esse método."
-                </p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">— Luisera, criador mobile e idealizador</p>
-              </div>
-            </div>
-
-            {/* Right: Form */}
-            <PreListaForm />
+        {/* 6. Pricing Section */}
+        <section id="planos" className="py-16 border-t border-white/5 scroll-mt-24 space-y-12">
+          <div className="text-center space-y-4 max-w-2xl mx-auto px-6">
+            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
+              Assine Agora
+            </span>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
+              Acelere sua operação mobile
+            </h2>
+            <p className="text-gray-400 text-sm font-light">
+              Escolha o plano ideal para o seu momento e ganhe acesso imediato a todas as ferramentas e conteúdos da Creator Lab.
+            </p>
           </div>
+
+          <PricingSection />
         </section>
 
 
@@ -711,9 +630,9 @@ export default function LandingPage() {
                 "O mercado não paga mais por quem grava bem. Paga por quem sabe transformar criação em resultado comercial."
               </div>
               <div className="pt-2">
-                <a href="#pre-lista">
+                <a href="#planos">
                   <Button className="glow-border text-black flex items-center gap-2">
-                    Garantir vaga na pré-lista <ArrowRight className="w-4 h-4" />
+                    Escolher Meu Plano <ArrowRight className="w-4 h-4" />
                   </Button>
                 </a>
               </div>
