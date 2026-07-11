@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     console.log(`Buscando Apify para ${handle} (Perfil + 120 Posts)...`);
 
     async function runApifyActor(actorId: string, input: any) {
-      const runRes = await fetch(\`https://api.apify.com/v2/acts/\${actorId}/runs?token=\${apifyApiToken}&waitForFinish=60\`, {
+      const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyApiToken}&waitForFinish=60`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
@@ -75,20 +75,20 @@ export async function POST(request: Request) {
       if (!runData || !runData.data) throw new Error('Falha ao rodar o Apify');
       
       const datasetId = runData.data.defaultDatasetId;
-      const itemsRes = await fetch(\`https://api.apify.com/v2/datasets/\${datasetId}/items?token=\${apifyApiToken}\`);
+      const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyApiToken}`);
       return await itemsRes.json();
     }
 
     const [profileItems, postsItems] = await Promise.all([
       runApifyActor("apify/instagram-scraper", {
         addParentData: false,
-        directUrls: [\`https://www.instagram.com/\${handle}/\`],
+        directUrls: [`https://www.instagram.com/${handle}/`],
         resultsType: "details",
         searchType: "user"
       }),
       runApifyActor("apify/instagram-scraper", {
         addParentData: false,
-        directUrls: [\`https://www.instagram.com/\${handle}/\`],
+        directUrls: [`https://www.instagram.com/${handle}/`],
         resultsLimit: 120,
         resultsType: "posts",
         searchType: "user"
