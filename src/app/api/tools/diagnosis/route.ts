@@ -66,7 +66,8 @@ export async function POST(request: Request) {
     console.log(`Buscando Apify para ${handle} (Perfil + 120 Posts)...`);
 
     async function runApifyActor(actorId: string, input: any) {
-      const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyApiToken}&waitForFinish=60`, {
+      const safeActorId = actorId.replace('/', '~');
+      const runRes = await fetch(`https://api.apify.com/v2/acts/${safeActorId}/runs?token=${apifyApiToken}&waitForFinish=60`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
