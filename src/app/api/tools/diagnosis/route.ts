@@ -66,7 +66,7 @@ export async function POST(request: Request) {
     console.log(`Buscando Apify para ${handle} (Perfil + 120 Posts)...`);
 
     async function runApifyActor(actorId: string, input: any) {
-      const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyApiToken}&waitForFinish=60`, {
+      const runRes = await fetch(`https://api.apify.com/v2/acts/${actorId}/runs?token=${apifyApiToken}&waitForFinish=120`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(input)
@@ -74,19 +74,37 @@ export async function POST(request: Request) {
       const runData = await runRes.json();
       if (!runData || !runData.data) throw new Error('Falha ao rodar o Apify');
       
-      const datasetId = runData.data.defaultDatasetId;
+      let runDetails = runData.data;
+      let status = runDetails.status;
+      let attempts = 0;
+      
+      while ((status === 'READY' || status === 'RUNNING') && attempts < 40) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const statusRes = await fetch(`https://api.apify.com/v2/actor-runs/${runDetails.id}?token=${apifyApiToken}`);
+        const statusData = await statusRes.json();
+        if (statusData && statusData.data) {
+           status = statusData.data.status;
+        }
+        attempts++;
+      }
+
+      if (status !== 'SUCCEEDED') {
+        console.error(`Apify run failed or timed out. Status: ${status}`);
+      }
+
+      const datasetId = runDetails.defaultDatasetId;
       const itemsRes = await fetch(`https://api.apify.com/v2/datasets/${datasetId}/items?token=${apifyApiToken}`);
       return await itemsRes.json();
     }
 
     const [profileItems, postsItems] = await Promise.all([
-      runApifyActor("apify/instagram-scraper", {
+      runApifyActor("apify~instagram-scraper", {
         addParentData: false,
         directUrls: [`https://www.instagram.com/${handle}/`],
         resultsType: "details",
         searchType: "user"
       }),
-      runApifyActor("apify/instagram-scraper", {
+      runApifyActor("apify~instagram-scraper", {
         addParentData: false,
         directUrls: [`https://www.instagram.com/${handle}/`],
         resultsLimit: 120,
