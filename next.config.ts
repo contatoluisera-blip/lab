@@ -1,10 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
-  eslint: {
-    ignoreDuringBuilds: true,
-  },
   typescript: {
+    // Mantido por enquanto; religar quando a tipagem das telas antigas for revisada.
     ignoreBuildErrors: true,
   },
 };

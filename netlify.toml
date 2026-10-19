@@ -3,28 +3,13 @@
   publish = ".next"
 
 [build.environment]
-  SECRETS_SCAN_SMART_DETECTION_ENABLED = "false"
-
-[functions]
-  # Configurações globais de funções
+  # Variáveis públicas (vão para o navegador por desenho) que o scanner de segredos deve ignorar.
+  # As chaves de verdade (OpenAI, Anthropic, Stripe secret, Firebase Admin etc.) continuam protegidas.
+  SECRETS_SCAN_OMIT_KEYS = "NEXT_PUBLIC_FIREBASE_API_KEY,NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN,NEXT_PUBLIC_FIREBASE_PROJECT_ID,NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET,NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID,NEXT_PUBLIC_FIREBASE_APP_ID,NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID,NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY,NEXT_PUBLIC_APP_URL,FIREBASE_PROJECT_ID,STRIPE_PRODUCT_START,STRIPE_PRODUCT_PRO,STRIPE_PRODUCT_ELITE,STRIPE_PRODUCT_START_ANNUAL,STRIPE_PRODUCT_PRO_ANNUAL,STRIPE_PRODUCT_ELITE_ANNUAL"
 
 [[plugins]]
   package = "@netlify/plugin-nextjs"
 
-[functions."api-tools-proposal"]
-  timeout = 26
-
-[functions."api-tools-estudia"]
-  timeout = 26
-
-[functions."api-tools-creator-card"]
-  timeout = 26
-
-[functions."api-tools-diagnosis"]
-  timeout = 26
-
-[functions."api-tools-idea-generator"]
-  timeout = 26
-
-[functions."api-tools-assistant"]
-  timeout = 26
+# Observação: o plugin do Next.js empacota todas as rotas numa única função,
+# então timeouts por nome de função não têm efeito. Gerações longas usam
+# streaming (Propostas, Ideias) ou duas etapas (Diagnóstico, Foto de Estúdio).

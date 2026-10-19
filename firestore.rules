@@ -3,9 +3,30 @@ rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
 
-    // Perfil do usuário: somente o próprio usuário pode ler e escrever
+    // Perfil do usuário: o próprio usuário lê tudo, mas só altera campos de preferência.
+    // Plano, créditos, teste grátis e dados da Stripe são gravados apenas pelo servidor (Admin SDK).
     match /users/{userId} {
-      allow read, write: if request.auth != null && request.auth.uid == userId;
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.data.plan == 'free'
+        && request.resource.data.credits == 0;
+      allow update: if request.auth != null && request.auth.uid == userId
+        && !request.resource.data.diff(resource.data).affectedKeys()
+            .hasAny(['plan', 'credits', 'trialUsed', 'creditsResetAt',
+                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus']);
+      allow delete: if false;
+
+      // Extrato de créditos: o usuário pode ver, nunca escrever.
+      match /credit_ledger/{entryId} {
+        allow read: if request.auth != null && request.auth.uid == userId;
+        allow write: if false;
+      }
+    }
+
+    // Diagnósticos em andamento: só leitura do dono (o servidor escreve).
+    match /diagnosis_jobs/{jobId} {
+      allow read: if request.auth != null && resource.data.userId == request.auth.uid;
+      allow write: if false;
     }
 
     // Diagnósticos: usuário autenticado pode ler/escrever os seus próprios
@@ -40,12 +61,11 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
-    // Estúd.IA gerações
+    // Estúd.IA gerações (o servidor cria e atualiza; o usuário só lê e apaga as suas)
     match /estudia/{docId} {
-      allow read, update, delete: if request.auth != null
+      allow read, delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
-      allow create: if request.auth != null
-        && request.resource.data.userId == request.auth.uid;
+      allow create, update: if false;
     }
 
     // Clientes gerenciados
