@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireUser, HttpError } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
-import { PLAN_CONFIGS, planFromStripeProduct } from '@/lib/planConfig';
+import { currentPeriod, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
+import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
 import { grantCredits } from '@/lib/server/credits';
 
 export const dynamic = 'force-dynamic';
@@ -29,7 +29,10 @@ export async function POST(req: Request) {
 
     const sub: any = session.subscription;
     const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
-    const plan = planFromStripeProduct(productIdFromSubscription(sub)) || (session.metadata?.planName as any) || 'start';
+    const metaPlan = session.metadata?.planName?.toLowerCase();
+    const plan = planFromStripeProduct(productIdFromSubscription(sub)) || (isPaidPlan(metaPlan) ? metaPlan : null);
+    if (!plan) throw new HttpError(500, 'unknown_plan', 'Pagamento confirmado, mas o plano não foi reconhecido. Avise o suporte.');
+    const { end } = currentPeriod(sub);
 
     const userRef = adminDb.collection('users').doc(user.uid);
     const snap = await userRef.get();
@@ -39,6 +42,7 @@ export async function POST(req: Request) {
       stripeCustomerId: session.customer as string,
       stripeSubscriptionId: subscriptionId,
       stripeSubscriptionStatus: 'active',
+      currentPeriodEnd: end ? new Date(end).toISOString() : null,
       plan,
       updatedAt: new Date().toISOString(),
     }, { merge: true });
@@ -46,7 +50,7 @@ export async function POST(req: Request) {
     // Concede os créditos iniciais só se o webhook ainda não concedeu para esta assinatura.
     const alreadyGranted = current.stripeSubscriptionId === subscriptionId && current.creditsResetAt;
     if (!alreadyGranted) {
-      await grantCredits(user.uid, PLAN_CONFIGS[plan as keyof typeof PLAN_CONFIGS].credits, 'checkout_confirmed', {
+      await grantCredits(user.uid, PLAN_CONFIGS[plan].credits, 'checkout_confirmed', {
         plan,
         stripeSubscriptionId: subscriptionId,
         creditsResetAt: new Date().toISOString(),

@@ -4,9 +4,9 @@ import { Resend } from 'resend';
 import React from 'react';
 import { adminDb } from '@/lib/firebase/admin';
 import { PlatformWelcome } from '@/emails/PlatformWelcome';
-import { PLAN_CONFIGS, planFromStripeProduct } from '@/lib/planConfig';
+import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
 import { grantCredits } from '@/lib/server/credits';
-import { productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
+import { currentPeriod, productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -76,32 +76,41 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.client_reference_id;
         if (!userId) break;
-        const planId = (session.metadata?.planName?.toLowerCase() || 'start');
+        // Plano vem do metadata do checkout; se não for um plano conhecido, o evento de assinatura define.
+        const metaPlan = session.metadata?.planName?.toLowerCase();
+        const planId = isPaidPlan(metaPlan) ? metaPlan : null;
         await adminDb.collection('users').doc(userId).set({
           stripeCustomerId: session.customer as string,
           stripeSubscriptionId: session.subscription as string,
           stripeSubscriptionStatus: 'active',
-          plan: planId,
+          ...(planId ? { plan: planId } : {}),
           updatedAt: new Date().toISOString(),
         }, { merge: true });
-        try { await sendWelcome(userId, planId); } catch (e) { console.error('[stripe] e-mail de boas-vindas falhou:', e); }
+        if (planId) {
+          try { await sendWelcome(userId, planId); } catch (e) { console.error('[stripe] e-mail de boas-vindas falhou:', e); }
+        }
         break;
       }
 
-      // 2) Assinatura criada/alterada: espelha status e plano. Inadimplência bloqueia na hora.
+      // 2) Assinatura criada/alterada: espelha status, plano e data de renovação.
+      //    Pagamento pendente (past_due/unpaid) mantém o plano visível; o bloqueio de uso
+      //    vem do status (ver accountState). Só assinatura encerrada volta para 'free'.
       case 'customer.subscription.created':
       case 'customer.subscription.updated': {
         const sub = event.data.object as Stripe.Subscription;
         const userDoc = await findUserByCustomer(sub.customer as string);
         if (!userDoc) break;
-        const active = sub.status === 'active' || sub.status === 'trialing';
-        const plan = active ? planFromStripeProduct(productIdFromSubscription(sub)) : 'free';
+        const ended = sub.status === 'canceled' || sub.status === 'incomplete_expired';
+        const plan = ended ? 'free' : planFromStripeProduct(productIdFromSubscription(sub));
+        const { end } = currentPeriod(sub);
         const updates: Record<string, unknown> = {
           stripeSubscriptionId: sub.id,
           stripeSubscriptionStatus: sub.status,
+          currentPeriodEnd: end ? new Date(end).toISOString() : null,
           updatedAt: new Date().toISOString(),
         };
         if (plan) updates.plan = plan;
+        if (ended) updates.credits = 0;
         await userDoc.ref.update(updates);
         break;
       }
@@ -123,9 +132,12 @@ export async function POST(req: Request) {
           console.error('[stripe] invoice.paid com produto desconhecido:', productId);
           break;
         }
+        const periodEnd = invoice.lines?.data?.[0]?.period?.end;
         await grantCredits(userDoc.id, PLAN_CONFIGS[plan].credits, `invoice_${reason}`, {
           plan,
           stripeSubscriptionId: subscriptionId,
+          stripeSubscriptionStatus: 'active',
+          ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
           creditsResetAt: new Date().toISOString(),
           lastInvoiceId: invoice.id,
         });
@@ -141,6 +153,7 @@ export async function POST(req: Request) {
           plan: 'free',
           credits: 0,
           stripeSubscriptionStatus: 'canceled',
+          currentPeriodEnd: null,
           updatedAt: new Date().toISOString(),
         });
         break;

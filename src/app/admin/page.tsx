@@ -2,7 +2,7 @@
 
 import React, { useEffect, useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
-import { Users, UserPlus, Activity, Database, RefreshCcw, Camera, MessageCircle, Clock, Trash2, Plus, Lock } from 'lucide-react';
+import { Users, UserPlus, Activity, Database, RefreshCcw, Camera, MessageCircle, Clock, Trash2, Plus, Lock, Gift } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '@/lib/firebase';
 
@@ -344,6 +344,8 @@ export default function AdminDashboardPage() {
 
       </div>
 
+      <GrantPanel onDone={fetchStats} />
+
       {/* Logs Table */}
       <div className="neo-glass-panel rounded-2xl border border-white/5 overflow-hidden mt-8">
         <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
@@ -389,6 +391,73 @@ export default function AdminDashboardPage() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+/** Conceder plano e créditos pelo e-mail (contas sem assinatura renovando na Stripe). */
+function GrantPanel({ onDone }: { onDone: () => void }) {
+  const { user } = useAuth();
+  const [email, setEmail] = useState('');
+  const [plan, setPlan] = useState('elite');
+  const [credits, setCredits] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [result, setResult] = useState<{ ok: boolean; text: string } | null>(null);
+
+  const submit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setBusy(true);
+    setResult(null);
+    try {
+      const token = await user?.getIdToken();
+      const res = await fetch('/api/admin/grant', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify({ email, plan, credits }),
+      });
+      const json = await res.json();
+      if (!res.ok || !json.success) throw new Error(json.error || 'Falha ao conceder.');
+      const a = json.account;
+      setResult({ ok: true, text: `${email}: ${a.planLabel ? `Plano ${a.planLabel}` : 'Sem plano'} · ${a.statusLabel} · ${a.credits} créditos · ${a.renewalLabel}` });
+      setCredits('');
+      onDone();
+    } catch (err: any) {
+      setResult({ ok: false, text: err.message });
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <div className="neo-glass-panel rounded-2xl border border-white/5 overflow-hidden mt-8">
+      <div className="p-5 border-b border-white/5 bg-[#0a0a0a]">
+        <h2 className="text-sm font-bold text-white flex items-center gap-2">
+          <Gift className="w-4 h-4 text-brand-emerald" /> Conceder plano e créditos
+        </h2>
+        <p className="text-[11px] text-gray-500 mt-1">Define o plano e o saldo da conta. Não cria assinatura na Stripe: a conta fica sem renovação automática.</p>
+      </div>
+      <form onSubmit={submit} className="p-5 grid grid-cols-1 md:grid-cols-4 gap-3 items-end">
+        <label className="text-xs text-gray-400 md:col-span-2">E-mail da conta
+          <input type="email" required value={email} onChange={e => setEmail(e.target.value)} className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
+        </label>
+        <label className="text-xs text-gray-400">Plano
+          <select value={plan} onChange={e => setPlan(e.target.value)} className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm">
+            <option value="start">Start (20)</option>
+            <option value="pro">Pro (50)</option>
+            <option value="elite">Elite (100)</option>
+            <option value="free">Sem plano (remover)</option>
+          </select>
+        </label>
+        <label className="text-xs text-gray-400">Créditos (vazio = padrão do plano)
+          <input type="number" min={0} max={10000} value={credits} onChange={e => setCredits(e.target.value)} className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm" />
+        </label>
+        <button type="submit" disabled={busy} className="md:col-span-4 px-4 py-2 rounded-lg bg-brand-emerald text-black font-bold text-sm disabled:opacity-50">
+          {busy ? 'Concedendo…' : 'Conceder'}
+        </button>
+        {result && (
+          <p className={`md:col-span-4 text-xs ${result.ok ? 'text-brand-mint' : 'text-red-400'}`}>{result.text}</p>
+        )}
+      </form>
     </div>
   );
 }

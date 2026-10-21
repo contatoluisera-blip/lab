@@ -77,7 +77,7 @@ export default function ProposalPage() {
        if (!localPrompt) return;
        const check = canUseTool('proposal');
        if (!check.ok) {
-         addNotification(user?.uid || '', 'Sem créditos', 'Você precisa de créditos para reescrever.', 'warning');
+         addNotification(user?.uid || '', 'Não foi possível reescrever', check.message!, 'warning');
          return;
        }
 
@@ -210,9 +210,7 @@ export default function ProposalPage() {
 
     const check = canUseTool('proposal');
     if (!check.ok) {
-      setError(check.reason === 'no_credits'
-        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
-        : 'Seu plano não tem acesso ao Gerador de Propostas. Faça upgrade para o Plano Pro ou Elite.');
+      setError(check.message!);
       return;
     }
 

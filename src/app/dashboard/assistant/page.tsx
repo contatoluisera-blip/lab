@@ -54,7 +54,7 @@ export default function AssistantPage() {
     
     const check = canUseTool('assistant');
     if (!check.ok) {
-      setError(check.reason === 'no_credits' ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.' : 'Seu plano não tem acesso a esta ferramenta.');
+      setError(check.message!);
       return;
     }
     

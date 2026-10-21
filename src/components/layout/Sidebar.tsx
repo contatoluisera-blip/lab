@@ -5,7 +5,6 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { cn } from '@/lib/utils';
 import { useUserProfile } from '@/context/UserProfileContext';
-import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
 import { 
   LayoutDashboard, 
   Lightbulb, 
@@ -50,18 +49,41 @@ export function Sidebar() {
   const pathname = usePathname();
   const [isDesktopExpanded, setIsDesktopExpanded] = useState(true);
   const [isMobileOpen, setIsMobileOpen] = useState(false);
-  const { userProfile } = useUserProfile();
+  const { account, profileLoading } = useUserProfile();
 
-  // Computando dados do plano e créditos
-  const planId = (userProfile?.plan as PlanId) || 'start';
-  const planConfig = PLAN_CONFIGS[planId];
-  const planLabel = planConfig?.label || 'Start';
-  const maxCredits = planConfig?.credits || 20;
-  
-  const currentCredits = userProfile?.credits ?? maxCredits;
-  
-  // Porcentagem restante (limitada a 100%)
-  const percentage = Math.min(100, Math.round((currentCredits / maxCredits) * 100)) || 0;
+  // Barra: saldo em relação ao que o plano concede (sem plano, 0%). Nada é suposto.
+  const percentage = account.planCredits > 0
+    ? Math.min(100, Math.round((account.credits / account.planCredits) * 100))
+    : 0;
+  const planTitle = account.planLabel ? `Plano ${account.planLabel}` : 'Sem plano';
+  const statusTone = account.status === 'payment_issue' || account.statusLabel === 'Créditos esgotados'
+    ? 'text-amber-300'
+    : account.status === 'none' ? 'text-gray-400' : 'text-brand-mint';
+
+  // Ordem fixa: plano e situação → saldo → renovação.
+  const creditCard = (
+    <div className="glass-card !p-4 !rounded-xl text-center space-y-2">
+      {profileLoading ? (
+        <p className="text-xs text-gray-500">Carregando conta…</p>
+      ) : (
+        <>
+          <p className="text-xs text-gray-300 font-semibold">
+            {planTitle} · <span className={statusTone}>{account.statusLabel}</span>
+          </p>
+          <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
+            <div
+              className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500"
+              style={{ width: `${percentage}%` }}
+            />
+          </div>
+          <p className="text-xs text-brand-mint">
+            {account.plan ? `${account.credits} de ${account.planCredits} créditos` : `${account.credits} créditos`}
+          </p>
+          <p className="text-[10px] text-gray-500 leading-snug">{account.renewalLabel}</p>
+        </>
+      )}
+    </div>
+  );
 
   // Close mobile menu when pathname changes
   useEffect(() => {
@@ -161,18 +183,9 @@ export function Sidebar() {
         
         <div className={cn("p-4 border-t border-white/5", !isDesktopExpanded && "md:px-2")}>
           {isDesktopExpanded ? (
-            <div className="glass-card !p-4 !rounded-xl text-center space-y-2">
-              <p className="text-xs text-gray-400">Plano {planLabel}</p>
-              <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
-                <div 
-                  className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
-                  style={{ width: `${percentage}%` }}
-                />
-              </div>
-              <p className="text-xs text-brand-mint">{currentCredits}/{maxCredits} créditos restantes</p>
-            </div>
+            creditCard
           ) : (
-            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title={`Plano ${planLabel}: ${currentCredits}/${maxCredits} créditos restantes`}>
+            <div className="glass-card !p-3 !rounded-xl flex flex-col items-center justify-center gap-2 md:block hidden text-center" title={`${planTitle} · ${account.statusLabel}: ${account.credits} créditos. ${account.renewalLabel}`}>
                <div className="w-full h-1 bg-black/50 rounded-full overflow-hidden">
                  <div 
                    className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
@@ -180,22 +193,13 @@ export function Sidebar() {
                  />
                </div>
                <span className="text-[10px] font-bold text-brand-mint uppercase">
-                 {planLabel.substring(0, 3)}
+                 {account.planLabel ? account.planLabel.substring(0, 3) : '—'}
                </span>
             </div>
           )}
           
           {/* Mobile version always shows full card */}
-          <div className="glass-card !p-4 !rounded-xl text-center space-y-2 md:hidden">
-            <p className="text-xs text-gray-400">Plano {planLabel}</p>
-            <div className="w-full bg-black/50 rounded-full h-1.5 overflow-hidden">
-              <div 
-                className="bg-brand-emerald h-full shadow-[0_0_10px_rgba(16,185,129,0.8)] transition-all duration-500" 
-                style={{ width: `${percentage}%` }}
-              />
-            </div>
-            <p className="text-xs text-brand-mint">{currentCredits}/{maxCredits} créditos restantes</p>
-          </div>
+          <div className="md:hidden">{creditCard}</div>
 
         </div>
       </aside>

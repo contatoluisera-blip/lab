@@ -170,7 +170,7 @@ export default function CalculatorPage() {
     // A calculadora não consome crédito; só confere se o plano dá acesso.
     const check = canUseTool('calculator');
     if (!check.ok) {
-      setError('Seu plano não tem acesso a esta ferramenta.');
+      setError(check.message!);
       return;
     }
 

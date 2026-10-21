@@ -23,44 +23,19 @@ import {
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
-import { db } from '@/lib/firebase';
-import { doc, getDoc } from 'firebase/firestore';
-import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
+import { useUserProfile } from '@/context/UserProfileContext';
 
 export default function BillingPage() {
   const { user } = useAuth();
-  const [currentTier, setCurrentTier] = useState(0); // 0 = loading/no plan
-  const [currentPlanName, setCurrentPlanName] = useState('');
-  const [userCredits, setUserCredits] = useState<number | null>(null);
-  const [profileLoading, setProfileLoading] = useState(true);
-  const [nextBillingDate, setNextBillingDate] = useState<number | null>(null);
+  // Plano, saldo e renovação vêm do mesmo estado de conta que a barra lateral e o servidor usam.
+  const { account, profileLoading } = useUserProfile();
+  const currentTier = account.plan === 'elite' ? 3 : account.plan === 'pro' ? 2 : account.plan === 'start' ? 1 : 0;
+  const hasStripeSubscription = account.status === 'active' || account.status === 'payment_issue';
   const [billingHistory, setBillingHistory] = useState<any[]>([]);
   const [historyLoading, setHistoryLoading] = useState(true);
 
-  // Load real plan from Firestore
+  // Histórico de faturas da Stripe
   useEffect(() => {
-    const fetchProfile = async () => {
-      if (!user) return;
-      try {
-        const snap = await getDoc(doc(db, 'users', user.uid));
-        if (snap.exists()) {
-          const data = snap.data();
-          const plan = (data.plan || '').toLowerCase();
-          setCurrentPlanName(plan);
-          setUserCredits(data.credits ?? null);
-          // Map plan name to tier number
-          if (plan === 'elite') setCurrentTier(3);
-          else if (plan === 'pro') setCurrentTier(2);
-          else if (plan === 'start') setCurrentTier(1);
-          else setCurrentTier(0);
-        }
-      } catch (e) {
-        console.error('Erro ao carregar perfil de faturamento:', e);
-      } finally {
-        setProfileLoading(false);
-      }
-    };
-
     const fetchInvoices = async () => {
       if (!user) return;
       try {
@@ -72,9 +47,6 @@ export default function BillingPage() {
         if (data.invoices) {
           setBillingHistory(data.invoices);
         }
-        if (data.nextBillingDate) {
-          setNextBillingDate(data.nextBillingDate);
-        }
       } catch (e) {
         console.error('Erro ao carregar faturas:', e);
       } finally {
@@ -82,7 +54,6 @@ export default function BillingPage() {
       }
     };
 
-    fetchProfile();
     fetchInvoices();
   }, [user]);
 
@@ -197,29 +168,29 @@ export default function BillingPage() {
               <h2 className="text-3xl font-bold text-white">
                 {profileLoading
                   ? 'Carregando...'
-                  : currentTier === 0
-                  ? 'Sem Plano Ativo'
-                  : `Plano Creator ${currentTier === 3 ? 'Elite' : currentTier === 2 ? 'Pro' : 'Start'}`
-                }
+                  : account.planLabel ? `Plano Creator ${account.planLabel}` : 'Sem assinatura ativa'}
               </h2>
-              <p className="text-gray-400 mt-1">
-                {nextBillingDate 
-                  ? `Sua assinatura renova em ${new Date(nextBillingDate).toLocaleDateString('pt-BR', { day: 'numeric', month: 'long', year: 'numeric' })}.`
-                  : 'Data de renovação indisponível.'}
-              </p>
+              {!profileLoading && (
+                <>
+                  <p className={account.status === 'payment_issue' || account.statusLabel === 'Créditos esgotados' ? 'text-amber-300 mt-1 font-medium' : 'text-brand-mint mt-1 font-medium'}>
+                    {account.statusLabel}
+                  </p>
+                  <p className="text-gray-400 mt-1">{account.renewalLabel}.</p>
+                </>
+              )}
             </div>
 
             <div className="relative z-10 max-w-sm">
               <div className="flex justify-between text-sm mb-2">
-                <span className="text-gray-400">Créditos desta fatura</span>
+                <span className="text-gray-400">Saldo de créditos</span>
                 <span className="text-brand-mint font-medium">
-                  {userCredits !== null ? `${userCredits}/${PLAN_CONFIGS[currentPlanName as PlanId]?.credits || 20} créditos restantes` : '—'}
+                  {profileLoading ? '—' : account.plan ? `${account.credits} de ${account.planCredits} créditos` : `${account.credits} créditos`}
                 </span>
               </div>
               <div className="w-full h-2 bg-white/5 rounded-full overflow-hidden">
                 <div 
                   className="h-full bg-brand-emerald shadow-[0_0_15px_rgba(16,185,129,0.5)] transition-all duration-1000" 
-                  style={{ width: userCredits !== null ? `${Math.min((userCredits / (PLAN_CONFIGS[currentPlanName as PlanId]?.credits || 20)) * 100, 100)}%` : '0%' }}
+                  style={{ width: account.planCredits > 0 ? `${Math.min((account.credits / account.planCredits) * 100, 100)}%` : '0%' }}
                 />
               </div>
             </div>
@@ -231,7 +202,7 @@ export default function BillingPage() {
               <p className="text-4xl font-extrabold text-white tracking-tight mb-4">
                 {currentTier === 3 ? 'R$ 197,00' : currentTier === 2 ? 'R$ 117,00' : currentTier === 1 ? 'R$ 67,00' : '—'}
               </p>
-              {currentTier > 0 && (
+              {hasStripeSubscription && (
                 <Button 
                   onClick={handleManageSubscription}
                   disabled={isProcessing}

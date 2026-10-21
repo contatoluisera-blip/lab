@@ -3,6 +3,7 @@
 import React from 'react';
 import { useRouter } from 'next/navigation';
 import { Lock, Zap, ArrowRight } from 'lucide-react';
+import { useUserProfile } from '@/context/UserProfileContext';
 
 interface UpgradeGateProps {
   /** When true the gate is active (access denied) */
@@ -33,6 +34,11 @@ export function UpgradeGate({
   className = '',
 }: UpgradeGateProps) {
   const router = useRouter();
+  const { account, profileLoading } = useUserProfile();
+  // Sem assinatura, o problema não é o plano: a mensagem não fala em upgrade.
+  const text = !profileLoading && account.status === 'none'
+    ? 'Sem assinatura ativa · Ver planos'
+    : label ?? `Disponível no Plano ${requiredPlan}`;
 
   const goToBilling = () => router.push('/dashboard/billing');
 
@@ -55,7 +61,7 @@ export function UpgradeGate({
         `}
       >
         <Lock className="w-4 h-4 flex-shrink-0" />
-        <span>{label ?? `Disponível no Plano ${requiredPlan}`}</span>
+        <span>{text}</span>
         <ArrowRight className="w-4 h-4 opacity-60 group-hover:translate-x-1 transition-transform" />
       </button>
     );
@@ -81,7 +87,7 @@ export function UpgradeGate({
           <Lock className="w-5 h-5 text-amber-400" />
         </div>
         <p className="text-xs text-amber-300 font-semibold text-center px-4 leading-snug">
-          {label ?? `Disponível no Plano ${requiredPlan}`}
+          {text}
         </p>
         <button
           onClick={goToBilling}

@@ -1,6 +1,7 @@
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
-import { FREE_FIRST_USE, TOOL_COSTS, ToolId, planHasToolAccess } from '@/lib/planConfig';
+import { ToolId } from '@/lib/planConfig';
+import { checkTool, getAccountState } from '@/lib/accountState';
 import { HttpError } from './auth';
 
 export interface ChargeResult {
@@ -19,7 +20,6 @@ export interface ChargeResult {
  * Lança HttpError 402 (sem créditos) ou 403 (plano sem acesso).
  */
 export async function chargeCredit(uid: string, tool: ToolId): Promise<ChargeResult> {
-  const cost = TOOL_COSTS[tool] ?? 1;
   const userRef = adminDb.collection('users').doc(uid) as admin.firestore.DocumentReference;
 
   return adminDb.runTransaction(async (tx: admin.firestore.Transaction) => {
@@ -28,18 +28,17 @@ export async function chargeCredit(uid: string, tool: ToolId): Promise<ChargeRes
     const data = snap.data() || {};
     const plan = data.plan as string;
 
-    if (!planHasToolAccess(plan, tool)) {
-      throw new HttpError(403, 'no_access', 'Seu plano não inclui esta ferramenta. Faça upgrade para liberar.');
+    // Mesma regra que as telas usam para exibir: assinatura → pagamento → acesso → saldo.
+    const state = getAccountState(data);
+    const check = checkTool(state, data.trialUsed, tool);
+    if (!check.ok) {
+      const status = check.reason === 'no_credits' || check.reason === 'payment_issue' ? 402 : 403;
+      throw new HttpError(status, check.reason!, check.message!);
     }
 
-    const credits = Number(data.credits || 0);
-    const trialUsed = !!data.trialUsed?.[tool];
-    const isTrial = FREE_FIRST_USE && cost > 0 && !trialUsed;
-    const charged = isTrial ? 0 : cost;
-
-    if (charged > credits) {
-      throw new HttpError(402, 'no_credits', 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.');
-    }
+    const credits = state.credits;
+    const isTrial = check.trial;
+    const charged = isTrial ? 0 : check.cost;
 
     const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
     if (isTrial) updates[`trialUsed.${tool}`] = true;

@@ -9,10 +9,12 @@ service cloud.firestore {
       allow read: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null && request.auth.uid == userId
         && request.resource.data.plan == 'free'
-        && request.resource.data.credits == 0;
+        && request.resource.data.credits == 0
+        && !request.resource.data.keys().hasAny(['trialUsed', 'creditsResetAt', 'currentPeriodEnd', 'manualGrant',
+                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus']);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
-            .hasAny(['plan', 'credits', 'trialUsed', 'creditsResetAt',
+            .hasAny(['plan', 'credits', 'trialUsed', 'creditsResetAt', 'currentPeriodEnd', 'manualGrant',
                      'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus']);
       allow delete: if false;
 

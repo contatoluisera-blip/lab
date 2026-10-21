@@ -1,10 +1,11 @@
 'use client';
 
-import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
+import React, { createContext, useContext, useEffect, useState, useCallback, useMemo } from 'react';
 import { db } from '@/lib/firebase';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
-import { PlanId, ToolId, TOOL_COSTS, planHasToolAccess, planHasCourseAccess } from '@/lib/planConfig';
+import { PlanId, ToolId, planHasToolAccess, planHasCourseAccess } from '@/lib/planConfig';
+import { AccountState, ToolCheck, checkTool, getAccountState } from '@/lib/accountState';
 import { callTool } from '@/lib/client/api';
 
 // ─────────────────────────────────────────────
@@ -24,11 +25,15 @@ export interface UserProfile {
   };
   createdAt: string;
   stripeSubscriptionStatus?: string;
+  currentPeriodEnd?: string | null;
+  manualGrant?: { by?: string; at?: string } | null;
 }
 
 interface UserProfileContextType {
   userProfile: UserProfile | null;
   profileLoading: boolean;
+  /** Estado da conta (plano, situação, saldo, renovação) — mesma função que o servidor usa. */
+  account: AccountState;
   /** Plano dá acesso à ferramenta? (só para a interface; o servidor valida de novo) */
   hasToolAccess: (tool: ToolId) => boolean;
   hasCourseAccess: boolean;
@@ -36,7 +41,7 @@ interface UserProfileContextType {
    * Checagem prévia, só para mostrar a mensagem certa antes de chamar a API.
    * A cobrança de verdade acontece no servidor, dentro da rota da ferramenta.
    */
-  canUseTool: (tool: ToolId) => { ok: boolean; reason?: 'no_access' | 'no_credits' };
+  canUseTool: (tool: ToolId) => ToolCheck;
   /** Custo em créditos e se o próximo uso é o teste grátis. */
   toolCost: (tool: ToolId) => { cost: number; trial: boolean };
   /** Recarrega o perfil do Firestore (chame após usar uma ferramenta). */
@@ -49,9 +54,10 @@ interface UserProfileContextType {
 const UserProfileContext = createContext<UserProfileContextType>({
   userProfile: null,
   profileLoading: true,
+  account: getAccountState(null),
   hasToolAccess: () => false,
   hasCourseAccess: false,
-  canUseTool: () => ({ ok: false, reason: 'no_access' }),
+  canUseTool: () => ({ ok: false, reason: 'no_subscription', cost: 1, trial: false }),
   toolCost: () => ({ cost: 1, trial: false }),
   refreshProfile: async () => {},
   applyCredits: () => {},
@@ -114,18 +120,17 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   const hasToolAccess = useCallback((tool: ToolId) => planHasToolAccess(userProfile?.plan, tool), [userProfile]);
   const hasCourseAccess = planHasCourseAccess(userProfile?.plan);
 
-  const toolCost = useCallback((tool: ToolId) => {
-    const cost = TOOL_COSTS[tool] ?? 1;
-    const trial = cost > 0 && !userProfile?.trialUsed?.[tool];
-    return { cost, trial };
-  }, [userProfile]);
+  const account = useMemo(() => getAccountState(userProfile), [userProfile]);
 
-  const canUseTool = useCallback((tool: ToolId): { ok: boolean; reason?: 'no_access' | 'no_credits' } => {
-    if (!userProfile || !planHasToolAccess(userProfile.plan, tool)) return { ok: false, reason: 'no_access' };
-    const { cost, trial } = toolCost(tool);
-    if (!trial && cost > (userProfile.credits ?? 0)) return { ok: false, reason: 'no_credits' };
-    return { ok: true };
-  }, [userProfile, toolCost]);
+  const canUseTool = useCallback(
+    (tool: ToolId): ToolCheck => checkTool(account, userProfile?.trialUsed, tool),
+    [account, userProfile]
+  );
+
+  const toolCost = useCallback((tool: ToolId) => {
+    const { cost, trial } = canUseTool(tool);
+    return { cost, trial };
+  }, [canUseTool]);
 
   const applyCredits = useCallback((credits?: { remaining: number; trial: boolean }, tool?: ToolId) => {
     if (!credits) return;
@@ -148,7 +153,7 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
 
   return (
     <UserProfileContext.Provider
-      value={{ userProfile, profileLoading, hasToolAccess, hasCourseAccess, canUseTool, toolCost, refreshProfile: fetchProfile, applyCredits, saveCalculatorPresets }}
+      value={{ userProfile, profileLoading, account, hasToolAccess, hasCourseAccess, canUseTool, toolCost, refreshProfile: fetchProfile, applyCredits, saveCalculatorPresets }}
     >
       {children}
     </UserProfileContext.Provider>

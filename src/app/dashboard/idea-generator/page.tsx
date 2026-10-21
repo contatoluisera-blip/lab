@@ -135,9 +135,7 @@ export default function IdeaGeneratorPage() {
 
     const check = canUseTool('ideas');
     if (!check.ok) {
-      alert(check.reason === 'no_credits'
-        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
-        : 'Seu plano não tem acesso ao Gerador de Ideias.');
+      alert(check.message!);
       return;
     }
 

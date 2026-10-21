@@ -10,7 +10,7 @@ import { ToolId } from '@/lib/planConfig';
  * Lê o custo da tabela central (planConfig), então acompanha qualquer mudança de preço.
  */
 export function CreditNotice({ toolId }: { toolId: ToolId }) {
-  const { userProfile, profileLoading, hasToolAccess, toolCost } = useUserProfile();
+  const { userProfile, profileLoading, account, hasToolAccess, toolCost } = useUserProfile();
 
   if (profileLoading || !userProfile || !hasToolAccess(toolId)) return null;
 
@@ -37,7 +37,7 @@ export function CreditNotice({ toolId }: { toolId: ToolId }) {
   return (
     <div className="flex items-center gap-1.5 justify-center mt-3 text-[10px] text-gray-500 font-medium tracking-wide">
       <Zap className="w-3 h-3 text-brand-emerald opacity-70" />
-      <span>Consome {cost} {cost === 1 ? 'crédito' : 'créditos'} por uso · você tem {userProfile.credits ?? 0}</span>
+      <span>Consome {cost} {cost === 1 ? 'crédito' : 'créditos'} por uso · saldo atual: {account.credits}</span>
     </div>
   );
 }

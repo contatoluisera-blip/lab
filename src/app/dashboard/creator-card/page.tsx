@@ -101,9 +101,7 @@ export default function CreatorCardPage() {
 
     const check = canUseTool('creator-card');
     if (!check.ok) {
-      alert(check.reason === 'no_credits'
-        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
-        : 'Seu plano não tem acesso a esta ferramenta.');
+      alert(check.message!);
       return;
     }
 
