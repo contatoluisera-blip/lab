@@ -33,3 +33,35 @@ export function textStreamResponse(
     },
   });
 }
+
+/**
+ * Resposta JSON para trabalhos longos (ex.: análise do Diagnóstico).
+ * Envia espaços em branco a cada poucos segundos para manter a conexão viva
+ * e, no fim, o JSON do resultado. Espaços antes do JSON não afetam o JSON.parse.
+ */
+export function jsonKeepAliveResponse(work: () => Promise<unknown>, intervalMs = 4000): Response {
+  const encoder = new TextEncoder();
+  const stream = new ReadableStream<Uint8Array>({
+    async start(controller) {
+      controller.enqueue(encoder.encode(' '));
+      const timer = setInterval(() => controller.enqueue(encoder.encode(' ')), intervalMs);
+      try {
+        const result = await work();
+        controller.enqueue(encoder.encode(JSON.stringify(result)));
+      } catch (err) {
+        console.error('[stream] trabalho longo falhou:', err);
+        controller.enqueue(encoder.encode(JSON.stringify({ success: false, status: 'failed', error: 'Não foi possível concluir a análise. Seu crédito foi devolvido.' })));
+      } finally {
+        clearInterval(timer);
+        controller.close();
+      }
+    },
+  });
+  return new Response(stream, {
+    headers: {
+      'Content-Type': 'application/json; charset=utf-8',
+      'Cache-Control': 'no-cache, no-transform',
+      'X-Accel-Buffering': 'no',
+    },
+  });
+}

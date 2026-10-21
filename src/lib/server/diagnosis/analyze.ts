@@ -337,11 +337,12 @@ export async function analyzeProfile(handle: string, tipo_perfil: string, profil
       const amostraLegendas = recentPosts.slice(0, 10).map(p => p.caption).filter(c => c && c.length > 5).join(' | ').substring(0, 800);
       
       let totalCommentsSampled = 0;
-      const comentariosPorPost = recentPosts.slice(0, 15).map(p => {
-        const coms = (p.latestComments || []).map((c: any) => c.text).filter(Boolean);
+      // Amostra limitada (8 posts × 12 comentários) para a IA responder em poucos segundos.
+      const comentariosPorPost = recentPosts.slice(0, 8).map(p => {
+        const coms = (p.latestComments || []).map((c: any) => c.text).filter(Boolean).slice(0, 12);
         totalCommentsSampled += coms.length;
-        return `Post URL: ${p.url || p.shortCode}\nComentários (${coms.length}):\n${coms.slice(0, 30).join('\n')}`;
-      }).join('\n\n').substring(0, 6000);
+        return `Post URL: ${p.url || p.shortCode}\nComentários (${coms.length}):\n${coms.join('\n')}`;
+      }).join('\n\n').substring(0, 4000);
 
       const miniPayload = `
       Perfil: @${handle} (${followers} seg)
@@ -387,8 +388,9 @@ export async function analyzeProfile(handle: string, tipo_perfil: string, profil
           { role: "system", content: "Você é um auditor comercial de Instagram. Responda apenas com o JSON." },
           { role: "user", content: miniPayload }
         ],
-        response_format: { type: "json_object" }
-      });
+        response_format: { type: "json_object" },
+        max_tokens: 3000,
+      }, { timeout: 45_000, maxRetries: 0 });
       
       const iaData = JSON.parse(completion.choices[0].message.content || '{}');
       resumoExecutivo = iaData.resumoExecutivo || 'Resumo não gerado.';

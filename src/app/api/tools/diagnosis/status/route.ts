@@ -3,10 +3,13 @@ import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireUser, HttpError } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
+import { jsonKeepAliveResponse } from '@/lib/server/stream';
 import { analyzeProfile, getApifyDataset, getApifyRunStatus } from '@/lib/server/diagnosis/analyze';
 
 const FINISHED = ['SUCCEEDED', 'FAILED', 'ABORTED', 'TIMED-OUT'];
 const JOB_TIMEOUT_MS = 6 * 60 * 1000;
+/** Se uma análise ficou presa (função cortada), outra consulta pode retomá-la depois disso. */
+const ANALYSIS_STALE_MS = 2 * 60 * 1000;
 
 async function refundJob(jobRef: admin.firestore.DocumentReference, job: any, reason: string) {
   if (job.refunded || !job.chargedCredits) return;
@@ -37,6 +40,9 @@ export async function GET(request: Request) {
 
     if (job.status === 'completed') return NextResponse.json({ success: true, status: 'completed', data: job.result, diagnosisId: job.diagnosisId });
     if (job.status === 'failed') return NextResponse.json({ success: false, status: 'failed', error: job.error });
+    if (job.status === 'analyzing' && Date.now() - new Date(job.analyzingAt || 0).getTime() < ANALYSIS_STALE_MS) {
+      return NextResponse.json({ success: true, status: 'analyzing' });
+    }
 
     const [profileStatus, postsStatus] = await Promise.all([
       getApifyRunStatus(token, job.profileRun.runId),
@@ -44,7 +50,7 @@ export async function GET(request: Request) {
     ]);
 
     const failed = [profileStatus, postsStatus].find((s) => FINISHED.includes(s) && s !== 'SUCCEEDED');
-    const expired = Date.now() - new Date(job.createdAt).getTime() > JOB_TIMEOUT_MS;
+    const expired = Date.now() - new Date(job.createdAt).getTime() > JOB_TIMEOUT_MS + ANALYSIS_STALE_MS;
 
     if (failed || expired) {
       const error = failed
@@ -59,31 +65,43 @@ export async function GET(request: Request) {
       return NextResponse.json({ success: true, status: 'running', profileStatus, postsStatus });
     }
 
-    // Evita duas análises simultâneas se o navegador consultar duas vezes.
-    await jobRef.update({ status: 'analyzing' });
-    try {
-      const [profileItems, postsItems] = await Promise.all([
-        getApifyDataset(token, job.profileRun.datasetId),
-        getApifyDataset(token, job.postsRun.datasetId),
-      ]);
-      const result = await analyzeProfile(job.handle, job.tipoPerfil, profileItems, postsItems);
+    // Reserva a análise numa transação: só uma consulta por vez faz o trabalho pesado.
+    const claimed = await adminDb.runTransaction(async (tx: admin.firestore.Transaction) => {
+      const fresh = (await tx.get(jobRef)).data()!;
+      const busy = fresh.status === 'analyzing' && Date.now() - new Date(fresh.analyzingAt || 0).getTime() < ANALYSIS_STALE_MS;
+      if (fresh.status === 'completed' || fresh.status === 'failed' || busy) return false;
+      tx.update(jobRef, { status: 'analyzing', analyzingAt: new Date().toISOString() });
+      return true;
+    });
+    if (!claimed) return NextResponse.json({ success: true, status: 'analyzing' });
 
-      const diagRef = await adminDb.collection('diagnoses').add({
-        userId: user.uid,
-        handle: job.handle,
-        tipoPerfil: job.tipoPerfil,
-        resultado_json: result,
-        nota_final: result.notaGeral || 0,
-        createdAt: new Date().toISOString(),
-      });
-      await jobRef.update({ status: 'completed', result, diagnosisId: diagRef.id, completedAt: new Date().toISOString() });
-      return NextResponse.json({ success: true, status: 'completed', data: result, diagnosisId: diagRef.id });
-    } catch (err) {
-      const message = err instanceof HttpError ? err.message : 'Não foi possível concluir a análise. Seu crédito foi devolvido.';
-      await refundJob(jobRef, job, 'analysis_failed');
-      await jobRef.update({ status: 'failed', error: message });
-      return NextResponse.json({ success: false, status: 'failed', error: message });
-    }
+    // Baixar 120 posts + resumo por IA pode passar do limite de uma resposta comum da Netlify:
+    // a resposta vai em streaming, mantendo a conexão viva até o resultado ficar pronto.
+    return jsonKeepAliveResponse(async () => {
+      try {
+        const [profileItems, postsItems] = await Promise.all([
+          getApifyDataset(token, job.profileRun.datasetId),
+          getApifyDataset(token, job.postsRun.datasetId),
+        ]);
+        const result = await analyzeProfile(job.handle, job.tipoPerfil, profileItems, postsItems);
+
+        const diagRef = await adminDb.collection('diagnoses').add({
+          userId: user.uid,
+          handle: job.handle,
+          tipoPerfil: job.tipoPerfil,
+          resultado_json: result,
+          nota_final: result.notaGeral || 0,
+          createdAt: new Date().toISOString(),
+        });
+        await jobRef.update({ status: 'completed', result, diagnosisId: diagRef.id, completedAt: new Date().toISOString() });
+        return { success: true, status: 'completed', data: result, diagnosisId: diagRef.id };
+      } catch (err) {
+        const message = err instanceof HttpError ? err.message : 'Não foi possível concluir a análise. Seu crédito foi devolvido.';
+        await refundJob(jobRef, job, 'analysis_failed');
+        await jobRef.update({ status: 'failed', error: message });
+        return { success: false, status: 'failed', error: message };
+      }
+    });
   } catch (err) {
     return errorResponse(err);
   }

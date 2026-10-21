@@ -68,18 +68,31 @@ export default function DiagnosisPage() {
       // Etapa 2: acompanha até terminar (a coleta leva de 30 s a 3 min).
       const startedAt = Date.now();
       let data: any = null;
-      while (Date.now() - startedAt < 6 * 60 * 1000) {
+      // O servidor encerra o job (e devolve o crédito) se passar de ~8 min; a tela espera um pouco mais.
+      let transientErrors = 0;
+      while (Date.now() - startedAt < 9 * 60 * 1000) {
         await new Promise(r => setTimeout(r, 5000));
         const elapsed = Math.round((Date.now() - startedAt) / 1000);
-        setProgress(elapsed < 60
-          ? `Coletando perfil e últimos posts... (${elapsed}s)`
-          : `Analisando métricas e gerando o relatório... (${elapsed}s)`);
 
-        const status = await getAuthed<any>(`/api/tools/diagnosis/status?jobId=${encodeURIComponent(jobId)}`);
+        let status: any;
+        try {
+          status = await getAuthed<any>(`/api/tools/diagnosis/status?jobId=${encodeURIComponent(jobId)}`);
+          transientErrors = 0;
+        } catch (pollErr) {
+          // Falha de rede ou de uma consulta isolada: o job continua no servidor, então seguimos acompanhando.
+          if (++transientErrors >= 5) {
+            console.error('[diagnóstico] consultas falhando:', pollErr);
+            throw new Error('Perdemos a conexão com o servidor durante o diagnóstico. Confira seu histórico e saldo em alguns minutos; se o crédito não tiver voltado, avise o suporte.');
+          }
+          continue;
+        }
         if (status.status === 'completed') { data = status.data; break; }
         if (status.status === 'failed') throw new Error(status.error || 'A análise falhou. Seu crédito foi devolvido.');
+        setProgress(status.status === 'analyzing'
+          ? `Analisando métricas e comentários com IA... (${elapsed}s)`
+          : `Coletando perfil e últimos posts... (${elapsed}s)`);
       }
-      if (!data) throw new Error('A coleta demorou demais. Seu crédito foi devolvido; tente de novo em alguns minutos.');
+      if (!data) throw new Error('Não foi possível acompanhar o diagnóstico até o fim. Confira seu histórico e saldo; se o crédito não tiver voltado, avise o suporte.');
 
       setResult(data);
       if (user) {
