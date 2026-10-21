@@ -55,6 +55,9 @@ export function describeApifyError(status: number, data: any): HttpError {
   if (status === 401 || type === 'token-not-found' || /token/i.test(msg)) {
     return new HttpError(502, 'apify_auth', 'O token do Apify foi recusado. Avise o suporte.');
   }
+  if (/invoice|payment|billing/i.test(msg)) {
+    return new HttpError(502, 'apify_billing', 'A conta do Apify está com pagamento pendente e não aceita novas coletas. Seu crédito foi devolvido. Avise o suporte.');
+  }
   if (status === 402 || /credit|limit|usage|exceeded/i.test(msg)) {
     return new HttpError(502, 'apify_quota', 'A conta do Apify atingiu o limite de uso. Avise o suporte.');
   }
