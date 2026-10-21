@@ -1,26 +1,11 @@
 import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
+import { requireAdmin } from '@/lib/server/auth';
+import { errorResponse } from '@/lib/server/tool';
 
 export async function POST(request: Request) {
   try {
-    const { email } = await request.json();
-
-    if (!email) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
-
-    // Auth check
-    const isSuperAdmin = email === 'luisfreitasyt@gmail.com';
-    let isAdmin = isSuperAdmin;
-    
-    if (!isAdmin && adminDb) {
-      const doc = await adminDb.collection('admins').doc(email).get();
-      isAdmin = doc.exists;
-    }
-
-    if (!isAdmin) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
-    }
+    await requireAdmin(request);
 
     if (!adminDb) {
       return NextResponse.json({ error: 'Database not initialized' }, { status: 500 });
@@ -34,7 +19,7 @@ export async function POST(request: Request) {
     const allUsersSnapshot = await adminDb.collection('users').orderBy('createdAt', 'desc').get();
     
     const uniqueUsersMap = new Map();
-    allUsersSnapshot.docs.forEach(doc => {
+    allUsersSnapshot.docs.forEach((doc: any) => {
       const data = doc.data();
       const email = data.email || doc.id;
       // Because we ordered by desc, the first one we encounter is the newest.
@@ -95,7 +80,7 @@ export async function POST(request: Request) {
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
-    const recentLeads = recentLeadsSnapshot.docs.map(doc => ({
+    const recentLeads = recentLeadsSnapshot.docs.map((doc: any) => ({
       id: doc.id,
       ...doc.data(),
       createdAt: doc.data().createdAt?.toDate()?.toISOString() || null
@@ -106,7 +91,7 @@ export async function POST(request: Request) {
       .orderBy('createdAt', 'desc')
       .limit(50)
       .get();
-    const recentActions = recentActionsSnapshot.docs.map(doc => {
+    const recentActions = recentActionsSnapshot.docs.map((doc: any) => {
       const data = doc.data();
       return {
         id: doc.id,
@@ -133,7 +118,7 @@ export async function POST(request: Request) {
       ...recentPropSnapshot.docs
     ];
     
-    const userIdsToFetch = [...new Set(allOldDocs.map(doc => doc.data().userId).filter(id => id))];
+    const userIdsToFetch = [...new Set(allOldDocs.map((doc: any) => doc.data().userId).filter(id => id))];
     const userEmailsMap: Record<string, string> = {};
     
     if (userIdsToFetch.length > 0) {
@@ -144,7 +129,7 @@ export async function POST(request: Request) {
       }
       for (const batch of batches) {
         const usersSnap = await adminDb.collection('users').where('__name__', 'in', batch).get();
-        usersSnap.docs.forEach(uDoc => {
+        usersSnap.docs.forEach((uDoc: any) => {
           userEmailsMap[uDoc.id] = uDoc.data().email || uDoc.id;
         });
       }
@@ -168,11 +153,11 @@ export async function POST(request: Request) {
     };
 
     const oldActions = [
-      ...recentEstudiaSnapshot.docs.map(doc => mapAction(doc, 'estudia', 'Foto de estúdio gerada (Log Antigo)')),
-      ...recentDiagSnapshot.docs.map(doc => mapAction(doc, 'diagnostico', 'Diagnóstico de canal gerado (Log Antigo)')),
-      ...recentCalcSnapshot.docs.map(doc => mapAction(doc, 'calculadora', 'Orçamento calculado (Log Antigo)')),
-      ...recentIdeaSnapshot.docs.map(doc => mapAction(doc, 'gerador-ideias', 'Ideias de conteúdo geradas (Log Antigo)')),
-      ...recentPropSnapshot.docs.map(doc => mapAction(doc, 'proposta', 'Proposta comercial gerada (Log Antigo)'))
+      ...recentEstudiaSnapshot.docs.map((doc: any) => mapAction(doc, 'estudia', 'Foto de estúdio gerada (Log Antigo)')),
+      ...recentDiagSnapshot.docs.map((doc: any) => mapAction(doc, 'diagnostico', 'Diagnóstico de canal gerado (Log Antigo)')),
+      ...recentCalcSnapshot.docs.map((doc: any) => mapAction(doc, 'calculadora', 'Orçamento calculado (Log Antigo)')),
+      ...recentIdeaSnapshot.docs.map((doc: any) => mapAction(doc, 'gerador-ideias', 'Ideias de conteúdo geradas (Log Antigo)')),
+      ...recentPropSnapshot.docs.map((doc: any) => mapAction(doc, 'proposta', 'Proposta comercial gerada (Log Antigo)'))
     ];
 
     const allActions = [...recentActions, ...oldActions]
@@ -197,8 +182,7 @@ export async function POST(request: Request) {
       recentUsers,
       recentActions: allActions
     });
-  } catch (error: any) {
-    console.error('Admin Stats Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
+  } catch (error) {
+    return errorResponse(error);
   }
 }

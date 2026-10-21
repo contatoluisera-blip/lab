@@ -1,61 +1,14 @@
-import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { withTool, describeProviderError } from '@/lib/server/tool';
+import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
+import { HttpError } from '@/lib/server/auth';
+import { textStreamResponse } from '@/lib/server/stream';
+import { logPlatformAction } from '@/lib/firebase/logAction';
 
-export const maxDuration = 300;
+const SYSTEM = "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).";
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { 
-      cliente, objetivo, modoGeração,
-      diagnostico, orcamento, 
-      profissional 
-    } = body;
-
-    let jsonResult;
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-      console.warn("ANTHROPIC_API_KEY não configurada. Usando mock de fallback.");
-      const qtdVideos = orcamento?.video_quantity || orcamento?.video_quantity_total || 'alguns';
-      const valorOrcamento = orcamento?.precoRecomendado || orcamento?.valorTotal || "R$ 3.500,00";
-      
-      jsonResult = {
-        capa: {
-          titulo: `Plano Estratégico de Autoridade`,
-          subtitulo: `Arquitetura de conteúdo desenvolvida para ${cliente}`
-        },
-        apresentacao: `Olá equipe da ${cliente}. O nosso objetivo transcende a simples produção de vídeos; nós construímos ecossistemas de conversão visual. Atuamos com posicionamento de alto valor para marcas que entendem que a percepção do público dita a precificação do seu serviço.`,
-        contexto: diagnostico 
-          ? `Analisando a atual presença digital (@${diagnostico.handle || cliente}), notamos um engajamento de ${diagnostico.metricas?.engajamentoRobusto || 'abaixo do benchmark de mercado'}. O objetivo de ${objetivo} está sendo freado por gargalos na retenção algorítmica e na ausência de um funil claro de conteúdo. O público até chega, mas a comunicação atual não gera autoridade suficiente para fechar a venda.`
-          : `Para alcançarmos de forma consistente o objetivo de ${objetivo}, precisamos reestruturar a forma como a audiência consome a marca. A ausência de uma engenharia de retenção no conteúdo atual cria fricções na tomada de decisão do cliente.`,
-        solucao: `Vamos implementar uma esteira de produção audiovisual estratégica. Não são apenas vídeos bonitos, é neuromarketing aplicado. Utilizaremos ganchos de alta retenção (hooks) e roteiros focados em quebrar objeções nativamente, elevando imediatamente a autoridade percebida da ${cliente}.`,
-        escopo: `O acordo prevê a estruturação de um pacote dinâmico focando na produção ponta a ponta dos materiais para distribuição no Instagram/Tiktok.`,
-        o_que_esta_incluso: [
-          "Roteirização baseada em Engenharia de Retenção",
-          "Captação Cinematográfica (4K, Iluminação Profissional)",
-          "Edição Vertical com Sound Design e Dinamismo",
-          "Consultoria de Posicionamento de Linha Editorial"
-        ],
-        processo: [
-          { etapa: "1. Imersão e Estratégia", descricao: "Reunião de kickoff para entender a fundo o DNA da marca e mapear os arquétipos e objeções do público." },
-          { etapa: "2. Roteirização Magnética", descricao: "Elaboração dos scripts usando fórmulas validadas de retenção (Gatilho -> Desenvolvimento -> CTA)." },
-          { etapa: "3. Captação de Alta Fidelidade", descricao: "Dia de gravação otimizado utilizando equipamentos de ponta para garantir qualidade estética impecável." },
-          { etapa: "4. Pós-produção Avançada", descricao: "Cortes dinâmicos, correção de cor (Color Grading) e mixagem de áudio para reter a atenção a cada segundo." }
-        ],
-        investimento: {
-          texto_introdutorio: `Entenda este movimento não como um custo, mas como a construção do principal ativo digital da sua empresa. Com base no diagnóstico de complexidade e no escopo de ${qtdVideos} entregáveis dimensionados, chegamos à estruturação abaixo:`,
-          valor: valorOrcamento,
-          condicoes: "Sinalização de 50% para travamento da agenda de gravação e 50% mediante a aprovação do lote de vídeos."
-        },
-        proximo_passo: "Caso o escopo e os valores estejam alinhados com o momento da marca, basta responder a este documento com 'DE ACORDO' e enviaremos o contrato digital para darmos o start imediato no onboarding."
-      };
-    } else {
-
-      const anthropic = new Anthropic({
-        apiKey: process.env.ANTHROPIC_API_KEY,
-      });
-
-      const prompt = `
+function buildPrompt(body: any) {
+  const { cliente, objetivo, modoGeração, diagnostico, orcamento, profissional } = body;
+  const prompt = `
 Você é um Estrategista Comercial Sênior e Copywriter especializado em produção de conteúdo de alto valor (High-Ticket) para Instagram e redes sociais. 
 Seu objetivo é transformar os dados fornecidos em uma Proposta Comercial Irrecusável, Profunda e Altamente Persuasiva.
 
@@ -111,34 +64,37 @@ INSTRUÇÕES CRÍTICAS E DE ROLEPLAY:
 3. ESTILO DE ESCRITA: Humanizado, estratégico, técnico, altamente persuasivo e DIRETO (curto, sem enrolação e fácil de ler).
 4. O output OBRIGATORIAMENTE deve ser um JSON válido e cru (raw), sem estar envelopado em marcações de bloco markdown.
 `;
-
-      const msg = await anthropic.messages.create({
-        model: "claude-sonnet-4-6",
-        max_tokens: 2000,
-        temperature: 0.7,
-        system: "Você é um Copywriter Executivo especialista em produção audiovisual. Você retorna apenas um objeto JSON válido. Suas respostas devem ser humanizadas, extremamente estratégicas, técnicas, persuasivas e DIRETAS (curtas, sem enrolação, otimizadas para leitura rápida).",
-        messages: [
-          { role: "user", content: prompt }
-        ]
-      });
-
-      let responseContent = '{}';
-      if (msg.content && msg.content.length > 0 && msg.content[0].type === 'text') {
-        responseContent = msg.content[0].text.trim();
-        // Fallback cleanup in case Claude wraps it in ```json anyway
-        if (responseContent.startsWith('```json')) {
-           responseContent = responseContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
-        }
-      }
-      
-      jsonResult = JSON.parse(responseContent);
-    }
-
-    return NextResponse.json({ success: true, data: jsonResult });
-  } catch (error: any) {
-    console.error("Erro no motor de propostas:", error);
-    // Retornando 200 com success: false para evitar que a Netlify sobreponha o JSON de erro com uma página HTML 500
-    return NextResponse.json({ success: false, error: error.message }, { status: 200 });
-  }
+  return prompt;
 }
 
+/**
+ * Gera a proposta em streaming: o texto do modelo vai sendo enviado ao navegador
+ * conforme é escrito, e o cliente monta o JSON no fim. Isso evita o corte de 26 s.
+ */
+export const POST = withTool('proposal', async ({ body, user, refund }) => {
+  if (!body.cliente || !body.objetivo) {
+    throw new HttpError(400, 'missing_fields', 'Preencha o nome do cliente e o objetivo da campanha.');
+  }
+  const anthropic = anthropicClient();
+  const prompt = buildPrompt(body);
+
+  return textStreamResponse(
+    async (write) => {
+      const stream = anthropic.messages.stream({
+        model: AI_MODELS.anthropicMain,
+        max_tokens: 2000,
+        temperature: 0.7,
+        system: SYSTEM,
+        messages: [{ role: 'user', content: prompt }],
+      });
+      stream.on('text', (text) => write(text));
+      await stream.finalMessage();
+      await logPlatformAction(user.uid, user.email ?? undefined, 'proposal', `Gerou proposta para ${body.cliente}`);
+    },
+    async (err) => {
+      await refund('provider_failure');
+      const e = describeProviderError(err, 'Anthropic');
+      return { error: e.message, code: e.code };
+    }
+  );
+});

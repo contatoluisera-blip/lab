@@ -109,7 +109,7 @@ export default function PricingSection() {
         name: customerName,
         email: customerEmail,
         plan: 'free',
-        credits: 20,
+        credits: 0,
         createdAt: new Date().toISOString()
       });
 

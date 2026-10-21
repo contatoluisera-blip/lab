@@ -9,10 +9,11 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { addNotification } from '@/lib/notifications';
+import { callTool, getAuthed } from '@/lib/client/api';
 
 export default function EstudIAPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit, refundCredit } = useUserProfile();
+  const { hasToolAccess, canUseTool, applyCredits } = useUserProfile();
   
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
@@ -49,11 +50,10 @@ export default function EstudIAPage() {
       return;
     }
 
-    // Verifica acesso
-    const creditResult = await consumeCredit('estudia');
-    if (!creditResult.ok) {
-      setError(creditResult.reason === 'no_credits'
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
+    const check = canUseTool('estudia');
+    if (!check.ok) {
+      setError(check.reason === 'no_credits'
+        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
         : 'Seu plano não tem acesso a esta ferramenta.');
       return;
     }
@@ -61,53 +61,26 @@ export default function EstudIAPage() {
     setLoading(true);
     setError('');
     setResultUrl(null);
-    
+
     try {
-      // Converte imagem para base64 para enviar para a API
       const base64Image = await fileToBase64(selectedFile);
 
-      // 1. Inicia a requisição assíncrona
-      const response = await fetch('/api/tools/estudia', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ image: base64Image, userId: user?.uid })
-      });
-      
-      const resData = await response.json();
-      
-      if (!response.ok || !resData.success) {
-        await refundCredit('estudia');
-        throw new Error(resData.error || 'Falha ao iniciar processamento. Seu crédito foi estornado.');
+      // 1. O servidor cobra o crédito, guarda a foto e abre a tarefa na KIE.
+      const start = await callTool<{ taskId: string }>('/api/tools/estudia', { image: base64Image });
+      applyCredits(start.credits, 'estudia');
+      const taskId = start.data.taskId;
+
+      // 2. Acompanha até terminar (até 5 min). Se falhar, o servidor devolve o crédito.
+      const startedAt = Date.now();
+      let finalResultUrl: string | null = null;
+      while (Date.now() - startedAt < 5 * 60 * 1000) {
+        await new Promise(resolve => setTimeout(resolve, 5000));
+        const statusData = await getAuthed<any>(`/api/tools/estudia/status?taskId=${encodeURIComponent(taskId)}`);
+        if (statusData.status === 'completed') { finalResultUrl = statusData.imageUrl; break; }
+        if (statusData.status === 'failed') throw new Error(statusData.error || 'A geração falhou. Seu crédito foi devolvido.');
       }
-      
-      const taskId = resData.taskId;
-
-      // 2. Polling loop na interface
-      let attempts = 0;
-      const maxAttempts = 48; // 48 * 5s = 240s
-      const delayMs = 5000;
-      let finalResultUrl = null;
-
-      while (attempts < maxAttempts) {
-        await new Promise(resolve => setTimeout(resolve, delayMs));
-        attempts++;
-
-        const statusRes = await fetch(`/api/tools/estudia/status?taskId=${taskId}`);
-        const statusData = await statusRes.json();
-
-        if (statusData.success && statusData.status === 'completed') {
-          finalResultUrl = statusData.imageUrl;
-          break;
-        } else if (!statusData.success || statusData.status === 'failed') {
-          await refundCredit('estudia');
-          throw new Error(statusData.error || 'A geração falhou. Seu crédito não foi consumido, tente novamente.');
-        }
-        // Se estiver processando, apenas continua o loop
-      }
-
       if (!finalResultUrl) {
-        await refundCredit('estudia');
-        throw new Error('O tempo limite de 240 segundos foi excedido. Seu crédito não foi consumido, tente gerar novamente.');
+        throw new Error('A geração demorou mais de 5 minutos e foi cancelada. Seu crédito será devolvido; tente de novo.');
       }
 
       setResultUrl(finalResultUrl);

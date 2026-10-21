@@ -1,7 +1,7 @@
-import { NextResponse } from 'next/server';
 import { adminStorage, adminDb } from '@/lib/firebase/admin';
-import { logPlatformAction } from '@/lib/firebase/logAction';
-export const maxDuration = 300; 
+import { withTool } from '@/lib/server/tool';
+import { HttpError } from '@/lib/server/auth';
+import { AI_MODELS } from '@/lib/server/ai';
 
 const KIE_AI_API_KEY = process.env.KIE_AI_API_KEY || '';
 
@@ -476,105 +476,84 @@ The final image must show:
 
 Output only the final transformed image.`;
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { image, userId } = body; // Base64 string from frontend
+/**
+ * Inicia a geração da foto de estúdio: sobe a selfie para o Storage, abre a tarefa na KIE
+ * e devolve o taskId para o navegador acompanhar em /status.
+ * O crédito é cobrado aqui; se a KIE falhar depois, a rota de status devolve.
+ */
+export const POST = withTool('estudia', async ({ body, user, charge }) => {
+  const image: string = body.image;
+  if (!image) throw new HttpError(400, 'missing_image', 'Envie uma foto antes de gerar.');
+  if (!KIE_AI_API_KEY) throw new HttpError(503, 'provider_unconfigured', 'A chave da KIE AI não está configurada no servidor.');
 
-    if (!image) {
-      return NextResponse.json({ error: 'Nenhuma imagem fornecida.' }, { status: 400 });
-    }
+  let publicUrl = image;
 
-    let publicUrl = image;
+  if (image.startsWith('data:image')) {
+    if (!adminStorage) throw new HttpError(503, 'server_misconfigured', 'Armazenamento de imagens indisponível no servidor.');
 
-    // Se for um Base64, faz o upload para o Firebase Storage via Admin SDK para evitar restrições de CORS/Regras do cliente
-    if (image.startsWith('data:image')) {
-      if (!adminStorage) {
-         return NextResponse.json({ error: 'Firebase Admin Storage não configurado no servidor.' }, { status: 500 });
-      }
+    const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
+    if (!matches || matches.length !== 3) throw new HttpError(400, 'bad_image', 'A foto enviada está num formato inválido.');
 
-      const matches = image.match(/^data:([A-Za-z-+\/]+);base64,(.+)$/);
-      if (!matches || matches.length !== 3) {
-        return NextResponse.json({ error: 'Formato de base64 inválido.' }, { status: 400 });
-      }
+    const mimeType = matches[1];
+    const buffer = Buffer.from(matches[2], 'base64');
+    if (buffer.length > 8 * 1024 * 1024) throw new HttpError(400, 'image_too_large', 'A foto passa de 8 MB. Envie uma versão menor.');
 
-      const mimeType = matches[1];
-      const base64Data = matches[2];
-      const buffer = Buffer.from(base64Data, 'base64');
+    const ext = mimeType.split('/')[1] || 'jpg';
+    const fileName = `estudia/${user.uid}_${Date.now()}.${ext}`;
 
-      const ext = mimeType.split('/')[1] || 'jpg';
-      const fileName = `estudia/${userId || 'anon'}_${Date.now()}.${ext}`;
-      
+    try {
       const file = adminStorage.bucket().file(fileName);
-      await file.save(buffer, {
-        metadata: { contentType: mimeType },
-      });
-
-      // Gera uma URL assinada super longa que expira em 1 hora para o Kie AI conseguir baixar
-      const [signedUrl] = await file.getSignedUrl({
-        action: 'read',
-        expires: Date.now() + 60 * 60 * 1000, // 1 hora
-      });
-
+      await file.save(buffer, { metadata: { contentType: mimeType } });
+      const [signedUrl] = await file.getSignedUrl({ action: 'read', expires: Date.now() + 60 * 60 * 1000 });
       publicUrl = signedUrl;
-    }
-
-    // O modelo e o input devem seguir o padrão do Kie AI Nano Banana 2
-    const payload = {
-      model: 'nano-banana-2',
-      input: {
-        prompt: PROMPT,
-        image_input: [publicUrl],
-        aspect_ratio: '16:9',
-        resolution: '1K',
-        output_format: 'jpg'
+    } catch (err: any) {
+      const msg = String(err?.message || '');
+      if (/billing/i.test(msg)) {
+        throw new HttpError(503, 'storage_billing', 'O armazenamento de imagens está desativado por falta de faturamento no Google Cloud. Avise o suporte.');
       }
-    };
-
-    // 1. Criar a Task
-    const response = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${KIE_AI_API_KEY}`,
-      },
-      body: JSON.stringify(payload)
-    });
-
-    const createData = await response.json();
-    
-    if (createData.code !== 200 || !createData.data || !createData.data.taskId) {
-      console.error('Kie AI Create Error:', createData);
-      return NextResponse.json({ error: 'Falha ao iniciar processamento', details: createData.msg || 'Erro desconhecido' }, { status: 500 });
+      console.error('[estudia] falha ao salvar no Storage:', msg);
+      throw new HttpError(502, 'storage_error', 'Não foi possível guardar a foto para processamento. Tente de novo.');
     }
-
-    const taskId = createData.data.taskId;
-
-    // 2. Salva o registro inicial no Firestore
-    if (adminDb) {
-      await adminDb.collection('estudia').doc(taskId).set({
-        userId: userId || 'anon',
-        taskId,
-        status: 'processing',
-        sourceUrl: publicUrl,
-        resultUrl: null,
-        createdAt: new Date().toISOString()
-      });
-    }
-
-    // Log platform action
-    await logPlatformAction(
-      userId || 'anon',
-      body.userEmail || 'Anônimo',
-      'estudia',
-      'Solicitou geração de foto de estúdio (IA)'
-    );
-
-    // 3. Retorna o taskId para o frontend fazer o polling
-    return NextResponse.json({ success: true, taskId });
-
-  } catch (error: any) {
-    console.error('Estudia Error:', error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
   }
-}
+
+  const payload = {
+    model: AI_MODELS.kieImage,
+    input: {
+      prompt: PROMPT,
+      image_input: [publicUrl],
+      aspect_ratio: '16:9',
+      resolution: '1K',
+      output_format: 'jpg',
+    },
+  };
+
+  const response = await fetch('https://api.kie.ai/api/v1/jobs/createTask', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${KIE_AI_API_KEY}` },
+    body: JSON.stringify(payload),
+  });
+  const createData = await response.json().catch(() => ({}));
+
+  if (createData.code !== 200 || !createData.data?.taskId) {
+    console.error('[estudia] KIE createTask:', createData);
+    const msg = String(createData.msg || '');
+    if (/credit|balance|insufficient/i.test(msg)) throw new HttpError(502, 'provider_quota', 'A conta da KIE AI está sem saldo. Avise o suporte.');
+    if (response.status === 401 || /unauthorized|invalid.*key/i.test(msg)) throw new HttpError(502, 'provider_auth', 'A chave da KIE AI foi recusada. Avise o suporte.');
+    throw new HttpError(502, 'provider_error', 'A KIE AI não aceitou o pedido agora. Seu crédito foi devolvido; tente de novo.');
+  }
+
+  const taskId: string = createData.data.taskId;
+
+  await adminDb.collection('estudia').doc(taskId).set({
+    userId: user.uid,
+    taskId,
+    status: 'processing',
+    sourceUrl: publicUrl,
+    resultUrl: null,
+    chargedCredits: charge.charged,
+    refunded: false,
+    createdAt: new Date().toISOString(),
+  });
+
+  return { taskId };
+}, { logDescription: () => 'Solicitou geração de foto de estúdio (IA)' });

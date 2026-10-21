@@ -15,10 +15,11 @@ import {
 import { db } from '@/lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { callTool, ApiError } from '@/lib/client/api';
 
 export default function CreatorCardPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit } = useUserProfile();
+  const { hasToolAccess, canUseTool, applyCredits } = useUserProfile();
   
   const [loading, setLoading] = useState(false);
   const [downloading, setDownloading] = useState(false);
@@ -98,10 +99,10 @@ export default function CreatorCardPage() {
       return;
     }
 
-    const creditResult = await consumeCredit('creator-card');
-    if (!creditResult.ok) {
-      alert(creditResult.reason === 'no_credits' 
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano.' 
+    const check = canUseTool('creator-card');
+    if (!check.ok) {
+      alert(check.reason === 'no_credits'
+        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
         : 'Seu plano não tem acesso a esta ferramenta.');
       return;
     }
@@ -109,24 +110,17 @@ export default function CreatorCardPage() {
     setLoading(true);
 
     try {
-      const response = await fetch('/api/tools/creator-card', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          titulo: formData.titulo,
-          nicho: formData.nicho,
-          publico: formData.publico,
-          diferencial: formData.diferencial,
-          servicos: formData.servicos.split(',').map(s => s.trim()).filter(Boolean)
-        }),
+      // A cobrança do crédito acontece no servidor; se a IA falhar, ele devolve.
+      const res = await callTool('/api/tools/creator-card', {
+        titulo: formData.titulo,
+        nicho: formData.nicho,
+        publico: formData.publico,
+        diferencial: formData.diferencial,
+        servicos: formData.servicos.split(',').map(s => s.trim()).filter(Boolean)
       });
+      applyCredits(res.credits, 'creator-card');
+      const data = res.data;
 
-      if (!response.ok) {
-        throw new Error('Falha ao gerar conteúdo com IA');
-      }
-
-      const data = await response.json();
-      
       setFormData(prev => ({
         ...prev,
         headlineIA: data.headline,
@@ -149,12 +143,21 @@ export default function CreatorCardPage() {
       const htmlToImage = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
 
-      const imgData = await htmlToImage.toPng(cardEl, {
+      // Garante que a foto esteja decodificada antes da captura (sem isso o Safari exporta o cartão sem imagem)
+      const imgs = Array.from(cardEl.querySelectorAll('img'));
+      await Promise.all(imgs.map(img => (img.complete ? img.decode().catch(() => {}) : new Promise<void>(r => { img.onload = () => r(); img.onerror = () => r(); }))));
+
+      const captureOptions = {
         pixelRatio: 2,
+        cacheBust: true,
         style: {
           borderRadius: '0px', // Remove a borda arredondada na hora de tirar a foto para preencher o PDF
         }
-      });
+      };
+      // O Safari costuma devolver a primeira captura sem as imagens; a segunda vem completa.
+      const isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+      if (isSafari) await htmlToImage.toPng(cardEl, captureOptions);
+      const imgData = await htmlToImage.toPng(cardEl, captureOptions);
       const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: [pdfWidth, pdfHeight] });
 
       pdf.addImage(imgData, 'PNG', 0, 0, pdfWidth, pdfHeight);

@@ -1,22 +1,13 @@
-import { NextResponse } from 'next/server';
-import Anthropic from '@anthropic-ai/sdk';
+import { withTool, describeProviderError } from '@/lib/server/tool';
+import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
+import { HttpError } from '@/lib/server/auth';
 
-export const maxDuration = 300;
+export const POST = withTool('proposal', async ({ body }) => {
+  const { text, prompt, context } = body;
+  if (!text || !prompt) throw new HttpError(400, 'missing_fields', 'Selecione um trecho e diga o que quer mudar.');
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
-    const { text, prompt, context } = body;
-
-    if (!process.env.ANTHROPIC_API_KEY) {
-       throw new Error("ANTHROPIC_API_KEY não configurada.");
-    }
-
-    const anthropic = new Anthropic({
-      apiKey: process.env.ANTHROPIC_API_KEY,
-    });
-
-    const aiPrompt = `
+  const anthropic = anthropicClient();
+  const aiPrompt = `
 Você é um Copywriter Executivo especialista em produção audiovisual. 
 Seu objetivo é reescrever o texto fornecido pelo usuário seguindo estritamente as instruções dele.
 
@@ -36,24 +27,17 @@ REGRAS:
 3. Se for uma lista (itens separados por bala ou etapa), mantenha o formato de lista na resposta (apenas texto simples, use quebras de linha ou hifens se necessário).
 `;
 
+  try {
     const msg = await anthropic.messages.create({
-      model: "claude-sonnet-4-6",
+      model: AI_MODELS.anthropicMain,
       max_tokens: 1500,
       temperature: 0.7,
-      system: "Você é um Copywriter Executivo. Você responde apenas com o texto final reescrito, sem nenhum comentário ou introdução.",
-      messages: [
-        { role: "user", content: aiPrompt }
-      ]
+      system: 'Você é um Copywriter Executivo. Você responde apenas com o texto final reescrito, sem nenhum comentário ou introdução.',
+      messages: [{ role: 'user', content: aiPrompt }],
     });
-
-    let responseContent = '';
-    if (msg.content && msg.content.length > 0 && msg.content[0].type === 'text') {
-      responseContent = msg.content[0].text.trim();
-    }
-    
-    return NextResponse.json({ success: true, data: responseContent });
-  } catch (error: any) {
-    console.error("Erro na reescrita de proposta:", error);
-    return NextResponse.json({ success: false, error: error.message }, { status: 200 });
+    const first = msg.content?.[0];
+    return first && first.type === 'text' ? first.text.trim() : '';
+  } catch (err) {
+    throw describeProviderError(err, 'Anthropic');
   }
-}
+});

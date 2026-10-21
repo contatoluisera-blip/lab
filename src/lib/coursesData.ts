@@ -32,8 +32,8 @@ export interface Course {
   modules: Module[];
 }
 
-const CAPA_PRETA = "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/capa%20preta.png?alt=media&token=edef280c-c34d-4642-b75d-397f560a07d1";
-const CAPA_VERDE = "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/capa%20verde.png?alt=media&token=e5492d95-b4b6-40e2-828a-d60bf96eac6f";
+const CAPA_PRETA = "/img/capa-aula-preta.png";
+const CAPA_VERDE = "/img/capa-aula-verde.png";
 
 // ─────────────────────────────────────────────
 // CURSO 1: Mobile Lab (curso principal)

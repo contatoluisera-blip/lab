@@ -599,7 +599,7 @@ export default function LandingPage() {
               <div className="absolute -inset-2 md:-inset-3 rounded-[1.5rem] md:rounded-[2rem] bg-gradient-to-tr from-brand-emerald/20 via-brand-mint/5 to-brand-jade/25 blur-xl md:blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
               <div className="relative rounded-2xl overflow-hidden border border-brand-emerald/25 bg-gradient-to-b from-[#0a0a0a] to-[#040404] shadow-[0_0_40px_rgba(16,185,129,0.2)] group-hover:border-brand-emerald/40 group-hover:shadow-[0_0_70px_rgba(16,185,129,0.45)] transition-all duration-500 md:flex-1 md:flex md:flex-col">
                 <img
-                  src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/imagem%20siteapp.png?alt=media&token=4465413b-007c-491a-a60e-398ce647e398"
+                  src="/img/mockup-app.png"
                   alt="Luisera - Creator Lab Expert"
                   className="w-full object-cover object-top h-[280px] sm:h-[340px] md:h-full md:min-h-[580px] hover:scale-[1.03] transition-transform duration-700"
                   loading="lazy"

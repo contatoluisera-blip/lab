@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
+import { callTool } from '@/lib/client/api';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { GlassCard } from '@/components/ui/GlassCard';
@@ -36,7 +37,7 @@ const MOCK_HISTORY: QnA[] = [
 
 export default function AssistantPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit } = useUserProfile();
+  const { hasToolAccess, canUseTool, applyCredits } = useUserProfile();
   
   const [question, setQuestion] = useState('');
   const [loading, setLoading] = useState(false);
@@ -51,12 +52,9 @@ export default function AssistantPage() {
       return;
     }
     
-    // Check access and consume credit
-    const creditResult = await consumeCredit('assistant');
-    if (!creditResult.ok) {
-      setError(creditResult.reason === 'no_credits' 
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.' 
-        : 'Seu plano não tem acesso a esta ferramenta.');
+    const check = canUseTool('assistant');
+    if (!check.ok) {
+      setError(check.reason === 'no_credits' ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.' : 'Seu plano não tem acesso a esta ferramenta.');
       return;
     }
     
@@ -64,18 +62,9 @@ export default function AssistantPage() {
     setError('');
     
     try {
-      const response = await fetch('/api/tools/assistant', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ question })
-      });
-      
-      const resData = await response.json();
-      
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao conectar com o Assistente.');
-      }
-      
+      const resData = await callTool('/api/tools/assistant', { question });
+      applyCredits(resData.credits, 'assistant');
+
       const newAction: QnA = {
         id: Date.now().toString(),
         question: resData.data.question,

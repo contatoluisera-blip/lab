@@ -87,7 +87,7 @@ export default function LoginPage() {
           <div className="absolute top-16 w-72 h-72 bg-brand-emerald/10 rounded-full blur-[50px] opacity-70 animate-ping duration-[6000ms] -z-10" />
           
           <img 
-            src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/creator%20lab%20verde.png?alt=media&token=8733334d-95bf-4f7c-85e1-6916cda0856f" 
+            src="/img/logo-verde.png" 
             alt="Creator Lab Logo" 
             className="w-auto object-contain drop-shadow-[0_0_40px_rgba(16,185,129,0.45)] relative z-10 transition-transform duration-500 hover:scale-105"
             style={{ height: '330px' }}

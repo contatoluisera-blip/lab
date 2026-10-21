@@ -304,7 +304,7 @@ export default function EstudoPage() {
             {/* Glow Aura */}
             <div className="absolute w-44 h-44 rounded-full bg-brand-emerald/10 blur-[80px] pointer-events-none" />
             <img 
-              src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/imagem%20siteapp.png?alt=media&token=4465413b-007c-491a-a60e-398ce647e398" 
+              src="/img/mockup-app.png" 
               alt="Creator Lab Capa"
               className="object-contain w-auto h-auto max-h-[220px] md:max-h-[280px] drop-shadow-[0_15px_30px_rgba(0,0,0,0.8)] transform hover:scale-[1.03] transition-all duration-700 ease-out"
             />

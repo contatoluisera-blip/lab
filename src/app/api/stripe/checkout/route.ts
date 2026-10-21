@@ -1,79 +1,49 @@
 import { NextResponse } from 'next/server';
-import Stripe from 'stripe';
-import { adminAuth } from '@/lib/firebase/admin';
+import { requireUser, HttpError } from '@/lib/server/auth';
+import { errorResponse } from '@/lib/server/tool';
+import { stripeClient } from '@/lib/server/stripe';
+import { isPaidPlan } from '@/lib/planConfig';
 
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-02-24.acacia' as any,
-});
+const PRODUCT_BY_PLAN: Record<string, { monthly?: string; annual?: string }> = {
+  start: { monthly: process.env.STRIPE_PRODUCT_START, annual: process.env.STRIPE_PRODUCT_START_ANNUAL },
+  pro: { monthly: process.env.STRIPE_PRODUCT_PRO, annual: process.env.STRIPE_PRODUCT_PRO_ANNUAL },
+  elite: { monthly: process.env.STRIPE_PRODUCT_ELITE, annual: process.env.STRIPE_PRODUCT_ELITE_ANNUAL },
+};
 
+/** Cria a sessão de checkout da Stripe para o usuário logado. */
 export async function POST(req: Request) {
   try {
-    const { planName } = await req.json();
-    
-    // Validate Auth
-    const authHeader = req.headers.get('Authorization');
-    if (!authHeader?.startsWith('Bearer ')) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
-    }
+    const user = await requireUser(req);
+    const body = await req.json().catch(() => ({}));
+    const plan = String(body.planName || '').toLowerCase();
+    const interval = body.interval === 'year' ? 'annual' : 'monthly';
+    if (!isPaidPlan(plan)) throw new HttpError(400, 'bad_plan', 'Plano inválido.');
 
-    if (!adminAuth) {
-      console.error('Firebase Admin não foi inicializado. Verifique as chaves FIREBASE_CLIENT_EMAIL e FIREBASE_PRIVATE_KEY no Netlify.');
-      return NextResponse.json({ error: 'Erro de configuração do servidor. Chaves do Firebase ausentes no Netlify.' }, { status: 500 });
-    }
+    const productId = PRODUCT_BY_PLAN[plan][interval];
+    if (!productId) throw new HttpError(400, 'plan_unavailable', 'Este plano não está disponível para assinatura no momento.');
 
-    const token = authHeader.split('Bearer ')[1];
-    const decodedToken = await adminAuth.verifyIdToken(token);
-    const userId = decodedToken.uid;
-    const userEmail = decodedToken.email;
-
-    if (!planName) {
-      return NextResponse.json({ error: 'Plan name required' }, { status: 400 });
-    }
-
-    let productId = '';
-    const normalizedPlan = planName.toLowerCase();
-    // Fallback para os IDs fixos que foram criados no painel do Stripe
-    if (normalizedPlan === 'start') productId = process.env.STRIPE_PRODUCT_START || 'prod_UZ1PmZZS5Z9KTY';
-    else if (normalizedPlan === 'pro') productId = process.env.STRIPE_PRODUCT_PRO || 'prod_UZ1fjWSTPbzrJe';
-    else if (normalizedPlan === 'elite') productId = process.env.STRIPE_PRODUCT_ELITE || 'prod_UZ1fwptRpKDIWW';
-
-    if (!productId) {
-      return NextResponse.json({ error: 'Invalid plan name or missing Product ID in env' }, { status: 400 });
-    }
-
-    // Retrieve the Product's default Price ID
+    const stripe = stripeClient();
     const product = await stripe.products.retrieve(productId);
-    if (!product.default_price) {
-       return NextResponse.json({ error: 'No default price set for this product in Stripe' }, { status: 400 });
-    }
-    const priceId = typeof product.default_price === 'string' ? product.default_price : product.default_price.id;
+    const priceId = typeof product.default_price === 'string' ? product.default_price : product.default_price?.id;
+    if (!priceId) throw new HttpError(500, 'no_price', 'O plano está sem preço configurado na Stripe.');
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
     const session = await stripe.checkout.sessions.create({
-      payment_method_types: ['card'],
       mode: 'subscription',
-      customer_email: userEmail,
-      client_reference_id: userId,
+      customer_email: user.email ?? undefined,
+      client_reference_id: user.uid,
       allow_promotion_codes: true,
-      metadata: {
-        planName: normalizedPlan
-      },
-      line_items: [
-        {
-          price: priceId,
-          quantity: 1,
-        },
-      ],
-      success_url: `${origin}/dashboard?checkout_success=true&plan=${planName}`,
+      metadata: { planName: plan, interval },
+      line_items: [{ price: priceId, quantity: 1 }],
+      success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard/billing?checkout_canceled=true`,
     });
 
     return NextResponse.json({ url: session.url });
-  } catch (error: any) {
-    console.error('Stripe Checkout Error:', error);
-    return NextResponse.json({ error: error.message }, { status: 500 });
+  } catch (error) {
+    return errorResponse(error);
   }
 }

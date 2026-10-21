@@ -60,7 +60,7 @@ export const PlatformWelcome = ({
           {/* Header */}
           <Section style={header}>
             <Img
-              src="https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/creator%20lab%20verde.png?alt=media&token=8733334d-95bf-4f7c-85e1-6916cda0856f"
+              src={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mobilelab.com.br'}/img/logo-verde.png`}
               width="120"
               height="auto"
               alt="Creator Lab"

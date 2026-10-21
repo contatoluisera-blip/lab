@@ -14,10 +14,11 @@ import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { callTool } from '@/lib/client/api';
 
 export default function CalculatorPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit, userProfile, saveCalculatorPresets } = useUserProfile();
+  const { hasToolAccess, canUseTool, userProfile, saveCalculatorPresets } = useUserProfile();
   
   const [step, setStep] = useState(1);
   const [loading, setLoading] = useState(false);
@@ -166,11 +167,10 @@ export default function CalculatorPage() {
   };
 
   const handleGenerate = async () => {
-    const creditResult = await consumeCredit('calculator');
-    if (!creditResult.ok) {
-      setError(creditResult.reason === 'no_credits'
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
-        : 'Seu plano não tem acesso a esta ferramenta.');
+    // A calculadora não consome crédito; só confere se o plano dá acesso.
+    const check = canUseTool('calculator');
+    if (!check.ok) {
+      setError('Seu plano não tem acesso a esta ferramenta.');
       return;
     }
 
@@ -194,16 +194,7 @@ export default function CalculatorPage() {
         tax_percentage
       };
 
-      const response = await fetch('/api/tools/calculator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const resData = await response.json();
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao processar orçamento');
-      }
+      const resData = await callTool('/api/tools/calculator', payload);
       
       setResult(resData.data);
       setStep(5); // Vai para o resultado final

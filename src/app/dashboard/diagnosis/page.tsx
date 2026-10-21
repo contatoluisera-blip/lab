@@ -9,8 +9,9 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
-import { collection, addDoc, doc, getDoc } from 'firebase/firestore';
+import { doc, getDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { callTool, getAuthed } from '@/lib/client/api';
 
 export default function DiagnosisPage() {
   const [handle, setHandle] = useState('');
@@ -22,7 +23,8 @@ export default function DiagnosisPage() {
   const [error, setError] = useState('');
 
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit, userProfile } = useUserProfile();
+  const { hasToolAccess, canUseTool, applyCredits, userProfile } = useUserProfile();
+  const [progress, setProgress] = useState('');
 
   React.useEffect(() => {
     if (!user) return;
@@ -42,64 +44,60 @@ export default function DiagnosisPage() {
   }, [user]);
 
   const handleGenerate = async () => {
-    const creditResult = await consumeCredit('diagnosis');
-    if (!creditResult.ok) {
-      setError(creditResult.reason === 'no_credits'
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
-        : 'Seu plano não tem acesso a esta ferramenta.');
-      return;
-    }
-
     if (!handle) {
       setError('Por favor, preencha o @ do perfil para continuar.');
       return;
     }
-    
+
+    const check = canUseTool('diagnosis');
+    if (!check.ok) {
+      setError(check.reason === 'no_credits'
+        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
+        : 'Seu plano não tem acesso a esta ferramenta.');
+      return;
+    }
+
     setLoading(true);
     setError('');
-    
-    try {
-      const response = await fetch('/api/tools/diagnosis', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ handle, tipo_perfil: tipoPerfil })
-      });
-      
-      const resData = await response.json();
-      
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao processar dados via API.');
-      }
-      
-      setResult(resData.data);
+    setProgress('Iniciando a coleta no Instagram...');
 
-      if (user && resData.data) {
+    try {
+      // Etapa 1: o servidor cobra o crédito e dispara a coleta (responde em segundos).
+      const start = await callTool<{ jobId: string }>('/api/tools/diagnosis', { handle, tipo_perfil: tipoPerfil });
+      applyCredits(start.credits, 'diagnosis');
+      const jobId = start.data.jobId;
+
+      // Etapa 2: acompanha até terminar (a coleta leva de 30 s a 3 min).
+      const startedAt = Date.now();
+      let data: any = null;
+      while (Date.now() - startedAt < 6 * 60 * 1000) {
+        await new Promise(r => setTimeout(r, 5000));
+        const elapsed = Math.round((Date.now() - startedAt) / 1000);
+        setProgress(elapsed < 60
+          ? `Coletando perfil e últimos posts... (${elapsed}s)`
+          : `Analisando métricas e gerando o relatório... (${elapsed}s)`);
+
+        const status = await getAuthed<any>(`/api/tools/diagnosis/status?jobId=${encodeURIComponent(jobId)}`);
+        if (status.status === 'completed') { data = status.data; break; }
+        if (status.status === 'failed') throw new Error(status.error || 'A análise falhou. Seu crédito foi devolvido.');
+      }
+      if (!data) throw new Error('A coleta demorou demais. Seu crédito foi devolvido; tente de novo em alguns minutos.');
+
+      setResult(data);
+      if (user) {
         addNotification(
           user.uid,
           'Diagnóstico Concluído',
           `A auditoria do perfil @${handle.trim().replace('@', '')} foi gerada com sucesso!`,
           'success'
         );
-
-        try {
-          await addDoc(collection(db, 'diagnoses'), {
-             userId: user.uid,
-             handle: handle.trim().replace('@',''),
-             tipoPerfil,
-             resultado_json: resData.data,
-             nota_final: resData.data.notaGeral || 0,
-             createdAt: new Date().toISOString()
-          });
-        } catch (dbErr) {
-          console.error("Falha ao salvar no Firestore:", dbErr);
-        }
       }
-
     } catch (err: any) {
-      console.error("Erro completo da auditoria:", err);
-      setError(err.message || "Não foi possível analisar este perfil no momento.");
+      console.error('Erro completo da auditoria:', err);
+      setError(err.message || 'Não foi possível analisar este perfil no momento.');
     } finally {
       setLoading(false);
+      setProgress('');
     }
   };
 
@@ -236,7 +234,7 @@ export default function DiagnosisPage() {
                   <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
                 )}
                 {!loading && <CreditNotice toolId="diagnosis" />}
-                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">Extraindo dados do Instagram e Web (até 60s)...</p>}
+                {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">{progress || 'Processando...'}</p>}
               </div>
             </div>
           </GlassCard>

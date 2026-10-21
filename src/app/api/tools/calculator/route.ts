@@ -1,5 +1,4 @@
-import { NextResponse } from 'next/server';
-import { logPlatformAction } from '@/lib/firebase/logAction';
+import { withTool } from '@/lib/server/tool';
 
 const CONFIG = {
   hourly_rates: {
@@ -54,9 +53,7 @@ const CONFIG = {
   }
 };
 
-export async function POST(request: Request) {
-  try {
-    const body = await request.json();
+export const POST = withTool('calculator', async ({ body }) => {
     const {
       personal_info = {},
       recurrent_costs = [],
@@ -249,16 +246,5 @@ export async function POST(request: Request) {
       detalhamento
     };
 
-    // Log the action
-    await logPlatformAction(
-      body.userId || 'anon',
-      body.userEmail || 'Anônimo',
-      'calculadora',
-      `Orçamento gerado para ${q} vídeos (R$ ${roundedFinal})`
-    );
-
-    return NextResponse.json({ success: true, data: resultData });
-  } catch (error: any) {
-    return NextResponse.json({ success: false, error: error.message }, { status: 500 });
-  }
-}
+    return resultData;
+}, { logDescription: (b) => `Orçamento gerado (${b?.service_details?.video_quantity || '?'} vídeos)` });

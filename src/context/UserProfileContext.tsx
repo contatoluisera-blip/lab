@@ -2,14 +2,10 @@
 
 import React, { createContext, useContext, useEffect, useState, useCallback } from 'react';
 import { db } from '@/lib/firebase';
-import { doc, getDoc, updateDoc, increment } from 'firebase/firestore';
+import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { useAuth } from '@/context/AuthContext';
-import {
-  PlanId,
-  ToolId,
-  planHasToolAccess,
-  planHasCourseAccess,
-} from '@/lib/planConfig';
+import { PlanId, ToolId, TOOL_COSTS, planHasToolAccess, planHasCourseAccess } from '@/lib/planConfig';
+import { callTool } from '@/lib/client/api';
 
 // ─────────────────────────────────────────────
 // Types
@@ -19,7 +15,7 @@ export interface UserProfile {
   uid: string;
   name: string;
   email: string;
-  plan: PlanId;
+  plan: PlanId | 'free';
   credits: number;
   trialUsed: Partial<Record<ToolId, boolean>>;
   calculator_presets?: {
@@ -27,27 +23,26 @@ export interface UserProfile {
     customEquipment: { id: string; name: string; value: number }[];
   };
   createdAt: string;
+  stripeSubscriptionStatus?: string;
 }
 
 interface UserProfileContextType {
   userProfile: UserProfile | null;
   profileLoading: boolean;
-  /** Returns true if the user's plan grants access to this tool */
+  /** Plano dá acesso à ferramenta? (só para a interface; o servidor valida de novo) */
   hasToolAccess: (tool: ToolId) => boolean;
-  /** Returns true if the user's plan grants course access */
   hasCourseAccess: boolean;
   /**
-   * Attempts to consume 1 credit for a tool use.
-   * First use of each tool is free (trial). Returns { ok, reason }.
+   * Checagem prévia, só para mostrar a mensagem certa antes de chamar a API.
+   * A cobrança de verdade acontece no servidor, dentro da rota da ferramenta.
    */
-  consumeCredit: (tool: ToolId) => Promise<{ ok: boolean; reason?: 'no_access' | 'no_credits' }>;
-  /**
-   * Refunds 1 credit to the user if a generation failed or timed out.
-   */
-  refundCredit: (tool: ToolId) => Promise<{ ok: boolean }>;
-  /** Refresh profile from Firestore */
+  canUseTool: (tool: ToolId) => { ok: boolean; reason?: 'no_access' | 'no_credits' };
+  /** Custo em créditos e se o próximo uso é o teste grátis. */
+  toolCost: (tool: ToolId) => { cost: number; trial: boolean };
+  /** Recarrega o perfil do Firestore (chame após usar uma ferramenta). */
   refreshProfile: () => Promise<void>;
-  /** Save calculator custom settings */
+  /** Atualiza o saldo local a partir da resposta de uma ferramenta, sem ida ao banco. */
+  applyCredits: (credits?: { remaining: number; trial: boolean }, tool?: ToolId) => void;
   saveCalculatorPresets: (presets: UserProfile['calculator_presets']) => Promise<void>;
 }
 
@@ -56,9 +51,10 @@ const UserProfileContext = createContext<UserProfileContextType>({
   profileLoading: true,
   hasToolAccess: () => false,
   hasCourseAccess: false,
-  consumeCredit: async () => ({ ok: false, reason: 'no_access' }),
-  refundCredit: async () => ({ ok: false }),
+  canUseTool: () => ({ ok: false, reason: 'no_access' }),
+  toolCost: () => ({ cost: 1, trial: false }),
   refreshProfile: async () => {},
+  applyCredits: () => {},
   saveCalculatorPresets: async () => {},
 });
 
@@ -80,159 +76,79 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
       return;
     }
     try {
-      const userRef = doc(db, 'users', user.uid);
-      const snap = await getDoc(userRef);
-      if (snap.exists()) {
-        let data = snap.data();
-
-        // Fallback otimista: se a URL tem checkout_success, força a ativação caso o webhook local falhe
-        if (typeof window !== 'undefined') {
-          const params = new URLSearchParams(window.location.search);
-          if (params.get('checkout_success') === 'true') {
-            const planName = (params.get('plan') || 'start').toLowerCase();
-            if (!data.plan || data.plan === 'free') {
-              let credits = 20;
-              if (planName === 'pro') credits = 50;
-              if (planName === 'elite') credits = 100;
-              
-              try {
-                await updateDoc(userRef, { 
-                  plan: planName, 
-                  credits,
-                  stripeSubscriptionStatus: 'active' 
-                });
-                data = { ...data, plan: planName, credits, stripeSubscriptionStatus: 'active' };
-                // Limpa a URL
-                window.history.replaceState({}, document.title, window.location.pathname);
-              } catch (e) {
-                console.error('Erro ao ativar plano otimista:', e);
-              }
-            }
-          }
-        }
-
-        setUserProfile({ uid: user.uid, ...data } as UserProfile);
-      }
+      const snap = await getDoc(doc(db, 'users', user.uid));
+      if (snap.exists()) setUserProfile({ uid: user.uid, ...(snap.data() as Omit<UserProfile, 'uid'>) });
     } catch (e) {
-      console.error('[UserProfile] Failed to load profile:', e);
+      console.error('[UserProfile] Falha ao carregar perfil:', e);
     } finally {
       setProfileLoading(false);
     }
   }, [user]);
 
-  // Load on auth change
-  useEffect(() => {
-    if (!authLoading) {
-      setProfileLoading(true);
-      fetchProfile();
+  // Volta do checkout da Stripe: confirma a sessão no servidor (que valida na própria Stripe).
+  const confirmCheckoutIfPresent = useCallback(async () => {
+    if (typeof window === 'undefined' || !user) return;
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = params.get('session_id');
+    if (!sessionId) return;
+    try {
+      await callTool('/api/stripe/confirm', { sessionId });
+    } catch (e) {
+      console.error('[UserProfile] Falha ao confirmar checkout:', e);
+    } finally {
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
-  }, [user, authLoading, fetchProfile]);
+  }, [user]);
 
-  // Listen to setting updates to refresh
+  useEffect(() => {
+    if (authLoading) return;
+    setProfileLoading(true);
+    confirmCheckoutIfPresent().then(fetchProfile);
+  }, [user, authLoading, fetchProfile, confirmCheckoutIfPresent]);
+
   useEffect(() => {
     window.addEventListener('asa-settings-updated', fetchProfile);
-    return () => {
-      window.removeEventListener('asa-settings-updated', fetchProfile);
-    };
+    return () => window.removeEventListener('asa-settings-updated', fetchProfile);
   }, [fetchProfile]);
 
-  const hasToolAccess = useCallback(
-    (tool: ToolId) => planHasToolAccess(userProfile?.plan, tool),
-    [userProfile]
-  );
-
+  const hasToolAccess = useCallback((tool: ToolId) => planHasToolAccess(userProfile?.plan, tool), [userProfile]);
   const hasCourseAccess = planHasCourseAccess(userProfile?.plan);
 
-  const consumeCredit = useCallback(
-    async (tool: ToolId): Promise<{ ok: boolean; reason?: 'no_access' | 'no_credits' }> => {
-      if (!user || !userProfile) return { ok: false, reason: 'no_access' };
+  const toolCost = useCallback((tool: ToolId) => {
+    const cost = TOOL_COSTS[tool] ?? 1;
+    const trial = cost > 0 && !userProfile?.trialUsed?.[tool];
+    return { cost, trial };
+  }, [userProfile]);
 
-      // 1. Check plan access
-      if (!planHasToolAccess(userProfile.plan, tool)) {
-        return { ok: false, reason: 'no_access' };
-      }
+  const canUseTool = useCallback((tool: ToolId): { ok: boolean; reason?: 'no_access' | 'no_credits' } => {
+    if (!userProfile || !planHasToolAccess(userProfile.plan, tool)) return { ok: false, reason: 'no_access' };
+    const { cost, trial } = toolCost(tool);
+    if (!trial && cost > (userProfile.credits ?? 0)) return { ok: false, reason: 'no_credits' };
+    return { ok: true };
+  }, [userProfile, toolCost]);
 
-      // 2. First use (trial) — free, mark trial as used
-      const alreadyUsedTrial = userProfile.trialUsed?.[tool] === true;
-      if (!alreadyUsedTrial) {
-        try {
-          const userRef = doc(db, 'users', user.uid);
-          await updateDoc(userRef, { [`trialUsed.${tool}`]: true });
-          setUserProfile(prev =>
-            prev ? { ...prev, trialUsed: { ...prev.trialUsed, [tool]: true } } : prev
-          );
-          return { ok: true };
-        } catch (e) {
-          console.error('[UserProfile] Failed to mark trial:', e);
-          return { ok: true }; // allow anyway if DB fails
-        }
-      }
+  const applyCredits = useCallback((credits?: { remaining: number; trial: boolean }, tool?: ToolId) => {
+    if (!credits) return;
+    setUserProfile(prev => prev ? {
+      ...prev,
+      credits: credits.remaining,
+      trialUsed: tool && credits.trial ? { ...prev.trialUsed, [tool]: true } : prev.trialUsed,
+    } : prev);
+  }, []);
 
-      // 3. Deduct 1 credit
-      if (userProfile.credits <= 0) {
-        return { ok: false, reason: 'no_credits' };
-      }
-
-      try {
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { credits: increment(-1) });
-        setUserProfile(prev =>
-          prev ? { ...prev, credits: prev.credits - 1 } : prev
-        );
-        return { ok: true };
-      } catch (e) {
-        console.error('[UserProfile] Failed to deduct credit:', e);
-        return { ok: false, reason: 'no_credits' };
-      }
-    },
-    [user, userProfile]
-  );
-
-  const refundCredit = useCallback(
-    async (tool: ToolId): Promise<{ ok: boolean }> => {
-      if (!user || !userProfile) return { ok: false };
-
-      try {
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { credits: increment(1) });
-        setUserProfile(prev =>
-          prev ? { ...prev, credits: prev.credits + 1 } : prev
-        );
-        return { ok: true };
-      } catch (e) {
-        console.error('[UserProfile] Failed to refund credit:', e);
-        return { ok: false };
-      }
-    },
-    [user, userProfile]
-  );
-
-  const saveCalculatorPresets = useCallback(
-    async (presets: UserProfile['calculator_presets']) => {
-      if (!user || !userProfile) return;
-      try {
-        const userRef = doc(db, 'users', user.uid);
-        await updateDoc(userRef, { calculator_presets: presets });
-        setUserProfile(prev => prev ? { ...prev, calculator_presets: presets } : prev);
-      } catch (e) {
-        console.error('[UserProfile] Failed to save calculator presets:', e);
-      }
-    },
-    [user, userProfile]
-  );
+  const saveCalculatorPresets = useCallback(async (presets: UserProfile['calculator_presets']) => {
+    if (!user || !userProfile) return;
+    try {
+      await updateDoc(doc(db, 'users', user.uid), { calculator_presets: presets });
+      setUserProfile(prev => prev ? { ...prev, calculator_presets: presets } : prev);
+    } catch (e) {
+      console.error('[UserProfile] Falha ao salvar presets:', e);
+    }
+  }, [user, userProfile]);
 
   return (
     <UserProfileContext.Provider
-      value={{
-        userProfile,
-        profileLoading,
-        hasToolAccess,
-        hasCourseAccess,
-        consumeCredit,
-        refundCredit,
-        refreshProfile: fetchProfile,
-        saveCalculatorPresets,
-      }}
+      value={{ userProfile, profileLoading, hasToolAccess, hasCourseAccess, canUseTool, toolCost, refreshProfile: fetchProfile, applyCredits, saveCalculatorPresets }}
     >
       {children}
     </UserProfileContext.Provider>

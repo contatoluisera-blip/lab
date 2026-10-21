@@ -26,10 +26,11 @@ export default function AdminDashboardPage() {
   const fetchStats = async () => {
     setLoading(true);
     try {
+      const token = await user?.getIdToken();
       const res = await fetch('/api/admin/stats', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ email: user?.email })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: '{}'
       });
       if (res.status === 403) {
         setIsAdmin(false);
@@ -59,8 +60,10 @@ export default function AdminDashboardPage() {
     if (!confirm('Tem certeza que deseja excluir este lead?')) return;
     try {
       setActionLoading(true);
-      const res = await fetch(`/api/admin/leads?id=${id}&adminEmail=${user?.email}`, {
-        method: 'DELETE'
+      const token = await user?.getIdToken();
+      const res = await fetch(`/api/admin/leads?id=${encodeURIComponent(id)}`, {
+        method: 'DELETE',
+        headers: { Authorization: `Bearer ${token}` }
       });
       if (res.ok) {
         await fetchStats();
@@ -79,10 +82,11 @@ export default function AdminDashboardPage() {
     if (!newLead.name || !newLead.email) return;
     try {
       setActionLoading(true);
+      const token = await user?.getIdToken();
       const res = await fetch('/api/admin/leads', {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ ...newLead, adminEmail: user?.email })
+        headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+        body: JSON.stringify(newLead)
       });
       if (res.ok) {
         setNewLead({ name: '', email: '', whatsapp: '', instagram: '' });

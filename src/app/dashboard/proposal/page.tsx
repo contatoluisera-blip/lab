@@ -11,6 +11,7 @@ import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, query, where, getDocs, addDoc, doc, getDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { callTool, streamTool, parseModelJson } from '@/lib/client/api';
 import { Settings2, Palette, Type } from 'lucide-react';
 
 const COLORS = [
@@ -31,7 +32,7 @@ const FONTS = [
 
 export default function ProposalPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit } = useUserProfile();
+  const { hasToolAccess, canUseTool, applyCredits, refreshProfile } = useUserProfile();
   
   const [cliente, setCliente] = useState('');
   const [objetivo, setObjetivo] = useState('');
@@ -74,26 +75,18 @@ export default function ProposalPage() {
 
     const handleRewrite = async () => {
        if (!localPrompt) return;
-       const creditResult = await consumeCredit('proposal');
-       if (!creditResult.ok) {
+       const check = canUseTool('proposal');
+       if (!check.ok) {
          addNotification(user?.uid || '', 'Sem créditos', 'Você precisa de créditos para reescrever.', 'warning');
          return;
        }
-       
+
        try {
          setRewriting(true);
-         const res = await fetch('/api/tools/proposal/rewrite', {
-           method: 'POST',
-           headers: { 'Content-Type': 'application/json' },
-           body: JSON.stringify({ text: localVal, prompt: localPrompt })
-         });
-         const data = await res.json();
-         if (data.success) {
-           setLocalVal(data.data);
-           setLocalPrompt('');
-         } else {
-           throw new Error(data.error);
-         }
+         const res = await callTool<string>('/api/tools/proposal/rewrite', { text: localVal, prompt: localPrompt });
+         applyCredits(res.credits, 'proposal');
+         setLocalVal(res.data);
+         setLocalPrompt('');
        } catch (err: any) {
          addNotification(user?.uid || '', 'Erro', err.message, 'error');
        } finally {
@@ -210,27 +203,26 @@ export default function ProposalPage() {
   }, [user]);
 
   const handleGenerate = async () => {
-    // Check access and consume 1 credit
-    const creditResult = await consumeCredit('proposal');
-    if (!creditResult.ok) {
-      setError(creditResult.reason === 'no_credits'
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano para continuar.'
-        : 'Seu plano não tem acesso ao Gerador de Propostas. Faça upgrade para o Plano Pro ou Elite.');
-      return;
-    }
-
     if (!cliente || !objetivo) {
       setError('Por favor, preencha o Nome do Cliente e o Objetivo Principal da campanha.');
       return;
     }
-    
+
+    const check = canUseTool('proposal');
+    if (!check.ok) {
+      setError(check.reason === 'no_credits'
+        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
+        : 'Seu plano não tem acesso ao Gerador de Propostas. Faça upgrade para o Plano Pro ou Elite.');
+      return;
+    }
+
     setLoading(true);
     setError('');
-    
+
     try {
       const settingsStr = localStorage.getItem('asa_settings');
       const settings = settingsStr ? JSON.parse(settingsStr) : {};
-      
+
       const payload = {
         cliente,
         objetivo,
@@ -243,18 +235,11 @@ export default function ProposalPage() {
         }
       };
 
-      const response = await fetch('/api/tools/proposal', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
-      });
-      
-      const resData = await response.json();
-      
-      if (!response.ok || !resData.success) {
-        throw new Error(resData.error || 'Falha ao compilar proposta');
-      }
-      
+      // O servidor cobra o crédito e envia o texto em streaming (evita o limite de tempo da Netlify).
+      const fullText = await streamTool('/api/tools/proposal', payload);
+      const resData = { data: parseModelJson(fullText) };
+      refreshProfile();
+
       setResult(resData.data);
       
       if (user) {

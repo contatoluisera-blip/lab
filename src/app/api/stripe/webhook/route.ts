@@ -1,188 +1,156 @@
 import { NextResponse } from 'next/server';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
+import React from 'react';
 import { adminDb } from '@/lib/firebase/admin';
 import { PlatformWelcome } from '@/emails/PlatformWelcome';
-import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
-import React from 'react';
+import { PLAN_CONFIGS, planFromStripeProduct } from '@/lib/planConfig';
+import { grantCredits } from '@/lib/server/credits';
+import { productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
 
 export const dynamic = 'force-dynamic';
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || '', {
-  apiVersion: '2025-02-24.acacia' as any,
-});
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://mobilelab.com.br';
+const EMAIL_FROM = process.env.EMAIL_FROM || 'Creator Lab <contato@luisera.com.br>';
 
-const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET || '';
-const resend = new Resend(process.env.RESEND_API_KEY);
+async function findUserByCustomer(customerId: string) {
+  const snap = await adminDb.collection('users').where('stripeCustomerId', '==', customerId).limit(1).get();
+  return snap.empty ? null : snap.docs[0];
+}
+
+/** Garante que um evento da Stripe só é processado uma vez (a Stripe reenvia em caso de dúvida). */
+async function claimEvent(event: Stripe.Event): Promise<boolean> {
+  const ref = adminDb.collection('stripe_events').doc(event.id);
+  try {
+    await ref.create({ type: event.type, created: event.created, receivedAt: new Date().toISOString() });
+    return true;
+  } catch {
+    return false; // já existe
+  }
+}
+
+async function sendWelcome(userId: string, planId: string) {
+  if (!process.env.RESEND_API_KEY) return;
+  const planConfig = PLAN_CONFIGS[planId as keyof typeof PLAN_CONFIGS];
+  if (!planConfig) return;
+  const userSnap = await adminDb.collection('users').doc(userId).get();
+  const userData = userSnap.data();
+  if (!userData?.email) return;
+  const resend = new Resend(process.env.RESEND_API_KEY);
+  await resend.emails.send({
+    from: EMAIL_FROM,
+    to: userData.email,
+    subject: `${planConfig.label} ativado! Seu acesso à Creator Lab está liberado 🎉`,
+    react: PlatformWelcome({
+      firstName: (userData.name || userData.email).split(' ')[0],
+      planName: planConfig.label,
+      planPrice: planConfig.price,
+      credits: planConfig.credits,
+      hasCourses: planConfig.courses,
+      dashboardUrl: `${APP_URL}/dashboard`,
+    }) as React.ReactElement,
+  });
+}
 
 export async function POST(req: Request) {
+  const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET;
+  const signature = req.headers.get('stripe-signature');
+  if (!signature || !webhookSecret) {
+    return NextResponse.json({ error: 'Missing signature or webhook secret' }, { status: 400 });
+  }
+
+  let event: Stripe.Event;
   try {
-    const body = await req.text();
-    const signature = req.headers.get('stripe-signature');
+    event = stripeClient().webhooks.constructEvent(await req.text(), signature, webhookSecret);
+  } catch (err: any) {
+    console.error(`[stripe] assinatura inválida: ${err.message}`);
+    return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
+  }
 
-    if (!signature || !webhookSecret) {
-      return NextResponse.json({ error: 'Missing signature or webhook secret' }, { status: 400 });
-    }
+  if (!(await claimEvent(event))) return NextResponse.json({ received: true, duplicate: true });
 
-    let event: Stripe.Event;
-    try {
-      event = stripe.webhooks.constructEvent(body, signature, webhookSecret);
-    } catch (err: any) {
-      console.error(`Webhook signature verification failed: ${err.message}`);
-      return NextResponse.json({ error: 'Webhook Error' }, { status: 400 });
-    }
-
+  try {
     switch (event.type) {
+      // 1) Pagamento inicial concluído: vincula cliente/assinatura ao usuário e ativa o plano.
       case 'checkout.session.completed': {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.client_reference_id;
-        const customerId = session.customer as string;
-        const subscriptionId = session.subscription as string;
-
-        if (userId) {
-          const planId = (session.metadata?.planName?.toLowerCase() || 'start') as PlanId;
-          const planConfig = PLAN_CONFIGS[planId];
-
-          // 1. Ativa o plano no Firestore
-          await adminDb.collection('users').doc(userId).set({
-            stripeCustomerId: customerId,
-            stripeSubscriptionId: subscriptionId,
-            stripeSubscriptionStatus: 'active',
-            plan: planId,
-            updatedAt: new Date().toISOString()
-          }, { merge: true });
-
-          // 2. Busca dados do usuário para personalizar o e-mail
-          try {
-            const userSnap = await adminDb.collection('users').doc(userId).get();
-            const userData = userSnap.data();
-
-            if (userData?.email && planConfig) {
-              const firstName = (userData.name || userData.email).split(' ')[0];
-
-              await resend.emails.send({
-                from: 'Creator Lab <contato@luisera.com.br>',
-                to: userData.email,
-                subject: `${planConfig.label} ativado! Seu acesso à Creator Lab está liberado 🎉`,
-                react: PlatformWelcome({
-                  firstName,
-                  planName: planConfig.label,
-                  planPrice: planConfig.price,
-                  credits: planConfig.credits,
-                  hasCourses: planConfig.courses,
-                  dashboardUrl: 'https://creatorlab.luisera.com.br/dashboard',
-                }) as React.ReactElement,
-              });
-            }
-          } catch (emailErr) {
-            // Não bloqueia o webhook se o e-mail falhar
-            console.error('Erro ao enviar e-mail de boas-vindas:', emailErr);
-          }
-        }
-        break;
-      }
-      
-      case 'customer.subscription.updated':
-      case 'customer.subscription.created': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-        const status = subscription.status; // 'active', 'past_due', 'canceled', etc
-        
-        const productId = subscription.items.data[0].price.product as string;
-        
-        let plan = '';
-        if (status === 'active' || status === 'trialing') {
-          if (productId === process.env.STRIPE_PRODUCT_START) plan = 'start';
-          else if (productId === process.env.STRIPE_PRODUCT_PRO) plan = 'pro';
-          else if (productId === process.env.STRIPE_PRODUCT_ELITE) plan = 'elite';
-        } else {
-          // If status is past_due, unpaid, or canceled, lock out the user immediately.
-          plan = 'free';
-        }
-
-        // Buscar usuário pelo stripeCustomerId
-        const usersRef = adminDb.collection('users');
-        const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
-        
-        if (!snapshot.empty) {
-          const userDoc = snapshot.docs[0];
-          const updates: any = {
-            stripeSubscriptionStatus: status,
-            updatedAt: new Date().toISOString()
-          };
-          if (plan !== '') {
-            updates.plan = plan;
-          }
-          await userDoc.ref.update(updates);
-        }
+        if (!userId) break;
+        const planId = (session.metadata?.planName?.toLowerCase() || 'start');
+        await adminDb.collection('users').doc(userId).set({
+          stripeCustomerId: session.customer as string,
+          stripeSubscriptionId: session.subscription as string,
+          stripeSubscriptionStatus: 'active',
+          plan: planId,
+          updatedAt: new Date().toISOString(),
+        }, { merge: true });
+        try { await sendWelcome(userId, planId); } catch (e) { console.error('[stripe] e-mail de boas-vindas falhou:', e); }
         break;
       }
 
+      // 2) Assinatura criada/alterada: espelha status e plano. Inadimplência bloqueia na hora.
+      case 'customer.subscription.created':
+      case 'customer.subscription.updated': {
+        const sub = event.data.object as Stripe.Subscription;
+        const userDoc = await findUserByCustomer(sub.customer as string);
+        if (!userDoc) break;
+        const active = sub.status === 'active' || sub.status === 'trialing';
+        const plan = active ? planFromStripeProduct(productIdFromSubscription(sub)) : 'free';
+        const updates: Record<string, unknown> = {
+          stripeSubscriptionId: sub.id,
+          stripeSubscriptionStatus: sub.status,
+          updatedAt: new Date().toISOString(),
+        };
+        if (plan) updates.plan = plan;
+        await userDoc.ref.update(updates);
+        break;
+      }
+
+      // 3) Fatura paga (primeira ou renovação): zera os créditos para o limite do plano.
       case 'invoice.paid': {
         const invoice = event.data.object as Stripe.Invoice;
-        const customerId = invoice.customer as string;
+        const reason = invoice.billing_reason;
+        if (reason !== 'subscription_cycle' && reason !== 'subscription_create' && reason !== 'subscription_update') break;
+        const subscriptionId = subscriptionIdFromInvoice(invoice);
+        if (!subscriptionId) break;
 
-        // Só renovamos créditos se for o pagamento recorrente da assinatura ou a criação inicial
-        if (invoice.billing_reason === 'subscription_cycle' || invoice.billing_reason === 'subscription_create') {
-          const subscriptionId = invoice.subscription as string;
-          if (subscriptionId) {
-            // Descobre o plano para saber quantos créditos adicionar
-            let plan = 'free';
-            let creditsToAdd = 0;
-            const lines = invoice.lines.data;
-            if (lines.length > 0) {
-              const productId = lines[0].price?.product as string;
-              if (productId === process.env.STRIPE_PRODUCT_START) {
-                plan = 'start';
-                creditsToAdd = 20;
-              } else if (productId === process.env.STRIPE_PRODUCT_PRO) {
-                plan = 'pro';
-                creditsToAdd = 50;
-              } else if (productId === process.env.STRIPE_PRODUCT_ELITE) {
-                plan = 'elite';
-                creditsToAdd = 100;
-              }
-            }
+        const userDoc = await findUserByCustomer(invoice.customer as string);
+        if (!userDoc) break;
 
-            if (creditsToAdd > 0) {
-              const usersRef = adminDb.collection('users');
-              const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
-              if (!snapshot.empty) {
-                const userDoc = snapshot.docs[0];
-                await userDoc.ref.update({
-                  plan,
-                  credits: creditsToAdd, // Reset credits or use admin.firestore.FieldValue.increment(creditsToAdd)? Usually monthly credits reset, so setting them to the limit is common.
-                  updatedAt: new Date().toISOString()
-                });
-              }
-            }
-          }
+        const productId = productIdFromInvoiceLine(invoice.lines?.data?.[0]);
+        const plan = planFromStripeProduct(productId);
+        if (!plan) {
+          console.error('[stripe] invoice.paid com produto desconhecido:', productId);
+          break;
         }
+        await grantCredits(userDoc.id, PLAN_CONFIGS[plan].credits, `invoice_${reason}`, {
+          plan,
+          stripeSubscriptionId: subscriptionId,
+          creditsResetAt: new Date().toISOString(),
+          lastInvoiceId: invoice.id,
+        });
         break;
       }
 
+      // 4) Assinatura encerrada: volta para free e zera os créditos.
       case 'customer.subscription.deleted': {
-        const subscription = event.data.object as Stripe.Subscription;
-        const customerId = subscription.customer as string;
-
-        const usersRef = adminDb.collection('users');
-        const snapshot = await usersRef.where('stripeCustomerId', '==', customerId).get();
-        
-        if (!snapshot.empty) {
-          const userDoc = snapshot.docs[0];
-          await userDoc.ref.update({
-            plan: 'free',
-            stripeSubscriptionStatus: 'canceled',
-            updatedAt: new Date().toISOString()
-          });
-        }
+        const sub = event.data.object as Stripe.Subscription;
+        const userDoc = await findUserByCustomer(sub.customer as string);
+        if (!userDoc) break;
+        await userDoc.ref.update({
+          plan: 'free',
+          credits: 0,
+          stripeSubscriptionStatus: 'canceled',
+          updatedAt: new Date().toISOString(),
+        });
         break;
       }
     }
-
     return NextResponse.json({ received: true });
   } catch (error: any) {
-    console.error('Stripe Webhook Error:', error);
+    console.error('[stripe] erro ao processar evento', event.type, error);
+    // Libera o evento para a Stripe reenviar.
+    await adminDb.collection('stripe_events').doc(event.id).delete().catch(() => {});
     return NextResponse.json({ error: 'Internal Server Error' }, { status: 500 });
   }
 }

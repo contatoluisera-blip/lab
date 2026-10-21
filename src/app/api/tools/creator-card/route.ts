@@ -1,31 +1,8 @@
-import { NextResponse } from 'next/server';
-import OpenAI from 'openai';
-import { logPlatformAction } from '@/lib/firebase/logAction';
+import { withTool, describeProviderError } from '@/lib/server/tool';
+import { AI_MODELS, openaiClient } from '@/lib/server/ai';
+import { HttpError } from '@/lib/server/auth';
 
-export const maxDuration = 300;
-
-export async function POST(req: Request) {
-  try {
-    const { titulo, nicho, publico, diferencial, servicos } = await req.json();
-
-    if (!titulo || !nicho) {
-      return NextResponse.json({ error: 'Título e Nicho são obrigatórios' }, { status: 400 });
-    }
-
-    if (!process.env.OPENAI_API_KEY) {
-      console.warn("OPENAI_API_KEY não configurada. Usando mock.");
-      return NextResponse.json({
-        headline: "Especialista em " + nicho,
-        bio: "Bio gerada como fallback. " + diferencial,
-        servicosFormatados: servicos
-      });
-    }
-
-    const openai = new OpenAI({
-      apiKey: process.env.OPENAI_API_KEY,
-    });
-
-    const systemPrompt = `Você é um especialista em branding e marketing para criadores de conteúdo e videomakers.
+const systemPrompt = `Você é um especialista em branding e marketing para criadores de conteúdo e videomakers.
 Sua missão é transformar informações brutas de um profissional em textos persuasivos e extremamente profissionais para um "Mídia Kit / Cartão Comercial".
 
 FORMATO OBRIGATÓRIO DE RESPOSTA (JSON Exato):
@@ -35,37 +12,31 @@ FORMATO OBRIGATÓRIO DE RESPOSTA (JSON Exato):
   "servicosFormatados": ["Serviço 1 refinado", "Serviço 2 refinado", "Serviço 3 refinado"]
 }`;
 
-    const userPrompt = `INFORMAÇÕES FORNECIDAS PELO USUÁRIO:
+export const POST = withTool('creator-card', async ({ body }) => {
+  const { titulo, nicho, publico, diferencial } = body;
+  const servicos: string[] = Array.isArray(body.servicos) ? body.servicos.filter(Boolean) : [];
+  if (!titulo || !nicho) throw new HttpError(400, 'missing_fields', 'Preencha o título e o nicho antes de gerar.');
+
+  const userPrompt = `INFORMAÇÕES FORNECIDAS PELO USUÁRIO:
 - Título/Profissão atual: "${titulo}"
 - Nicho: "${nicho}"
-- Público/Para quem cria: "${publico}"
-- Diferencial: "${diferencial}"
+- Público/Para quem cria: "${publico || ''}"
+- Diferencial: "${diferencial || ''}"
 - Serviços brutos: "${servicos.join(', ')}"`;
 
+  const openai = openaiClient();
+  try {
     const completion = await openai.chat.completions.create({
-      model: "gpt-4o",
+      model: AI_MODELS.openaiMain,
       messages: [
-        { role: "system", content: systemPrompt },
-        { role: "user", content: userPrompt }
+        { role: 'system', content: systemPrompt },
+        { role: 'user', content: userPrompt },
       ],
-      response_format: { type: "json_object" }
+      response_format: { type: 'json_object' },
+      max_tokens: 600,
     });
-
-    const responseContent = completion.choices[0].message.content || '{}';
-    const parsedData = JSON.parse(responseContent);
-
-    // Log the action
-    await logPlatformAction(
-      'anon', // Nao temos o corpo todo, deixaremos anon ou pegamos se tiver
-      'Anônimo',
-      'creator-card',
-      `Gerou cartão comercial para ${nicho}`
-    );
-
-    return NextResponse.json(parsedData);
-
-  } catch (error) {
-    console.error('Erro na API creator-card:', error);
-    return NextResponse.json({ error: 'Erro interno do servidor' }, { status: 500 });
+    return JSON.parse(completion.choices[0].message.content || '{}');
+  } catch (err) {
+    throw describeProviderError(err, 'OpenAI');
   }
-}
+}, { logDescription: (b) => `Gerou cartão comercial para ${b?.nicho || 'nicho não informado'}` });

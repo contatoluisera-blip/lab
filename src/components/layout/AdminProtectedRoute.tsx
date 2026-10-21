@@ -20,10 +20,11 @@ export function AdminProtectedRoute({ children }: { children: React.ReactNode })
       // Check admin status
       const checkAdmin = async () => {
         try {
+          const token = await user.getIdToken();
           const res = await fetch('/api/admin/check', {
             method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ email: user.email })
+            headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` },
+            body: '{}'
           });
           const data = await res.json();
           if (data.isAdmin) {

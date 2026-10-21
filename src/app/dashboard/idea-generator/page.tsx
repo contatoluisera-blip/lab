@@ -22,10 +22,11 @@ import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
 import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
+import { streamTool, parseModelJson } from '@/lib/client/api';
 
 export default function IdeaGeneratorPage() {
   const { user } = useAuth();
-  const { hasToolAccess, consumeCredit } = useUserProfile();
+  const { hasToolAccess, canUseTool, refreshProfile } = useUserProfile();
   
   // Tabs State
   const [modo, setModo] = useState<'estrategico' | 'livre'>('estrategico');
@@ -132,11 +133,10 @@ export default function IdeaGeneratorPage() {
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
 
-    // Check access and consume credit
-    const creditResult = await consumeCredit('ideas');
-    if (!creditResult.ok) {
-      alert(creditResult.reason === 'no_credits' 
-        ? 'Você não tem créditos suficientes. Faça upgrade do seu plano.' 
+    const check = canUseTool('ideas');
+    if (!check.ok) {
+      alert(check.reason === 'no_credits'
+        ? 'Seus créditos acabaram. Eles renovam na próxima fatura, ou faça upgrade do plano.'
         : 'Seu plano não tem acesso ao Gerador de Ideias.');
       return;
     }
@@ -167,12 +167,10 @@ export default function IdeaGeneratorPage() {
     }
 
     try {
-      const res = await fetch('/api/tools/idea-generator', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-      });
-      const json = await res.json();
+      // O servidor cobra o crédito e envia o texto em streaming (evita o limite de tempo da Netlify).
+      const fullText = await streamTool('/api/tools/idea-generator', payload);
+      const json = { success: true, data: parseModelJson(fullText), error: '' };
+      refreshProfile();
       if (json.success) {
         setResult(json.data);
         if (user) {
