@@ -10,6 +10,8 @@ export const AI_MODELS = {
   openaiFast: process.env.OPENAI_MODEL_FAST || 'gpt-4o-mini',
   openaiMain: process.env.OPENAI_MODEL_MAIN || 'gpt-4o',
   anthropicMain: process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6',
+  /** Gerador de Prompts: leitura de imagem + direção técnica pedem o modelo mais capaz. */
+  anthropicPrompts: process.env.ANTHROPIC_MODEL_PROMPTS || 'claude-opus-5-5',
   kieImage: process.env.KIE_MODEL_IMAGE || 'nano-banana-2',
 };
 

@@ -17,7 +17,8 @@ export type ToolId =
   | 'clients'
   | 'actions'
   | 'creator-card'
-  | 'estudia';
+  | 'estudia'
+  | 'prompts';
 
 export interface PlanConfig {
   id: PlanId;
@@ -34,7 +35,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia', 'prompts'],
     courses: false,
   },
   pro: {
@@ -42,7 +43,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts'],
     courses: false,
   },
   elite: {
@@ -70,6 +71,7 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   actions: 0,
   'creator-card': 1,
   estudia: 1,
+  prompts: 1,
 };
 
 /** Primeiro uso de cada ferramenta é gratuito (teste). */

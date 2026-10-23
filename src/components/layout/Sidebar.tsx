@@ -24,7 +24,8 @@ import {
   FolderArchive,
   GraduationCap,
   IdCard,
-  Camera
+  Camera,
+  Clapperboard
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -36,6 +37,7 @@ const MENU_ITEMS = [
   { name: 'Gerador de Propostas', href: '/dashboard/proposal', icon: FileText },
   { name: 'Cartão do Creator', href: '/dashboard/creator-card', icon: IdCard },
   { name: 'Foto de Estúdio', href: '/dashboard/estudia', icon: Camera },
+  { name: 'Gerador de Prompts', href: '/dashboard/prompt-studio', icon: Clapperboard },
   { name: 'Minhas Ações', href: '/dashboard/actions', icon: FolderArchive },
   { name: 'Meus Clientes', href: '/dashboard/clients', icon: Briefcase },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },

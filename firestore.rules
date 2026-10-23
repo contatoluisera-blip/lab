@@ -55,6 +55,15 @@ service cloud.firestore {
         && request.resource.data.userId == request.auth.uid;
     }
 
+    // Prompts gerados (Gerador de Prompts)
+    match /prompts/{docId} {
+      allow read, delete: if request.auth != null
+        && resource.data.userId == request.auth.uid;
+      allow create: if request.auth != null
+        && request.resource.data.userId == request.auth.uid;
+      allow update: if false;
+    }
+
     // Propostas comerciais
     match /proposals/{docId} {
       allow read, update, delete: if request.auth != null

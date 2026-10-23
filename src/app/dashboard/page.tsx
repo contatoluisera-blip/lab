@@ -7,7 +7,8 @@ import {
   Calculator,
   FileText,
   MessageSquare,
-  IdCard
+  IdCard,
+  Clapperboard
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -80,6 +81,16 @@ export default function DashboardPage() {
               hoverTextColor: "group-hover:text-blue-400",
               bgClass: "bg-blue-400/10",
               shadowColor: "rgba(96,165,250,0.25)"
+            },
+            {
+              title: "Gerador de Prompts",
+              description: "Prompts com precisão de direção para Image to Video, Text to Image e Image to Image.",
+              icon: Clapperboard,
+              href: "/dashboard/prompt-studio",
+              iconColor: "text-purple-400",
+              hoverTextColor: "group-hover:text-purple-400",
+              bgClass: "bg-purple-400/10",
+              shadowColor: "rgba(192,132,252,0.25)"
             }
           ].map((tool, idx) => (
             <Link key={idx} href={tool.href} className="block group outline-none" style={{ transformStyle: 'preserve-3d' }}>
