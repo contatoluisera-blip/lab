@@ -33,6 +33,33 @@ function parseImage(dataUrl: unknown): { media_type: MediaType; data: string } {
   return { media_type: match[1] as MediaType, data: match[2] };
 }
 
+/**
+ * Esquema da resposta. Com ele, a API garante um JSON válido (structured outputs):
+ * aspas em falas ou termos citados vêm sempre escapadas, sem quebrar a leitura no navegador.
+ */
+const RESULT_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['leituraImagem', 'ficha', 'prompt', 'negativePrompt', 'decisoes', 'perguntas', 'seFalhar'],
+  properties: {
+    leituraImagem: { type: 'string', description: 'Leitura da imagem em português; string vazia se não houver imagem.' },
+    ficha: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['item', 'valor'],
+        properties: { item: { type: 'string' }, valor: { type: 'string' } },
+      },
+    },
+    prompt: { type: 'string' },
+    negativePrompt: { type: 'string', description: 'String vazia se a plataforma não tiver campo de negative prompt.' },
+    decisoes: { type: 'array', items: { type: 'string' } },
+    perguntas: { type: 'array', items: { type: 'string' } },
+    seFalhar: { type: 'string' },
+  },
+} as const;
+
 /** Descreve o formulário para a IA: escolhas do usuário x lacunas ("auto"). */
 function describeChoices(mode: PromptMode, choices: Record<string, unknown>) {
   const decided: string[] = [];
@@ -103,7 +130,7 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
         const stream = anthropic.beta.messages.stream({
           model: AI_MODELS.anthropicPrompts,
           max_tokens: 16000,
-          output_config: { effort: 'medium' },
+          output_config: { effort: 'medium', format: { type: 'json_schema', schema: RESULT_SCHEMA } },
           betas: ['server-side-fallback-2026-06-01'],
           fallbacks: [{ model: 'claude-opus-4-8' }],
           system: PROMPT_STANDARD,
