@@ -214,10 +214,10 @@ Para Nano Banana / GPT Image, prefira frases corridas começando pela ação ("C
 # Formato da sua resposta
 Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora dele, exatamente com estas chaves:
 {
-  "leituraImagem": "Resumo em português da leitura da(s) imagem(ns) anexada(s): proporção, plano, lente aparente, luz, zonas de risco. null se não houver imagem.",
+  "leituraImagem": "Resumo em português da leitura da(s) imagem(ns) anexada(s): proporção, plano, lente aparente, luz, zonas de risco. String vazia se não houver imagem.",
   "ficha": [ { "item": "Modelo", "valor": "..." }, { "item": "Modo", "valor": "..." } ],
   "prompt": "O prompt final em inglês, pronto para colar (use \\n entre os blocos rotulados).",
-  "negativePrompt": "Negative prompt em inglês, só se a plataforma escolhida tiver esse campo; senão null.",
+  "negativePrompt": "Negative prompt em inglês, só se a plataforma escolhida tiver esse campo; senão string vazia.",
   "decisoes": ["Uma frase em português por lacuna 'auto' que você decidiu, dizendo o que escolheu e por quê."],
   "perguntas": ["Até 3 perguntas em português que mudariam o resultado de verdade."],
   "seFalhar": "Uma linha em português com o ajuste mais provável se a geração falhar."
