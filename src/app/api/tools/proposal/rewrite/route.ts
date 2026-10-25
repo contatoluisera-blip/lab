@@ -2,7 +2,7 @@ import { withTool, describeProviderError } from '@/lib/server/tool';
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
 
-export const POST = withTool('proposal', async ({ body }) => {
+export const POST = withTool('proposal-rewrite', async ({ body }) => {
   const { text, prompt, context } = body;
   if (!text || !prompt) throw new HttpError(400, 'missing_fields', 'Selecione um trecho e diga o que quer mudar.');
 

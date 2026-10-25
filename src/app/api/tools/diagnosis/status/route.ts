@@ -21,6 +21,13 @@ async function refundJob(jobRef: admin.firestore.DocumentReference, job: any, re
   await batch.commit();
 }
 
+/** Coleta que falhou ou veio vazia não deve ser reaproveitada por outro diagnóstico. */
+async function dropCollectionCache(job: any) {
+  const ref = adminDb.collection('diagnosis_cache').doc(job.handle);
+  const cached = (await ref.get()).data();
+  if (cached?.postsRun?.runId === job.postsRun?.runId) await ref.delete().catch(() => {});
+}
+
 /**
  * Etapa 2 do Diagnóstico: consulta as execuções no Apify. Quando as duas terminam,
  * baixa os dados, roda a análise (cálculos + resumo por IA), salva em `diagnoses`
@@ -54,9 +61,10 @@ export async function GET(request: Request) {
 
     if (failed || expired) {
       const error = failed
-        ? 'A coleta no Instagram falhou. Seu crédito foi devolvido; tente de novo em alguns minutos.'
-        : 'A coleta demorou demais e foi cancelada. Seu crédito foi devolvido; tente de novo.';
+        ? 'A coleta no Instagram falhou. Seus créditos foram devolvidos; tente de novo em alguns minutos.'
+        : 'A coleta demorou demais e foi cancelada. Seus créditos foram devolvidos; tente de novo.';
       await refundJob(jobRef, job, failed ? 'apify_failed' : 'apify_timeout');
+      await dropCollectionCache(job);
       await jobRef.update({ status: 'failed', error, profileStatus, postsStatus });
       return NextResponse.json({ success: false, status: 'failed', error });
     }
@@ -96,8 +104,9 @@ export async function GET(request: Request) {
         await jobRef.update({ status: 'completed', result, diagnosisId: diagRef.id, completedAt: new Date().toISOString() });
         return { success: true, status: 'completed', data: result, diagnosisId: diagRef.id };
       } catch (err) {
-        const message = err instanceof HttpError ? err.message : 'Não foi possível concluir a análise. Seu crédito foi devolvido.';
+        const message = err instanceof HttpError ? err.message : 'Não foi possível concluir a análise. Seus créditos foram devolvidos.';
         await refundJob(jobRef, job, 'analysis_failed');
+        await dropCollectionCache(job);
         await jobRef.update({ status: 'failed', error: message });
         return { success: false, status: 'failed', error: message };
       }

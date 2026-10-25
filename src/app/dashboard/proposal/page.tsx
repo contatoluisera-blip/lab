@@ -75,7 +75,7 @@ export default function ProposalPage() {
 
     const handleRewrite = async () => {
        if (!localPrompt) return;
-       const check = canUseTool('proposal');
+       const check = canUseTool('proposal-rewrite');
        if (!check.ok) {
          addNotification(user?.uid || '', 'Não foi possível reescrever', check.message!, 'warning');
          return;
@@ -84,7 +84,7 @@ export default function ProposalPage() {
        try {
          setRewriting(true);
          const res = await callTool<string>('/api/tools/proposal/rewrite', { text: localVal, prompt: localPrompt });
-         applyCredits(res.credits, 'proposal');
+         applyCredits(res.credits, 'proposal-rewrite');
          setLocalVal(res.data);
          setLocalPrompt('');
        } catch (err: any) {

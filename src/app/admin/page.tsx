@@ -187,6 +187,8 @@ export default function AdminDashboardPage() {
         <p className="text-xs text-gray-400">Visão geral da plataforma Creator Lab.</p>
       </div>
 
+      <ServicesHealth />
+
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
@@ -391,6 +393,57 @@ export default function AdminDashboardPage() {
           </table>
         </div>
       </div>
+    </div>
+  );
+}
+
+type Level = 'ok' | 'warning' | 'critical';
+const LEVEL_STYLE: Record<Level, string> = {
+  ok: 'border-brand-emerald/20 text-brand-mint',
+  warning: 'border-amber-500/30 text-amber-300',
+  critical: 'border-red-500/40 text-red-400',
+};
+
+/** Saldo da KIE e consumo do Apify: serviços que param de funcionar quando o saldo ou o teto acaba. */
+function ServicesHealth() {
+  const { user } = useAuth();
+  const [data, setData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      try {
+        const token = await user.getIdToken();
+        const res = await fetch('/api/admin/services', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' });
+        setData(await res.json());
+      } catch {
+        setData({ success: false });
+      }
+    })();
+  }, [user]);
+
+  if (!data) return <p className="text-xs text-gray-500">Verificando serviços…</p>;
+  const { kie, apify } = data;
+
+  const card = (title: string, level: Level | undefined, main: string, detail: string, action: string) => (
+    <div className={`neo-glass-panel rounded-2xl border p-5 ${LEVEL_STYLE[level || 'warning']}`}>
+      <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 mb-1">{title}</p>
+      <p className="text-2xl font-extrabold">{main}</p>
+      <p className="text-[11px] text-gray-400 mt-1">{detail}</p>
+      {level && level !== 'ok' && <p className="text-[11px] font-semibold mt-2">{action}</p>}
+    </div>
+  );
+
+  return (
+    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+      {kie?.ok
+        ? card('Foto de Estúdio · KIE', kie.level, `~${kie.photosLeft} fotos`, `${kie.credits} créditos de saldo (8 por foto).`, 'Recarregue créditos em kie.ai para a Foto de Estúdio não parar.')
+        : card('Foto de Estúdio · KIE', 'critical', 'Indisponível', kie?.error || 'Não foi possível consultar o saldo.', 'Confira a chave da KIE na Netlify.')}
+      {apify?.ok
+        ? card('Diagnóstico e Hub · Apify', apify.level, `~${apify.diagnosesLeft} diagnósticos`,
+            `US$ ${apify.used} de US$ ${apify.limit} usados no ciclo (renova em ${new Date(apify.cycleEnd).toLocaleDateString('pt-BR')}). Já reserva as coletas semanais do hub.`,
+            'Aumente o limite de uso no Apify (Billing → Usage limits) para o Diagnóstico não parar.')
+        : card('Diagnóstico e Hub · Apify', 'critical', 'Indisponível', apify?.error || 'Não foi possível consultar o consumo.', 'Confira o token do Apify na Netlify.')}
     </div>
   );
 }

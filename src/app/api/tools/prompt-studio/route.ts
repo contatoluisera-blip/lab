@@ -133,7 +133,9 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
           output_config: { effort: 'medium', format: { type: 'json_schema', schema: RESULT_SCHEMA } },
           betas: ['server-side-fallback-2026-06-01'],
           fallbacks: [{ model: 'claude-opus-4-8' }],
-          system: PROMPT_STANDARD,
+          // O padrão de direção (~6 mil tokens) é igual em todo uso: em cache, a leitura custa 10% do preço
+          // quando há outro uso nos 5 minutos seguintes.
+          system: [{ type: 'text', text: PROMPT_STANDARD, cache_control: { type: 'ephemeral' } }],
           messages: [{ role: 'user', content }],
         });
         stream.on('text', (text) => { started = true; write(text); });

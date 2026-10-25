@@ -389,7 +389,7 @@ export async function analyzeProfile(handle: string, tipo_perfil: string, profil
           { role: "user", content: miniPayload }
         ],
         response_format: { type: "json_object" },
-        max_tokens: 3000,
+        max_tokens: 4500, // a análise completa usa ~3.000; folga para não cortar o JSON
       }, { timeout: 45_000, maxRetries: 0 });
       
       const iaData = JSON.parse(completion.choices[0].message.content || '{}');

@@ -82,17 +82,17 @@ export default function DiagnosisPage() {
           // Falha de rede ou de uma consulta isolada: o job continua no servidor, então seguimos acompanhando.
           if (++transientErrors >= 5) {
             console.error('[diagnóstico] consultas falhando:', pollErr);
-            throw new Error('Perdemos a conexão com o servidor durante o diagnóstico. Confira seu histórico e saldo em alguns minutos; se o crédito não tiver voltado, avise o suporte.');
+            throw new Error('Perdemos a conexão com o servidor durante o diagnóstico. Confira seu histórico e saldo em alguns minutos; se os créditos não tiverem voltado, avise o suporte.');
           }
           continue;
         }
         if (status.status === 'completed') { data = status.data; break; }
-        if (status.status === 'failed') throw new Error(status.error || 'A análise falhou. Seu crédito foi devolvido.');
+        if (status.status === 'failed') throw new Error(status.error || 'A análise falhou. Seus créditos foram devolvidos.');
         setProgress(status.status === 'analyzing'
           ? `Analisando métricas e comentários com IA... (${elapsed}s)`
           : `Coletando perfil e últimos posts... (${elapsed}s)`);
       }
-      if (!data) throw new Error('Não foi possível acompanhar o diagnóstico até o fim. Confira seu histórico e saldo; se o crédito não tiver voltado, avise o suporte.');
+      if (!data) throw new Error('Não foi possível acompanhar o diagnóstico até o fim. Confira seu histórico e saldo; se os créditos não tiverem voltado, avise o suporte.');
 
       setResult(data);
       if (user) {

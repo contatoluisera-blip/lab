@@ -19,6 +19,7 @@ export type ToolId =
   | 'creator-card'
   | 'estudia'
   | 'prompts'
+  | 'proposal-rewrite'
   | 'hub';
 
 export interface PlanConfig {
@@ -44,7 +45,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
     courses: false,
   },
   elite: {
@@ -58,12 +59,12 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
 };
 
 /**
- * Custo em créditos de cada uso. Hoje todas as ferramentas com IA custam 1.
- * A calculadora não tem custo externo e não consome crédito.
- * Para mudar o preço de uma ferramenta, altere só aqui.
+ * Custo em créditos de cada uso. Para mudar o preço de uma ferramenta, altere só aqui.
+ * Referência de custo real por uso (out/2026): Diagnóstico ~R$ 1,53 (Apify + IA), por isso 2 créditos;
+ * demais ferramentas de IA entre R$ 0,01 e R$ 0,64. Calculadora, reescrita de trecho e Hub não têm custo relevante.
  */
 export const TOOL_COSTS: Record<ToolId, number> = {
-  diagnosis: 1,
+  diagnosis: 2,
   calculator: 0,
   ideas: 1,
   proposal: 1,
@@ -73,6 +74,7 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   'creator-card': 1,
   estudia: 1,
   prompts: 1,
+  'proposal-rewrite': 0, // ajuste fino de um trecho: custo ~R$ 0,01, não consome crédito
   hub: 0, // navegar no hub é gratuito; as ações de IA cobram na ferramenta de destino
 };
 
