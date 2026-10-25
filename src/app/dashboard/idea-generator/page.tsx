@@ -127,6 +127,21 @@ export default function IdeaGeneratorPage() {
     loadFromHistory();
   }, [user]);
 
+  // Vindo do Hub de Referências (?hub=<id>): briefing livre preenchido com o reel de referência.
+  useEffect(() => {
+    const hubId = new URLSearchParams(window.location.search).get('hub');
+    if (!hubId || !user) return;
+    getDoc(doc(db, 'hub_videos', hubId)).then(snap => {
+      if (!snap.exists()) return;
+      const v = snap.data();
+      const ai = v.ai || {};
+      setModo('livre');
+      setNicho(ai.nicho || '');
+      setPlataforma('Instagram Reels');
+      setTema(`Ideia inspirada no reel de @${v.author} (${v.url}): ${ai.tema}. Formato: ${ai.formato}. Gancho: ${ai.gancho} Por que funcionou: ${ai.porqueFuncionou} Adapte o mecanismo, sem copiar o conteúdo.`);
+    }).catch(err => console.error('[ideias] falha ao carregar referência do hub:', err));
+  }, [user]);
+
   // Clients logic (extract unique clients from diagnostics)
   const uniqueClients = Array.from(new Set(diagnostics.map(d => d.handle || d.clientName))).filter(Boolean);
 

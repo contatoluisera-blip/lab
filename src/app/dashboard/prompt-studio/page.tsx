@@ -100,8 +100,20 @@ export default function PromptStudioPage() {
   useEffect(() => {
     if (!user) return;
     loadHistory();
-    const id = new URLSearchParams(window.location.search).get('id');
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
     if (id) openSaved(id);
+    // Vindo do Hub de Referências (?hub=<id>): Text to Image com a estética do reel como referência.
+    const hubId = params.get('hub');
+    if (hubId) {
+      getDoc(doc(db, 'hub_videos', hubId)).then(snap => {
+        if (!snap.exists()) return;
+        const v = snap.data();
+        const ai = v.ai || {};
+        changeMode('t2i');
+        setDescription(`Referência: reel viral de @${v.author} (${ai.nicho}, ${ai.formato}). Estética a recriar: ${ai.resumoVisual} Tema: ${ai.tema}.`);
+      }).catch(err => console.error('[prompts] falha ao carregar referência do hub:', err));
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 

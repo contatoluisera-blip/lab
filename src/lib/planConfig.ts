@@ -18,7 +18,8 @@ export type ToolId =
   | 'actions'
   | 'creator-card'
   | 'estudia'
-  | 'prompts';
+  | 'prompts'
+  | 'hub';
 
 export interface PlanConfig {
   id: PlanId;
@@ -35,7 +36,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia', 'prompts'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub'],
     courses: false,
   },
   pro: {
@@ -43,7 +44,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
     courses: false,
   },
   elite: {
@@ -72,6 +73,7 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   'creator-card': 1,
   estudia: 1,
   prompts: 1,
+  hub: 0, // navegar no hub é gratuito; as ações de IA cobram na ferramenta de destino
 };
 
 /** Primeiro uso de cada ferramenta é gratuito (teste). */

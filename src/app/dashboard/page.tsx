@@ -8,7 +8,8 @@ import {
   FileText,
   MessageSquare,
   IdCard,
-  Clapperboard
+  Clapperboard,
+  Compass
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -91,6 +92,16 @@ export default function DashboardPage() {
               hoverTextColor: "group-hover:text-purple-400",
               bgClass: "bg-purple-400/10",
               shadowColor: "rgba(192,132,252,0.25)"
+            },
+            {
+              title: "Hub de Referências",
+              description: "Reels que viralizaram, analisados por IA. Explore, busque por tema e transforme em ideia.",
+              icon: Compass,
+              href: "/dashboard/hub",
+              iconColor: "text-orange-300",
+              hoverTextColor: "group-hover:text-orange-300",
+              bgClass: "bg-orange-400/10",
+              shadowColor: "rgba(253,186,116,0.25)"
             }
           ].map((tool, idx) => (
             <Link key={idx} href={tool.href} className="block group outline-none" style={{ transformStyle: 'preserve-3d' }}>

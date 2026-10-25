@@ -12,6 +12,8 @@ export const AI_MODELS = {
   anthropicMain: process.env.ANTHROPIC_MODEL_MAIN || 'claude-sonnet-4-6',
   /** Gerador de Prompts: leitura de imagem + direção técnica pedem o modelo mais capaz. */
   anthropicPrompts: process.env.ANTHROPIC_MODEL_PROMPTS || 'claude-opus-5-5',
+  /** Hub de Referências: classificação em volume de reels (rápida e barata). */
+  anthropicFast: process.env.ANTHROPIC_MODEL_FAST || 'claude-haiku-5-5',
   kieImage: process.env.KIE_MODEL_IMAGE || 'nano-banana-2',
 };
 

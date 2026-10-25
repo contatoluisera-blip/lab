@@ -25,12 +25,14 @@ import {
   GraduationCap,
   IdCard,
   Camera,
-  Clapperboard
+  Clapperboard,
+  Compass
 } from 'lucide-react';
 
 const MENU_ITEMS = [
   { name: 'Painel', href: '/dashboard', icon: LayoutDashboard },
   { name: 'Estudo', href: '/dashboard/estudo', icon: GraduationCap },
+  { name: 'Hub de Referências', href: '/dashboard/hub', icon: Compass },
   { name: 'Diagnóstico de Perfil', href: '/dashboard/diagnosis', icon: ScanSearch },
   { name: 'Calculadora de Orçamento', href: '/dashboard/calculator', icon: Calculator },
   { name: 'Gerador de Ideias', href: '/dashboard/idea-generator', icon: Lightbulb },
