@@ -5,13 +5,13 @@ import { useAuth } from '@/context/AuthContext';
 import { Film, RefreshCcw, Plus, Trash2, Check, X, Link2, Sparkles, ExternalLink, Settings2, Radar } from 'lucide-react';
 import { formatCount, shortCodeFromUrl } from '@/lib/hub';
 
-type Source = { id: string; nicho: string; type: 'hashtag' | 'profile'; value: string; active: boolean };
+type Source = { id: string; nicho: string; type: 'keyword' | 'hashtag' | 'profile'; value: string; active: boolean };
 type Pending = {
   id: string; url: string; author: string; thumb: string; views: number; likes: number; comments: number;
   score: number; caption: string; source: 'auto' | 'manual'; sourceNicho: string | null; aiStatus: 'todo' | 'done' | 'failed';
   ai?: { nicho: string; tema: string; formato: string; gancho: string; tipoGancho: string; porqueFuncionou: string; adequado: boolean };
 };
-type Run = { id: string; kind: string; status: string; ingested?: number; received?: number; createdAt: string };
+type Run = { id: string; kind: string; status: string; ingested?: number; received?: number; duplicates?: number; belowMinViews?: number; notVideo?: number; createdAt: string };
 
 const panel = 'neo-glass-panel rounded-2xl border border-white/5 overflow-hidden';
 const panelHead = 'p-5 border-b border-white/5 bg-[#0a0a0a] flex items-center justify-between gap-3';
@@ -22,7 +22,7 @@ export default function AdminHubPage() {
   const [state, setState] = useState<{ sources: Source[]; settings: { minViews: number; perSource: number }; pending: Pending[]; approvedCount: number; runs: Run[] } | null>(null);
   const [message, setMessage] = useState<{ ok: boolean; text: string } | null>(null);
   const [busy, setBusy] = useState('');
-  const [newSource, setNewSource] = useState({ nicho: '', type: 'hashtag', value: '' });
+  const [newSource, setNewSource] = useState({ nicho: '', type: 'keyword', value: '' });
   const [manual, setManual] = useState({ links: '', nicho: '' });
   const [settings, setSettings] = useState({ minViews: '', perSource: '' });
   const [unpublishLink, setUnpublishLink] = useState('');
@@ -130,15 +130,21 @@ export default function AdminHubPage() {
             </button>
           </div>
           <div className="p-5 space-y-4">
-            <p className="text-[11px] text-gray-500">Roda sozinha toda segunda às 9h. Cada fonte traz os posts mais recentes e relevantes; só entram na fila reels acima do mínimo de views.</p>
+            <p className="text-[11px] text-gray-500">Roda sozinha toda segunda às 9h. Palavra-chave traz os reels em alta no Instagram para o termo; @perfil traz os reels mais recentes do perfil. Só entram na fila reels acima do mínimo de views, e nenhum reel que já passou pelo hub volta.</p>
+            {state?.sources.some(s => s.type === 'hashtag') && (
+              <div className="text-[11px] text-amber-300 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex items-center justify-between gap-3">
+                <span>Fontes por #hashtag não trazem reels. Troque pela lista de palavras-chave sugeridas.</span>
+                <button onClick={() => run('migrate', { action: 'migrateHashtags' }, r => `${r.removed} hashtags trocadas pela lista de palavras-chave.`)} className="shrink-0 px-2.5 py-1 rounded-md bg-amber-500 text-black font-bold">Trocar</button>
+              </div>
+            )}
             <form className="grid grid-cols-1 md:grid-cols-4 gap-2" onSubmit={e => { e.preventDefault(); run('add', { action: 'addSource', ...newSource }, () => 'Fonte adicionada.').then(() => setNewSource({ ...newSource, value: '' })); }}>
               <input list="hub-nichos" required placeholder="Nicho" value={newSource.nicho} onChange={e => setNewSource({ ...newSource, nicho: e.target.value })} className={input} />
               <datalist id="hub-nichos">{nichos.map(n => <option key={n} value={n} />)}</datalist>
               <select value={newSource.type} onChange={e => setNewSource({ ...newSource, type: e.target.value })} className={input}>
-                <option value="hashtag">#hashtag</option>
+                <option value="keyword">Palavra-chave</option>
                 <option value="profile">@perfil</option>
               </select>
-              <input required placeholder={newSource.type === 'hashtag' ? 'receitasfaceis' : 'perfil'} value={newSource.value} onChange={e => setNewSource({ ...newSource, value: e.target.value })} className={input} />
+              <input required placeholder={newSource.type === 'keyword' ? 'receitas fáceis' : 'perfil'} value={newSource.value} onChange={e => setNewSource({ ...newSource, value: e.target.value })} className={input} />
               <button disabled={!!busy} className="px-3 py-2 rounded-lg bg-white/5 border border-white/10 text-white text-sm font-semibold flex items-center justify-center gap-1 disabled:opacity-50"><Plus className="w-4 h-4" /> Adicionar</button>
             </form>
             {state && state.sources.length === 0 && (
@@ -148,7 +154,7 @@ export default function AdminHubPage() {
               {state?.sources.map(s => (
                 <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <span className={s.active ? 'text-gray-200' : 'text-gray-600 line-through'}>
-                    <span className="text-gray-500">{s.nicho} · </span>{s.type === 'hashtag' ? '#' : '@'}{s.value}
+                    <span className="text-gray-500">{s.nicho} · </span>{s.type === 'profile' ? '@' : s.type === 'hashtag' ? '#' : ''}{s.value}
                   </span>
                   <span className="flex items-center gap-3">
                     <button onClick={() => run('toggle', { action: 'toggleSource', id: s.id, active: !s.active }, () => s.active ? 'Fonte pausada.' : 'Fonte ativada.')} className="text-[11px] text-gray-400 hover:text-white">{s.active ? 'Pausar' : 'Ativar'}</button>
@@ -171,7 +177,9 @@ export default function AdminHubPage() {
               <div className="text-[11px] text-gray-500 space-y-1 pt-2">
                 <p className="font-bold uppercase tracking-widest">Últimas coletas</p>
                 {state.runs.map(r => (
-                  <p key={r.id}>{new Date(r.createdAt).toLocaleString('pt-BR')} · {r.kind === 'manual' ? 'links manuais' : 'automática'} · {r.status === 'ingested' ? `${r.ingested} novos de ${r.received} recebidos` : 'em andamento'}</p>
+                  <p key={r.id}>{new Date(r.createdAt).toLocaleString('pt-BR')} · {r.kind === 'manual' ? 'links manuais' : 'automática'} · {r.status === 'ingested'
+                    ? `${r.ingested} novos de ${r.received} recebidos${r.duplicates ? ` · ${r.duplicates} repetidos ignorados` : ''}${r.belowMinViews ? ` · ${r.belowMinViews} abaixo do mínimo` : ''}${r.notVideo ? ` · ${r.notVideo} não eram vídeo` : ''}`
+                    : 'em andamento'}</p>
                 ))}
               </div>
             )}

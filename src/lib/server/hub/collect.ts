@@ -1,8 +1,11 @@
 import { createHash, randomUUID } from 'crypto';
 import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { HttpError } from '@/lib/server/auth';
-import { describeApifyError, APIFY_ACTOR } from '@/lib/server/diagnosis/analyze';
-import { viralScore } from '@/lib/hub';
+import { describeApifyError } from '@/lib/server/diagnosis/analyze';
+import { HubSourceType, viralScore } from '@/lib/hub';
+
+/** Instagram Search Scraper (apify/instagram-search-scraper): modo "popular" traz reels em alta por palavra-chave. */
+export const SEARCH_ACTOR = 'DrF9mzPPEuVizVF4l';
 
 /**
  * Chave dos chamados automáticos (webhook do Apify e rotina semanal).
@@ -30,12 +33,22 @@ export async function getSettings(): Promise<HubSettings> {
 }
 
 function normalizeUrl(u: string) {
-  return u.toLowerCase().split('?')[0].replace(/\/+$/, '');
+  let url = u;
+  try { url = decodeURIComponent(u); } catch { /* mantém como veio */ }
+  return url.toLowerCase().split('?')[0].replace(/\/+$/, '');
 }
 
-export function sourceUrl(type: 'hashtag' | 'profile', value: string) {
-  const v = value.replace(/^[#@]/, '').trim().toLowerCase();
-  return type === 'hashtag' ? `https://www.instagram.com/explore/tags/${v}/` : `https://www.instagram.com/${v}/`;
+export function cleanSourceValue(value: string) {
+  return value.replace(/^[#@]/, '').trim().toLowerCase().replace(/\s+/g, ' ');
+}
+
+/**
+ * Endereço que o Apify devolve em `inputUrl` para cada item da fonte:
+ * é por ele que ligamos cada reel ao nicho que o originou.
+ */
+export function sourceUrl(type: HubSourceType, value: string) {
+  const v = cleanSourceValue(value);
+  return type === 'profile' ? `https://www.instagram.com/${v}/` : `https://www.instagram.com/popular/${v.replace(/ /g, '-')}`;
 }
 
 /**
@@ -45,9 +58,11 @@ export function sourceUrl(type: 'hashtag' | 'profile', value: string) {
 export async function startHubRun(opts: {
   origin: string;
   kind: 'auto' | 'manual';
+  /** Actor e entrada do Apify. */
+  actor: string;
+  input: Record<string, unknown>;
+  /** Endereço de cada fonte (como volta em `inputUrl`) e o nicho correspondente. */
   urls: { url: string; nicho: string | null }[];
-  resultsType: 'posts' | 'details';
-  resultsLimit: number;
   requestedBy: string;
 }) {
   const token = process.env.APIFY_API_TOKEN;
@@ -58,15 +73,10 @@ export async function startHubRun(opts: {
     requestUrl: `${opts.origin}/api/hub/apify-webhook?key=${hubSecret()}`,
   }])).toString('base64');
 
-  const res = await fetch(`https://api.apify.com/v2/acts/${APIFY_ACTOR}/runs?token=${token}&webhooks=${encodeURIComponent(webhooks)}`, {
+  const res = await fetch(`https://api.apify.com/v2/acts/${opts.actor}/runs?token=${token}&webhooks=${encodeURIComponent(webhooks)}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      directUrls: opts.urls.map(u => u.url),
-      resultsType: opts.resultsType,
-      resultsLimit: opts.resultsLimit,
-      addParentData: false,
-    }),
+    body: JSON.stringify(opts.input),
   });
   const data = await res.json().catch(() => ({}));
   if (!res.ok || !data?.data?.id) throw describeApifyError(res.status, data);
@@ -135,8 +145,10 @@ export async function ingestRun(runId: string, datasetId: string) {
   const settings = await getSettings();
   const manual = run.kind === 'manual';
 
-  // Só vídeos; na coleta automática, só acima do mínimo de views.
-  const candidates = (Array.isArray(items) ? items : [])
+  const all = Array.isArray(items) ? items : [];
+
+  // Só vídeos com shortCode.
+  const videos = all
     .filter(it => it?.shortCode && (it.type === 'Video' || it.productType === 'clips'))
     .map(it => {
       const views = Number(it.videoPlayCount ?? it.videoViewCount ?? 0) || 0;
@@ -144,18 +156,29 @@ export async function ingestRun(runId: string, datasetId: string) {
       const comments = Math.max(0, Number(it.commentsCount ?? 0) || 0);
       const postedAt = it.timestamp ? new Date(it.timestamp).toISOString() : null;
       return { it, views, likes, comments, postedAt, score: viralScore(views, likes, comments, postedAt) };
-    })
-    .filter(c => manual || c.views >= settings.minViews);
+    });
 
-  // Ignora o que já está no hub ou na fila.
-  const unique = Array.from(new Map(candidates.map(c => [c.it.shortCode, c])).values());
+  // Sem repetição: o mesmo reel aparece uma vez por execução e nunca volta se já passou
+  // pelo hub (na fila, publicado ou descartado), mesmo com os mesmos parâmetros de busca.
+  const unique = Array.from(new Map(videos.map(c => [c.it.shortCode, c])).values());
   const existing = new Set<string>();
   for (let i = 0; i < unique.length; i += 100) {
     const refs = unique.slice(i, i + 100).map(c => adminDb.collection('hub_videos').doc(c.it.shortCode));
     if (refs.length) (await adminDb.getAll(...refs)).forEach((s: any) => { if (s.exists) existing.add(s.id); });
   }
+  const notSeen = unique.filter(c => !existing.has(c.it.shortCode));
+  const aboveMin = notSeen.filter(c => manual || c.views >= settings.minViews);
+
   // Teto por execução para caber no tempo de resposta do webhook (as miniaturas são baixadas aqui).
-  const fresh = unique.sort((a, b) => b.score - a.score).filter(c => !existing.has(c.it.shortCode)).slice(0, 200);
+  const fresh = aboveMin.sort((a, b) => b.score - a.score).slice(0, 200);
+
+  const stats = {
+    received: all.length,
+    notVideo: all.length - videos.length,
+    duplicates: (videos.length - unique.length) + existing.size,
+    belowMinViews: notSeen.length - aboveMin.length,
+    ingested: fresh.length,
+  };
 
   const thumbs = await mapLimit(fresh, 12, c => storeThumb(c.it.shortCode, c.it.displayUrl));
 
@@ -190,6 +213,6 @@ export async function ingestRun(runId: string, datasetId: string) {
     await batch.commit();
   }
 
-  await runRef.update({ status: 'ingested', ingested: fresh.length, received: items.length, finishedAt: now });
-  return { ingested: fresh.length, received: Array.isArray(items) ? items.length : 0 };
+  await runRef.update({ status: 'ingested', ...stats, finishedAt: now });
+  return stats;
 }

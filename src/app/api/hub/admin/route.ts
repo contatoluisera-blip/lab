@@ -2,14 +2,15 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { HttpError, requireAdmin } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { DEFAULT_SETTINGS, getSettings, startHubRun } from '@/lib/server/hub/collect';
+import { DEFAULT_SETTINGS, cleanSourceValue, getSettings, startHubRun } from '@/lib/server/hub/collect';
+import { APIFY_ACTOR } from '@/lib/server/diagnosis/analyze';
 import { processPending, rebuildCatalog } from '@/lib/server/hub/classify';
 import { requestOrigin } from '@/lib/server/hub/origin';
 import { HUB_SUGGESTED_SOURCES, shortCodeFromUrl } from '@/lib/hub';
 
 export const dynamic = 'force-dynamic';
 
-const sourceId = (type: string, value: string) => `${type}_${value.replace(/^[#@]/, '').trim().toLowerCase()}`;
+const sourceId = (type: string, value: string) => `${type}_${cleanSourceValue(value).replace(/[^a-z0-9._áéíóúâêôãõçàü]+/g, '-')}`;
 
 /** Painel do hub no /admin: fontes, coleta manual por link, fila de aprovação e itens publicados. */
 export async function POST(req: Request) {
@@ -38,11 +39,12 @@ export async function POST(req: Request) {
       }
 
       case 'addSource': {
-        const type = body.type === 'profile' ? 'profile' : 'hashtag';
-        const value = String(body.value || '').replace(/^[#@]/, '').trim().toLowerCase();
+        const type = body.type === 'profile' ? 'profile' : 'keyword';
+        const value = cleanSourceValue(String(body.value || ''));
         const nicho = String(body.nicho || '').trim();
-        if (!/^[a-z0-9._áéíóúâêôãõç]{2,40}$/i.test(value) || !nicho) {
-          throw new HttpError(400, 'bad_source', 'Informe o nicho e uma hashtag ou @perfil válido.');
+        const valid = type === 'profile' ? /^[a-z0-9._]{2,30}$/.test(value) : /^[^,]{2,60}$/.test(value);
+        if (!valid || !nicho) {
+          throw new HttpError(400, 'bad_source', type === 'profile' ? 'Informe o nicho e um @perfil válido.' : 'Informe o nicho e uma palavra-chave (sem vírgulas).');
         }
         await adminDb.collection('hub_sources').doc(sourceId(type, value)).set({ type, value, nicho, active: true, createdAt: now });
         return NextResponse.json({ success: true });
@@ -53,6 +55,16 @@ export async function POST(req: Request) {
         HUB_SUGGESTED_SOURCES.forEach(s => batch.set(adminDb.collection('hub_sources').doc(sourceId(s.type, s.value)), { ...s, active: true, createdAt: now }, { merge: true }));
         await batch.commit();
         return NextResponse.json({ success: true });
+      }
+
+      // Fontes antigas por hashtag não trazem reels: troca pelas palavras-chave sugeridas.
+      case 'migrateHashtags': {
+        const old = await adminDb.collection('hub_sources').where('type', '==', 'hashtag').get();
+        const batch = adminDb.batch();
+        old.docs.forEach((d: any) => batch.delete(d.ref));
+        HUB_SUGGESTED_SOURCES.forEach(s => batch.set(adminDb.collection('hub_sources').doc(sourceId(s.type, s.value)), { ...s, active: true, createdAt: now }, { merge: true }));
+        await batch.commit();
+        return NextResponse.json({ success: true, removed: old.size });
       }
 
       case 'toggleSource':
@@ -80,9 +92,9 @@ export async function POST(req: Request) {
         const runId = await startHubRun({
           origin: requestOrigin(req),
           kind: 'manual',
+          actor: APIFY_ACTOR,
+          input: { directUrls: codes.map(c => `https://www.instagram.com/p/${c}/`), resultsType: 'details', resultsLimit: 1, addParentData: false },
           urls: codes.map(c => ({ url: `https://www.instagram.com/p/${c}/`, nicho })),
-          resultsType: 'details',
-          resultsLimit: 1,
           requestedBy: admin.email || 'admin',
         });
         return NextResponse.json({ success: true, runId, count: codes.length });

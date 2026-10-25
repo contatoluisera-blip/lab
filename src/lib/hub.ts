@@ -14,24 +14,32 @@ export const HUB_HOOKS = [
   'Visual impactante', 'Identificação', 'Contraintuitivo', 'Outro',
 ] as const;
 
-/** Nichos e hashtags sugeridos para a primeira carga (editáveis no /admin). */
-export const HUB_SUGGESTED_SOURCES: { nicho: string; type: 'hashtag' | 'profile'; value: string }[] = [
-  { nicho: 'Criadores de conteúdo', type: 'hashtag', value: 'criadordeconteudo' },
-  { nicho: 'Criadores de conteúdo', type: 'hashtag', value: 'dicasdeinstagram' },
-  { nicho: 'Gastronomia', type: 'hashtag', value: 'receitasfaceis' },
-  { nicho: 'Gastronomia', type: 'hashtag', value: 'gastronomia' },
-  { nicho: 'Moda', type: 'hashtag', value: 'lookdodia' },
-  { nicho: 'Beleza', type: 'hashtag', value: 'maquiagem' },
-  { nicho: 'Beleza', type: 'hashtag', value: 'skincare' },
-  { nicho: 'Fitness', type: 'hashtag', value: 'treino' },
-  { nicho: 'Negócios locais', type: 'hashtag', value: 'empreendedorismo' },
-  { nicho: 'Negócios locais', type: 'hashtag', value: 'pequenosnegocios' },
-  { nicho: 'Imóveis', type: 'hashtag', value: 'corretordeimoveis' },
-  { nicho: 'Saúde', type: 'hashtag', value: 'nutricao' },
-  { nicho: 'Saúde', type: 'hashtag', value: 'odontologia' },
-  { nicho: 'Humor', type: 'hashtag', value: 'humorbrasileiro' },
-  { nicho: 'Viagem', type: 'hashtag', value: 'viagem' },
-  { nicho: 'Tecnologia', type: 'hashtag', value: 'tecnologia' },
+/**
+ * Tipos de fonte da coleta automática:
+ * - keyword: reels em alta no Instagram para a palavra-chave (Instagram Search Scraper, modo "popular");
+ * - profile: reels mais recentes de um perfil de referência (Instagram Scraper, modo "reels").
+ * "hashtag" é o formato antigo e é tratado como palavra-chave.
+ */
+export type HubSourceType = 'keyword' | 'profile' | 'hashtag';
+
+/** Nichos e palavras-chave sugeridos para a primeira carga (editáveis no /admin). */
+export const HUB_SUGGESTED_SOURCES: { nicho: string; type: HubSourceType; value: string }[] = [
+  { nicho: 'Criadores de conteúdo', type: 'keyword', value: 'dicas para criadores de conteúdo' },
+  { nicho: 'Criadores de conteúdo', type: 'keyword', value: 'como gravar vídeos com celular' },
+  { nicho: 'Gastronomia', type: 'keyword', value: 'receitas fáceis' },
+  { nicho: 'Gastronomia', type: 'keyword', value: 'restaurante' },
+  { nicho: 'Moda', type: 'keyword', value: 'look do dia' },
+  { nicho: 'Beleza', type: 'keyword', value: 'maquiagem' },
+  { nicho: 'Beleza', type: 'keyword', value: 'skincare' },
+  { nicho: 'Fitness', type: 'keyword', value: 'treino em casa' },
+  { nicho: 'Negócios locais', type: 'keyword', value: 'empreendedorismo' },
+  { nicho: 'Negócios locais', type: 'keyword', value: 'pequenos negócios' },
+  { nicho: 'Imóveis', type: 'keyword', value: 'corretor de imóveis' },
+  { nicho: 'Saúde', type: 'keyword', value: 'nutrição' },
+  { nicho: 'Saúde', type: 'keyword', value: 'odontologia' },
+  { nicho: 'Humor', type: 'keyword', value: 'humor brasileiro' },
+  { nicho: 'Viagem', type: 'keyword', value: 'viagem barata' },
+  { nicho: 'Tecnologia', type: 'keyword', value: 'tecnologia' },
 ];
 
 export interface HubAI {
