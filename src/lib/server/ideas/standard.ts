@@ -52,11 +52,13 @@ Pergunta · Promessa de resultado · Opinião forte / polêmica · Curiosidade �
 - execucao: dificuldade (Simples, Média ou Complexa), tempoGravacao estimado e riscos (o que pode dar errado na gravação ou no nicho, e como evitar).
 - referenciaUsada: qual referência do Hub inspirou e o que foi aproveitado; string vazia se nenhuma.
 
-# Entrega da rodada
+# Entrega em duas etapas (o pedido diz qual etapa fazer)
+ETAPA 1 — PLANEJAMENTO da rodada:
 - resumoEstrategico: 2–4 frases sobre a linha escolhida e por que ela resolve o objetivo/diagnóstico.
 - decisoes: as decisões assumidas nas lacunas.
 - planoDiaria: como gravar todas as ideias na mesma diária (ordem por locação e figurino, takes reaproveitáveis, tempo total).
-- ideias: exatamente a quantidade pedida.
+- esbocos: exatamente a quantidade pedida, um por ideia, todos realmente diferentes (gancho, formato, ângulo): titulo, formato, etapaFunil, pilar, duracaoSeg, angulo (o conceito em 1–2 frases), tipoGancho e referencia (qual referência do Hub inspira; vazio se nenhuma). Não escreva roteiros nesta etapa.
+ETAPA 2 — ROTEIRO de UMA ideia do plano: desenvolva a estrutura completa da ideia indicada, fiel ao esboço e ao plano, sem repetir ganchos das outras ideias.
 
 Escreva tudo em português do Brasil.
 `.trim();

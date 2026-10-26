@@ -21,6 +21,14 @@ import { IDEAS_MAX, ideasCost } from '@/lib/planConfig';
 import { HubItem, formatCount, hubSearchText, normalizeText } from '@/lib/hub';
 
 type Choices = Record<string, string>;
+type Esboco = { titulo: string; formato: string; etapaFunil: string; duracaoSeg: number; angulo: string };
+type Slot = { esboco: Esboco; status: 'loading' | 'done' | 'error'; idea?: IdeaV2; error?: string };
+
+const EXPAND_CONCURRENCY = 5;
+
+/** Roteiro incompleto (raro) conta como falha e é refeito sem custo. */
+const isComplete = (idea: any): idea is IdeaV2 =>
+  !!idea?.titulo && Array.isArray(idea.beats) && idea.beats.length >= 3 && Array.isArray(idea.takes) && idea.takes.length >= 1;
 
 const fmtTime = (s: number) => `${Math.round(s)}s`;
 
@@ -78,6 +86,8 @@ export default function IdeaGeneratorPage() {
   const [captionBusy, setCaptionBusy] = useState<number | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
+  const [roundId, setRoundId] = useState<string | null>(null);
+  const [slots, setSlots] = useState<Slot[]>([]);
 
   const cost = ideasCost(quantidade);
 
@@ -133,6 +143,42 @@ export default function IdeaGeneratorPage() {
 
   const decidedCount = (group: string) => IDEA_FIELDS.filter(f => f.group === group && choices[f.id] && choices[f.id] !== AUTO).length;
 
+  const saveRound = async (base: Omit<IdeasResultV2, 'ideias'>, done: IdeaV2[], briefing: any, existingId: string | null) => {
+    if (!user || !done.length) return existingId;
+    const full: IdeasResultV2 = { ...base, ideias: done };
+    try {
+      if (existingId) {
+        await updateDoc(doc(db, 'ideas', existingId), { result_json: full });
+        return existingId;
+      }
+      const ref = await addDoc(collection(db, 'ideas'), {
+        userId: user.uid,
+        modo: diagnosisId ? 'estrategico' : 'livre',
+        clientName: cliente || nicho || 'Avulso',
+        briefing,
+        result_json: full,
+        createdAt: new Date().toISOString(),
+      });
+      return ref.id;
+    } catch (e) {
+      console.error('[ideias] falha ao salvar:', e);
+      return existingId;
+    }
+  };
+
+  /** Roteiriza uma ideia da rodada (sem custo; o servidor limita a 3 tentativas). */
+  const expandIdea = async (rid: string, index: number, autoRetry = true): Promise<IdeaV2> => {
+    try {
+      const text = await streamTool('/api/tools/idea-generator/expand', { roundId: rid, index });
+      const idea = parseModelJson<IdeaV2>(text);
+      if (!isComplete(idea)) throw new Error('O roteiro veio incompleto.');
+      return idea;
+    } catch (err) {
+      if (autoRetry) return expandIdea(rid, index, false);
+      throw err;
+    }
+  };
+
   const handleGenerate = async () => {
     const check = canUseTool('ideas', cost);
     if (!check.ok) { setError(check.message!); return; }
@@ -143,43 +189,74 @@ export default function IdeaGeneratorPage() {
     setResult(null);
     setLegacy(null);
     setSavedId(null);
-    setProgress('Lendo o briefing e planejando a rodada...');
+    setSlots([]);
+    setProgress('Planejando a rodada: linha estratégica e esboço de cada ideia...');
 
     const briefing = { cliente, nicho, publico, pedido, choices, quantidade };
+    const rid = crypto.randomUUID();
+    setRoundId(rid);
     try {
-      const text = await streamTool('/api/tools/idea-generator', {
-        ...briefing, diagnosisId: diagnosisId || undefined, calculationId: calculationId || undefined, hubRefs: hubRefs.map(r => r.id),
-      }, partial => {
-        const done = (partial.match(/"referenciaUsada"/g) || []).length;
-        if (partial.trim()) setProgress(`Roteirizando as ideias... ${done} de ${quantidade} prontas`);
+      // Etapa 1: planejamento (cobra os créditos da rodada).
+      const planText = await streamTool('/api/tools/idea-generator', {
+        ...briefing, roundId: rid, diagnosisId: diagnosisId || undefined, calculationId: calculationId || undefined, hubRefs: hubRefs.map(r => r.id),
       });
-      const data = parseModelJson<Omit<IdeasResultV2, 'version'>>(text);
-      if (!data.ideias?.length) throw new Error('A IA não devolveu as ideias. Tente de novo.');
-      const full: IdeasResultV2 = { version: 2, ...data };
-      setResult(full);
-      refreshProfile();
-
-      if (user) {
-        try {
-          const ref = await addDoc(collection(db, 'ideas'), {
-            userId: user.uid,
-            modo: diagnosisId ? 'estrategico' : 'livre',
-            clientName: cliente || nicho || 'Avulso',
-            briefing,
-            result_json: full,
-            createdAt: new Date().toISOString(),
-          });
-          setSavedId(ref.id);
-        } catch (e) {
-          console.error('[ideias] falha ao salvar:', e);
-        }
-        addNotification(user.uid, 'Ideias prontas', `${full.ideias.length} roteiros gerados para ${cliente || nicho}.`, 'success');
+      let plan: Omit<IdeasResultV2, 'version' | 'ideias'> & { esbocos: Esboco[] };
+      try {
+        plan = parseModelJson(planText);
+      } catch {
+        throw new Error('A conexão caiu antes de o planejamento terminar. Se os créditos foram descontados e não voltarem em alguns minutos, avise o suporte.');
       }
+      refreshProfile();
+      const base = { version: 2 as const, resumoEstrategico: plan.resumoEstrategico, decisoes: plan.decisoes, planoDiaria: plan.planoDiaria };
+      setResult({ ...base, ideias: [] });
+
+      // Etapa 2: roteiro de cada ideia em paralelo; aparecem conforme ficam prontas.
+      const local: Slot[] = plan.esbocos.map(e => ({ esboco: e, status: 'loading' }));
+      setSlots([...local]);
+      setProgress(`Roteirizando as ideias... 0 de ${local.length} prontas`);
+      let next = 0;
+      let ready = 0;
+      await Promise.all(Array.from({ length: Math.min(EXPAND_CONCURRENCY, local.length) }, async () => {
+        while (next < local.length) {
+          const i = next++;
+          try {
+            local[i] = { ...local[i], status: 'done', idea: await expandIdea(rid, i) };
+          } catch (err: any) {
+            local[i] = { ...local[i], status: 'error', error: err.message || 'Falhou ao roteirizar.' };
+          }
+          ready++;
+          setSlots([...local]);
+          setProgress(`Roteirizando as ideias... ${ready} de ${local.length} prontas`);
+        }
+      }));
+
+      const done = local.filter(sl => sl.status === 'done').map(sl => sl.idea!);
+      setResult({ ...base, ideias: done });
+      setSavedId(await saveRound(base, done, briefing, null));
+      if (user && done.length) addNotification(user.uid, 'Ideias prontas', `${done.length} roteiros gerados para ${cliente || nicho}.`, 'success');
+      if (done.length < local.length) setError(`${local.length - done.length} ideia(s) não foram roteirizadas. Use "Tentar de novo" no card (sem custo).`);
     } catch (err: any) {
       setError(err.message || 'Não foi possível gerar as ideias agora.');
     } finally {
       setLoading(false);
       setProgress('');
+    }
+  };
+
+  const retrySlot = async (index: number) => {
+    if (!roundId || !result) return;
+    setSlots(prev => prev.map((sl, i) => (i === index ? { ...sl, status: 'loading', error: undefined } : sl)));
+    try {
+      const idea = await expandIdea(roundId, index, false);
+      const updated = slots.map((sl, i) => (i === index ? { ...sl, status: 'done' as const, idea } : sl));
+      setSlots(updated);
+      const done = updated.filter(sl => sl.status === 'done').map(sl => sl.idea!);
+      const { ideias: _, ...base } = result;
+      setResult({ ...base, ideias: done });
+      setSavedId(await saveRound(base, done, { cliente, nicho, publico, pedido, choices, quantidade }, savedId));
+      if (done.length === slots.length) setError('');
+    } catch (err: any) {
+      setSlots(prev => prev.map((sl, i) => (i === index ? { ...sl, status: 'error', error: err.message } : sl)));
     }
   };
 
@@ -196,6 +273,8 @@ export default function IdeaGeneratorPage() {
       const ideias = result.ideias.map((idea, i) => (i === index ? { ...idea, legenda: res.data } : idea));
       const next = { ...result, ideias };
       setResult(next);
+      const target = result.ideias[index];
+      setSlots(prev => prev.map(sl => (sl.idea === target ? { ...sl, idea: ideias[index] } : sl)));
       refreshProfile();
       if (savedId) await updateDoc(doc(db, 'ideas', savedId), { result_json: next }).catch(e => console.error('[ideias] falha ao salvar legenda:', e));
     } catch (err: any) {
@@ -234,6 +313,16 @@ export default function IdeaGeneratorPage() {
       setLoadingPdf(false);
     }
   };
+
+  // Cards na ordem do plano: ideias prontas e vagas ainda em roteirização (ou com falha).
+  const cardList: { idea?: IdeaV2; i: number; slot?: Slot; k: number }[] = slots.length
+    ? (() => {
+        let d = 0;
+        return slots.map((slot, k) => (slot.status === 'done'
+          ? { idea: result?.ideias[d] ?? slot.idea, i: d++, slot, k }
+          : { idea: undefined, i: -1, slot, k }));
+      })()
+    : (result?.ideias || []).map((idea, i) => ({ idea, i, k: i }));
 
   return (
     <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
@@ -383,7 +472,7 @@ export default function IdeaGeneratorPage() {
                 <UpgradeGate locked requiredPlan="Pro" mode="button" />
               )}
               {!loading && <CreditNotice toolId="ideas" cost={cost} />}
-              {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">{progress} <br />Uma rodada completa leva de 1 a 2 minutos.</p>}
+              {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">{progress} <br />O planejamento leva ~30 s; depois as ideias aparecem conforme ficam prontas.</p>}
             </div>
           </GlassCard>
         </div>
@@ -418,11 +507,13 @@ export default function IdeaGeneratorPage() {
                 )}
               </GlassCard>
 
-              {result.ideias.map((idea, i) => (
-                <GlassCard key={i} className="p-6 border-white/10 space-y-5">
+              {cardList.map(({ idea, i, slot, k }) => !idea ? (
+                <SlotCard key={`slot-${k}`} slot={slot!} number={k + 1} onRetry={() => retrySlot(k)} disabled={loading} />
+              ) : (
+                <GlassCard key={`idea-${k}`} className="p-6 border-white/10 space-y-5">
                   <div className="flex items-start justify-between gap-4 flex-wrap">
                     <div>
-                      <p className="text-[11px] font-bold text-brand-neon uppercase tracking-widest">Ideia {i + 1}</p>
+                      <p className="text-[11px] font-bold text-brand-neon uppercase tracking-widest">Ideia {k + 1}</p>
                       <h3 className="text-xl font-bold text-white mt-1">{idea.titulo}</h3>
                       <div className="flex flex-wrap gap-1.5 mt-2">
                         {[idea.formato, idea.etapaFunil, idea.pilar, `${idea.duracaoSeg}s`, idea.execucao.dificuldade].map(t => (
@@ -506,7 +597,7 @@ export default function IdeaGeneratorPage() {
                   ) : null}
 
                   <div className="no-pdf flex flex-wrap gap-2 pt-1">
-                    {!idea.legenda && (
+                    {!idea.legenda && !loading && (
                       <button onClick={() => generateCaption(i)} disabled={captionBusy !== null}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">
                         <MessageSquareText className="w-3.5 h-3.5" /> {captionBusy === i ? 'Escrevendo legenda...' : 'Gerar legenda · 1 crédito'}
@@ -529,6 +620,26 @@ export default function IdeaGeneratorPage() {
 
       {pickerOpen && <HubPicker selected={hubRefs} onClose={() => setPickerOpen(false)} onChange={setHubRefs} />}
     </div>
+  );
+}
+
+/** Ideia ainda em roteirização, ou que falhou (pode tentar de novo sem custo). */
+function SlotCard({ slot, number, onRetry, disabled }: { slot: Slot; number: number; onRetry: () => void; disabled: boolean }) {
+  return (
+    <GlassCard className={`p-6 border-white/10 space-y-2 ${slot.status === 'loading' ? 'animate-pulse' : ''}`}>
+      <p className="text-[11px] font-bold text-brand-neon uppercase tracking-widest">Ideia {number}</p>
+      <h3 className="text-lg font-bold text-white">{slot.esboco.titulo}</h3>
+      <p className="text-xs text-gray-500">{slot.esboco.formato} · {slot.esboco.etapaFunil} · {slot.esboco.duracaoSeg}s</p>
+      <p className="text-sm text-gray-400">{slot.esboco.angulo}</p>
+      {slot.status === 'loading' ? (
+        <p className="text-xs text-brand-mint flex items-center gap-1.5"><Sparkles className="w-3.5 h-3.5 animate-spin" /> Roteirizando...</p>
+      ) : (
+        <div className="flex items-center justify-between gap-3 pt-1">
+          <p className="text-xs text-red-400">{slot.error}</p>
+          <button onClick={onRetry} disabled={disabled} className="shrink-0 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">Tentar de novo (sem custo)</button>
+        </div>
+      )}
+    </GlassCard>
   );
 }
 
