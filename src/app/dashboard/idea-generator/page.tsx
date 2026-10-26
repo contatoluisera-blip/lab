@@ -87,6 +87,7 @@ export default function IdeaGeneratorPage() {
   const [loadingPdf, setLoadingPdf] = useState(false);
   const [pickerOpen, setPickerOpen] = useState(false);
   const [roundId, setRoundId] = useState<string | null>(null);
+  const [history, setHistory] = useState<{ id: string; clientName: string; createdAt: string; count: number; first: string }[]>([]);
   const [slots, setSlots] = useState<Slot[]>([]);
 
   const cost = ideasCost(quantidade);
@@ -109,27 +110,54 @@ export default function IdeaGeneratorPage() {
     })();
   }, [user]);
 
+  // Últimas rodadas do usuário (painel "Ideias recentes").
+  const loadHistory = React.useCallback(async () => {
+    if (!user) return;
+    try {
+      const snap = await getDocs(query(collection(db, 'ideas'), where('userId', '==', user.uid)));
+      setHistory(snap.docs.map(d => {
+        const data = d.data() as any;
+        const list = data.result_json?.ideias || data.result_json?.ideias_geradas || [];
+        return { id: d.id, clientName: data.clientName || data.modo || 'Avulso', createdAt: data.createdAt || '', count: list.length, first: list[0]?.titulo || '' };
+      }).sort((a, b) => b.createdAt.localeCompare(a.createdAt)).slice(0, 8));
+    } catch (e) {
+      console.error('[ideias] falha ao carregar histórico:', e);
+    }
+  }, [user]);
+
+  /** Reabre uma rodada salva (do histórico da página ou de Minhas Ações). */
+  const openSaved = React.useCallback(async (id: string) => {
+    if (!user) return;
+    try {
+      const snap = await getDoc(doc(db, 'ideas', id));
+      if (!snap.exists() || snap.data().userId !== user.uid) return;
+      const data = snap.data();
+      setSlots([]); setRoundId(null); setError('');
+      if (data.result_json?.version === 2) {
+        setLegacy(null);
+        setResult(data.result_json);
+        setSavedId(snap.id);
+        const b = data.briefing || {};
+        setCliente(b.cliente || ''); setNicho(b.nicho || ''); setPublico(b.publico || ''); setPedido(b.pedido || '');
+        setChoices(b.choices || {}); setQuantidade(b.quantidade || 5);
+      } else {
+        setResult(null); setSavedId(null);
+        setLegacy(data.result_json);
+        setCliente(data.clientName || '');
+      }
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    } catch (e) {
+      console.error('[ideias] falha ao abrir histórico:', e);
+    }
+  }, [user]);
+
   // Histórico (?id=) e referência vinda do Hub (?hub=).
   useEffect(() => {
     if (!user) return;
+    loadHistory();
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
-    if (id) {
-      getDoc(doc(db, 'ideas', id)).then(snap => {
-        if (!snap.exists() || snap.data().userId !== user.uid) return;
-        const data = snap.data();
-        if (data.result_json?.version === 2) {
-          setResult(data.result_json);
-          setSavedId(snap.id);
-          const b = data.briefing || {};
-          setCliente(b.cliente || ''); setNicho(b.nicho || ''); setPublico(b.publico || ''); setPedido(b.pedido || '');
-          setChoices(b.choices || {}); setQuantidade(b.quantidade || 5);
-        } else {
-          setLegacy(data.result_json);
-          setCliente(data.clientName || '');
-        }
-      }).catch(e => console.error('[ideias] falha ao abrir histórico:', e));
-    }
+    if (id) openSaved(id);
     const hubId = params.get('hub');
     if (hubId) {
       getDoc(doc(db, 'hub_videos', hubId)).then(snap => {
@@ -139,6 +167,7 @@ export default function IdeaGeneratorPage() {
         if (ai.nicho) setNicho(n => n || ai.nicho);
       }).catch(e => console.error('[ideias] falha ao carregar referência do hub:', e));
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [user]);
 
   const decidedCount = (group: string) => IDEA_FIELDS.filter(f => f.group === group && choices[f.id] && choices[f.id] !== AUTO).length;
@@ -233,6 +262,7 @@ export default function IdeaGeneratorPage() {
       const done = local.filter(sl => sl.status === 'done').map(sl => sl.idea!);
       setResult({ ...base, ideias: done });
       setSavedId(await saveRound(base, done, briefing, null));
+      loadHistory();
       if (user && done.length) addNotification(user.uid, 'Ideias prontas', `${done.length} roteiros gerados para ${cliente || nicho}.`, 'success');
       if (done.length < local.length) setError(`${local.length - done.length} ideia(s) não foram roteirizadas. Use "Tentar de novo" no card (sem custo).`);
     } catch (err: any) {
@@ -475,6 +505,24 @@ export default function IdeaGeneratorPage() {
               {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">{progress} <br />O planejamento leva ~30 s; depois as ideias aparecem conforme ficam prontas.</p>}
             </div>
           </GlassCard>
+
+          {history.length > 0 && (
+            <GlassCard className="p-5 border-white/5">
+              <h3 className="text-sm font-semibold text-white mb-3 flex items-center gap-2"><CalendarClock className="w-4 h-4 text-brand-neon" /> Ideias recentes</h3>
+              <div className="space-y-1.5">
+                {history.map(h => (
+                  <button key={h.id} type="button" onClick={() => openSaved(h.id)} disabled={loading}
+                    className={`w-full text-left px-3 py-2 rounded-lg border transition-colors disabled:opacity-50 ${savedId === h.id ? 'bg-brand-neon/10 border-brand-neon/30' : 'bg-black/20 hover:bg-white/5 border-white/5'}`}>
+                    <p className="text-[10px] font-bold uppercase tracking-wider text-brand-neon">
+                      {h.clientName} · {h.count} {h.count === 1 ? 'ideia' : 'ideias'} · {h.createdAt ? new Date(h.createdAt).toLocaleDateString('pt-BR') : ''}
+                    </p>
+                    <p className="text-xs text-gray-400 truncate">{h.first || 'Sem título'}</p>
+                  </button>
+                ))}
+              </div>
+              <Link href="/dashboard/actions" className="block mt-3 text-[11px] text-gray-500 hover:text-white">Ver tudo em Minhas Ações →</Link>
+            </GlassCard>
+          )}
         </div>
 
         {/* Resultado */}

@@ -51,8 +51,13 @@ export default function HubPage() {
         if (meta.exists()) {
           const { pages, nichos } = meta.data() as { pages: number; nichos: string[] };
           const all = await Promise.all(Array.from({ length: pages }, (_, p) => getDoc(doc(db, 'hub_catalog', `page_${p}`))));
-          setItems(all.flatMap(s => (s.exists() ? (s.data().items as HubItem[]) : [])).map(i => ({ ...i, _search: hubSearchText(i) })));
+          const loaded = all.flatMap(s => (s.exists() ? (s.data().items as HubItem[]) : [])).map(i => ({ ...i, _search: hubSearchText(i) }));
+          setItems(loaded);
           setNichos(nichos || []);
+          // Vindo de "Referências salvas" (?open=<id>): abre o reel direto.
+          const openId = new URLSearchParams(window.location.search).get('open');
+          const target = openId && loaded.find(i => i.id === openId);
+          if (target) setOpen(target);
         }
         const favs = await getDocs(collection(db, 'users', user.uid, 'hub_favorites'));
         setFavorites(new Set(favs.docs.map(d => d.id)));

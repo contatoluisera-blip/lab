@@ -4,13 +4,15 @@ import React, { useState, useEffect } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
-import { collection, query, where, getDocs } from 'firebase/firestore';
-import { ScanSearch, Calculator, FolderArchive, Calendar, Target, Sparkles, TrendingUp, DollarSign, Lightbulb, FileText, CheckCircle2, Search, X } from 'lucide-react';
+import { collection, query, where, getDocs, doc, getDoc } from 'firebase/firestore';
+import { ScanSearch, Calculator, FolderArchive, Calendar, Target, Sparkles, TrendingUp, DollarSign, Lightbulb, FileText, CheckCircle2, Search, X, Clapperboard, Compass, Heart, Eye, MessageSquareText } from 'lucide-react';
+import { HubItem, formatCount } from '@/lib/hub';
+import { PROMPT_MODES } from '@/lib/promptStudio';
 import Link from 'next/link';
 
 export default function ActionsPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState<'diagnostics' | 'calculations' | 'ideas' | 'proposals' | 'estudia'>('diagnostics');
+  const [activeTab, setActiveTab] = useState<'diagnostics' | 'calculations' | 'ideas' | 'proposals' | 'estudia' | 'prompts' | 'references'>('diagnostics');
   const [searchQuery, setSearchQuery] = useState('');
   
   const [diagnoses, setDiagnoses] = useState<any[]>([]);
@@ -18,6 +20,8 @@ export default function ActionsPage() {
   const [ideas, setIdeas] = useState<any[]>([]);
   const [proposals, setProposals] = useState<any[]>([]);
   const [estudiaGens, setEstudiaGens] = useState<any[]>([]);
+  const [prompts, setPrompts] = useState<any[]>([]);
+  const [references, setReferences] = useState<(HubItem & { savedAt: string })[]>([]);
   const [loading, setLoading] = useState(true);
 
   const filteredDiagnoses = diagnoses.filter(d => {
@@ -63,6 +67,23 @@ export default function ActionsPage() {
     );
   });
 
+  const filteredPrompts = prompts.filter(p => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return (
+      p.description?.toLowerCase().includes(q) ||
+      p.mode?.toLowerCase().includes(q) ||
+      p.result?.prompt?.toLowerCase().includes(q) ||
+      p.result?.ficha?.some((f: any) => f.valor?.toLowerCase().includes(q))
+    );
+  });
+
+  const filteredReferences = references.filter(r => {
+    if (!searchQuery) return true;
+    const q = searchQuery.toLowerCase();
+    return [r.author, r.tema, r.nicho, r.formato, r.gancho].some(v => v?.toLowerCase().includes(q));
+  });
+
   const filteredEstudia = estudiaGens.filter(e => {
     if (!searchQuery) return true;
     return e.status?.toLowerCase().includes(searchQuery.toLowerCase());
@@ -80,9 +101,25 @@ export default function ActionsPage() {
         const propQ = query(collection(db, 'proposals'), where('userId', '==', user.uid));
         const estudiaQ = query(collection(db, 'estudia'), where('userId', '==', user.uid));
         
-        const [diagSnap, calcSnap, ideaSnap, propSnap, estudiaSnap] = await Promise.all([
-          getDocs(diagQ), getDocs(calcQ), getDocs(ideaQ), getDocs(propQ), getDocs(estudiaQ)
+        const promptQ = query(collection(db, 'prompts'), where('userId', '==', user.uid));
+        const [diagSnap, calcSnap, ideaSnap, propSnap, estudiaSnap, promptSnap, favSnap] = await Promise.all([
+          getDocs(diagQ), getDocs(calcQ), getDocs(ideaQ), getDocs(propQ), getDocs(estudiaQ), getDocs(promptQ),
+          getDocs(collection(db, 'users', user.uid, 'hub_favorites')),
         ]);
+        const byDate = (a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || '');
+        setPrompts(promptSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort(byDate));
+
+        // Referências salvas: favoritos do Hub cruzados com o catálogo (thumb, tema, métricas).
+        if (!favSnap.empty) {
+          const savedAt = new Map(favSnap.docs.map(d => [d.id, String(d.data().createdAt || '')]));
+          const meta = await getDoc(doc(db, 'hub_catalog', 'meta'));
+          if (meta.exists()) {
+            const pages = (meta.data() as any).pages as number;
+            const all = await Promise.all(Array.from({ length: pages }, (_, i) => getDoc(doc(db, 'hub_catalog', `page_${i}`))));
+            const items = all.flatMap(snap => (snap.exists() ? (snap.data().items as HubItem[]) : []));
+            setReferences(items.filter(i => savedAt.has(i.id)).map(i => ({ ...i, savedAt: savedAt.get(i.id)! })).sort((a, b) => b.savedAt.localeCompare(a.savedAt)));
+          }
+        }
         
         const loadedDiag = diagSnap.docs.map(d => ({ id: d.id, ...d.data() })).sort((a: any, b: any) => {
           return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
@@ -125,7 +162,7 @@ export default function ActionsPage() {
         </div>
         <h1 className="text-3xl font-bold text-white tracking-tight">Minhas Ações</h1>
         <p className="text-gray-400 font-light tracking-wide">
-          Acesse o histórico completo de perfis auditados e orçamentos dimensionados.
+          Tudo o que você gerou na plataforma: diagnósticos, orçamentos, ideias, propostas, prompts, fotos e referências salvas.
         </p>
       </div>
 
@@ -161,6 +198,18 @@ export default function ActionsPage() {
             className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'estudia' ? 'bg-teal-500 text-white shadow-[0_0_15px_rgba(20,184,166,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
           >
             <Sparkles className="w-4 h-4" /> Fotos de Estúdio
+          </button>
+          <button
+            onClick={() => { setActiveTab('prompts'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'prompts' ? 'bg-purple-500 text-white shadow-[0_0_15px_rgba(168,85,247,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <Clapperboard className="w-4 h-4" /> Prompts
+          </button>
+          <button
+            onClick={() => { setActiveTab('references'); setSearchQuery(''); }}
+            className={`flex flex-shrink-0 items-center gap-2 px-6 py-3 rounded-xl text-sm font-semibold transition-all duration-300 ${activeTab === 'references' ? 'bg-orange-400 text-black shadow-[0_0_15px_rgba(251,146,60,0.4)]' : 'bg-black/20 text-gray-400 hover:bg-white/5 border border-white/5'}`}
+          >
+            <Compass className="w-4 h-4" /> Referências salvas
           </button>
         </div>
 
@@ -343,10 +392,22 @@ export default function ActionsPage() {
                         </div>
                       </div>
 
-                      <div className="space-y-3 mb-6">
-                        <p className="text-sm text-gray-400 flex justify-between">
-                          <span>Modo:</span> <span className="text-white capitalize">{idea.modo}</span>
-                        </p>
+                      <div className="space-y-2 mb-6">
+                        {idea.result_json?.version === 2 ? (
+                          <>
+                            {idea.result_json.ideias.slice(0, 3).map((g: any, k: number) => (
+                              <p key={k} className="text-sm text-gray-300 truncate">· {g.titulo}</p>
+                            ))}
+                            {idea.result_json.ideias.length > 3 && <p className="text-xs text-gray-500">+ {idea.result_json.ideias.length - 3} ideias</p>}
+                            {idea.result_json.ideias.some((g: any) => g.legenda) && (
+                              <p className="text-xs text-gray-400 flex items-center gap-1"><MessageSquareText className="w-3 h-3" /> {idea.result_json.ideias.filter((g: any) => g.legenda).length} legenda(s) gerada(s)</p>
+                            )}
+                          </>
+                        ) : (
+                          <p className="text-sm text-gray-400 flex justify-between">
+                            <span>Modo:</span> <span className="text-white capitalize">{idea.modo}</span>
+                          </p>
+                        )}
                       </div>
 
                       <div className="pt-4 border-t border-white/5 flex items-center justify-between">
@@ -356,6 +417,77 @@ export default function ActionsPage() {
                         </div>
                       </div>
                     </GlassCard>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aba de Prompts */}
+          {activeTab === 'prompts' && (
+            <div>
+              {filteredPrompts.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Clapperboard className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">{prompts.length === 0 ? 'Nenhum prompt gerado ainda.' : 'Nenhum prompt encontrado.'}</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">{prompts.length === 0 ? 'Vá em Gerador de Prompts para criar o primeiro.' : 'Tente buscar por outro termo.'}</p>
+                </GlassCard>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {filteredPrompts.map(p => (
+                    <Link key={p.id} href={`/dashboard/prompt-studio?id=${p.id}`} className="block">
+                      <GlassCard className="p-6 border border-white/5 hover:border-purple-500/30 transition-all duration-300 group relative overflow-hidden h-full">
+                        <div className="absolute top-0 right-0 w-32 h-32 bg-purple-500/5 rounded-bl-full -z-10 blur-xl group-hover:bg-purple-500/10 transition-all"></div>
+                        <div className="flex justify-between items-start mb-4">
+                          <div className="flex items-center gap-2 text-purple-300">
+                            <Clapperboard className="w-5 h-5" />
+                            <span className="font-bold tracking-tight">{PROMPT_MODES.find(m => m.id === p.mode)?.label || 'Prompt'}</span>
+                          </div>
+                          <div className="px-3 py-1 rounded-full text-xs font-bold bg-purple-500/10 text-purple-300 truncate max-w-[50%]">
+                            {p.result?.ficha?.find((f: any) => f.item === 'Modelo')?.valor || ''}
+                          </div>
+                        </div>
+                        <p className="text-sm text-gray-300 line-clamp-3 mb-6">{p.description || p.result?.prompt?.slice(0, 160)}</p>
+                        <div className="pt-4 border-t border-white/5 flex items-center gap-2 text-gray-500 text-xs font-light">
+                          <Calendar className="w-3 h-3" />
+                          {new Date(p.createdAt).toLocaleDateString('pt-BR')}
+                        </div>
+                      </GlassCard>
+                    </Link>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Aba de Referências salvas (favoritos do Hub) */}
+          {activeTab === 'references' && (
+            <div>
+              {filteredReferences.length === 0 ? (
+                <GlassCard className="p-12 flex flex-col items-center justify-center border-white/5 opacity-70">
+                  <Heart className="w-12 h-12 text-gray-600 mb-4" />
+                  <p className="text-gray-400 font-medium text-center">{references.length === 0 ? 'Nenhuma referência salva ainda.' : 'Nenhuma referência encontrada.'}</p>
+                  <p className="text-gray-500 text-sm font-light mt-2">{references.length === 0 ? 'No Hub de Referências, toque em Favoritar nos reels que quiser guardar.' : 'Tente buscar por outro termo.'}</p>
+                </GlassCard>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+                  {filteredReferences.map(r => (
+                    <Link key={r.id} href={`/dashboard/hub?open=${r.id}`} className="group block rounded-2xl overflow-hidden border border-white/5 bg-black/30 hover:border-orange-400/40 transition-all">
+                      <div className="relative aspect-[9/16] bg-black">
+                        {/* eslint-disable-next-line @next/next/no-img-element */}
+                        <img src={r.thumb} alt={r.tema} loading="lazy" className="w-full h-full object-cover opacity-90 group-hover:opacity-100" />
+                        <div className="absolute inset-x-0 bottom-0 h-1/2 bg-gradient-to-t from-black/90 to-transparent" />
+                        <Heart className="absolute top-2 right-2 w-4 h-4 text-pink-400 fill-current" />
+                        <div className="absolute bottom-2 left-2 right-2">
+                          <p className="text-[11px] text-white/90 flex items-center gap-1"><Eye className="w-3 h-3" />{formatCount(r.views)}</p>
+                          <p className="text-sm font-semibold text-white leading-snug line-clamp-2">{r.tema}</p>
+                        </div>
+                      </div>
+                      <div className="p-2.5">
+                        <p className="text-[11px] text-gray-400 truncate">@{r.author}</p>
+                        <p className="text-[10px] text-orange-300 truncate">{r.nicho} · {r.formato}</p>
+                      </div>
                     </Link>
                   ))}
                 </div>
