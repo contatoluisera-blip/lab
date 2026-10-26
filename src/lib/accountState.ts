@@ -106,8 +106,8 @@ export interface ToolCheck {
  * assinatura → pagamento → plano inclui a ferramenta → saldo.
  * Só o bloqueio "plano não inclui" fala em upgrade.
  */
-export function checkTool(state: AccountState, trialUsed: AccountProfile['trialUsed'], tool: ToolId): ToolCheck {
-  const cost = TOOL_COSTS[tool] ?? 1;
+export function checkTool(state: AccountState, trialUsed: AccountProfile['trialUsed'], tool: ToolId, costOverride?: number): ToolCheck {
+  const cost = costOverride ?? TOOL_COSTS[tool] ?? 1;
   const trial = FREE_FIRST_USE && cost > 0 && !trialUsed?.[tool];
 
   if (state.status === 'none') {
@@ -124,7 +124,10 @@ export function checkTool(state: AccountState, trialUsed: AccountProfile['trialU
     const when = state.renewsAt
       ? `Eles renovam em ${formatDate(state.renewsAt)}.`
       : state.status === 'active' ? 'Eles renovam na próxima fatura.' : 'Sua conta não tem renovação automática.';
-    return { ok: false, reason: 'no_credits', cost, trial, message: `Seus créditos acabaram (saldo: ${state.credits}). ${when}` };
+    const message = state.credits > 0
+      ? `Este uso consome ${charge} créditos e seu saldo é ${state.credits}. ${when}`
+      : `Seus créditos acabaram (saldo: 0). ${when}`;
+    return { ok: false, reason: 'no_credits', cost, trial, message };
   }
   return { ok: true, cost, trial };
 }

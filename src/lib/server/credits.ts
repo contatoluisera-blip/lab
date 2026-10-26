@@ -19,7 +19,8 @@ export interface ChargeResult {
  * Garante: acesso pelo plano, 1º uso grátis, saldo nunca negativo, registro no extrato.
  * Lança HttpError 402 (sem créditos) ou 403 (plano sem acesso).
  */
-export async function chargeCredit(uid: string, tool: ToolId): Promise<ChargeResult> {
+/** `costOverride`: custo deste uso quando varia com o pedido (ex.: quantidade de ideias). */
+export async function chargeCredit(uid: string, tool: ToolId, costOverride?: number): Promise<ChargeResult> {
   const userRef = adminDb.collection('users').doc(uid) as admin.firestore.DocumentReference;
 
   return adminDb.runTransaction(async (tx: admin.firestore.Transaction) => {
@@ -30,7 +31,7 @@ export async function chargeCredit(uid: string, tool: ToolId): Promise<ChargeRes
 
     // Mesma regra que as telas usam para exibir: assinatura → pagamento → acesso → saldo.
     const state = getAccountState(data);
-    const check = checkTool(state, data.trialUsed, tool);
+    const check = checkTool(state, data.trialUsed, tool, costOverride);
     if (!check.ok) {
       const status = check.reason === 'no_credits' || check.reason === 'payment_issue' ? 402 : 403;
       throw new HttpError(status, check.reason!, check.message!);

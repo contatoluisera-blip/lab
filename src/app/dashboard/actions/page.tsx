@@ -46,9 +46,10 @@ export default function ActionsPage() {
     return (
       i.clientName?.toLowerCase().includes(query) ||
       i.modo?.toLowerCase().includes(query) ||
-      i.result_json?.ideias_geradas?.some((g: any) => 
-        g.titulo?.toLowerCase().includes(query) || 
-        g.descricao?.toLowerCase().includes(query)
+      [...(i.result_json?.ideias || []), ...(i.result_json?.ideias_geradas || [])].some((g: any) =>
+        g.titulo?.toLowerCase().includes(query) ||
+        g.descricao?.toLowerCase().includes(query) ||
+        g.ganchos?.falado?.toLowerCase().includes(query)
       )
     );
   });
@@ -338,7 +339,7 @@ export default function ActionsPage() {
                           <span className="font-bold tracking-tight capitalize">{idea.clientName || idea.modo}</span>
                         </div>
                         <div className="px-3 py-1 rounded-full text-xs font-bold bg-brand-neon/10 text-brand-neon">
-                          {idea.result_json?.ideias_geradas?.length || 0} Ideias
+                          {idea.result_json?.ideias?.length || idea.result_json?.ideias_geradas?.length || 0} Ideias
                         </div>
                       </div>
 

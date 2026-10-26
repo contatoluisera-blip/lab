@@ -15,6 +15,8 @@ export interface ToolContext {
 interface ToolOptions {
   /** Se false, a rota não cobra crédito (ex.: consulta de status). Padrão: true. */
   charge?: boolean;
+  /** Custo em créditos deste uso, quando depende do pedido. Padrão: TOOL_COSTS. */
+  cost?: (body: any) => number;
   /** Descrição curta para o registro em `platform_actions`. */
   logDescription?: (body: any) => string;
 }
@@ -52,7 +54,7 @@ export function withTool<T>(
       user = await requireUser(req);
       const body = await req.json().catch(() => ({}));
 
-      if (shouldCharge) charge = await chargeCredit(user.uid, tool);
+      if (shouldCharge) charge = await chargeCredit(user.uid, tool, options.cost?.(body));
 
       const ctx: ToolContext = {
         user,

@@ -103,6 +103,19 @@ export default function PromptStudioPage() {
     const params = new URLSearchParams(window.location.search);
     const id = params.get('id');
     if (id) openSaved(id);
+    // Vindo do Gerador de Ideias (?idea=<id>&i=<n>): frame-chave da abertura da ideia.
+    const ideaId = params.get('idea');
+    if (ideaId) {
+      getDoc(doc(db, 'ideas', ideaId)).then(snap => {
+        if (!snap.exists() || snap.data().userId !== user?.uid) return;
+        const data = snap.data();
+        const idea = data.result_json?.ideias?.[Number(params.get('i') || 0)];
+        if (!idea) return;
+        changeMode('t2i');
+        setChoices({ proporcao: '9:16 (vertical)' });
+        setDescription(`Frame de abertura do vídeo "${idea.titulo}" (${idea.formato}, nicho: ${data.briefing?.nicho || 'não informado'}). Primeiro segundo: ${idea.ganchos?.visual} Cena: ${idea.beats?.[0]?.visual || ''}`.slice(0, 2000));
+      }).catch(err => console.error('[prompts] falha ao carregar a ideia:', err));
+    }
     // Vindo do Hub de Referências (?hub=<id>): Text to Image com a estética do reel como referência.
     const hubId = params.get('hub');
     if (hubId) {

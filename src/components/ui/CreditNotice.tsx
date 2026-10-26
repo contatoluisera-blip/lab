@@ -9,12 +9,12 @@ import { ToolId } from '@/lib/planConfig';
  * Aviso abaixo do botão de gerar: custo em créditos do próximo uso.
  * Lê o custo da tabela central (planConfig), então acompanha qualquer mudança de preço.
  */
-export function CreditNotice({ toolId }: { toolId: ToolId }) {
+export function CreditNotice({ toolId, cost: costOverride }: { toolId: ToolId; cost?: number }) {
   const { userProfile, profileLoading, account, hasToolAccess, toolCost } = useUserProfile();
 
   if (profileLoading || !userProfile || !hasToolAccess(toolId)) return null;
 
-  const { cost, trial } = toolCost(toolId);
+  const { cost, trial } = toolCost(toolId, costOverride);
 
   if (cost === 0) {
     return (

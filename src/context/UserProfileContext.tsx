@@ -41,9 +41,9 @@ interface UserProfileContextType {
    * Checagem prévia, só para mostrar a mensagem certa antes de chamar a API.
    * A cobrança de verdade acontece no servidor, dentro da rota da ferramenta.
    */
-  canUseTool: (tool: ToolId) => ToolCheck;
+  canUseTool: (tool: ToolId, cost?: number) => ToolCheck;
   /** Custo em créditos e se o próximo uso é o teste grátis. */
-  toolCost: (tool: ToolId) => { cost: number; trial: boolean };
+  toolCost: (tool: ToolId, cost?: number) => { cost: number; trial: boolean };
   /** Recarrega o perfil do Firestore (chame após usar uma ferramenta). */
   refreshProfile: () => Promise<void>;
   /** Atualiza o saldo local a partir da resposta de uma ferramenta, sem ida ao banco. */
@@ -123,12 +123,12 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
   const account = useMemo(() => getAccountState(userProfile), [userProfile]);
 
   const canUseTool = useCallback(
-    (tool: ToolId): ToolCheck => checkTool(account, userProfile?.trialUsed, tool),
+    (tool: ToolId, cost?: number): ToolCheck => checkTool(account, userProfile?.trialUsed, tool, cost),
     [account, userProfile]
   );
 
-  const toolCost = useCallback((tool: ToolId) => {
-    const { cost, trial } = canUseTool(tool);
+  const toolCost = useCallback((tool: ToolId, override?: number) => {
+    const { cost, trial } = canUseTool(tool, override);
     return { cost, trial };
   }, [canUseTool]);
 

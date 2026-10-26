@@ -20,6 +20,7 @@ export type ToolId =
   | 'estudia'
   | 'prompts'
   | 'proposal-rewrite'
+  | 'caption'
   | 'hub';
 
 export interface PlanConfig {
@@ -37,7 +38,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub'],
     courses: false,
   },
   pro: {
@@ -45,7 +46,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
     courses: false,
   },
   elite: {
@@ -75,8 +76,16 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   estudia: 1,
   prompts: 1,
   'proposal-rewrite': 0, // ajuste fino de um trecho: custo ~R$ 0,01, não consome crédito
+  caption: 1, // legenda do post de uma ideia, gerada à parte
   hub: 0, // navegar no hub é gratuito; as ações de IA cobram na ferramenta de destino
 };
+
+/** Gerador de Ideias: 1 crédito até 5 ideias, 2 créditos de 6 a 10 (o custo de IA cresce com a quantidade). */
+export const IDEAS_MAX = 10;
+export function ideasCost(quantidade: unknown) {
+  const n = Math.min(IDEAS_MAX, Math.max(1, Math.round(Number(quantidade) || 5)));
+  return n > 5 ? 2 : 1;
+}
 
 /** Primeiro uso de cada ferramenta é gratuito (teste). */
 export const FREE_FIRST_USE = true;

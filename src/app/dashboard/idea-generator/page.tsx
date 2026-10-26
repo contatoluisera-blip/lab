@@ -1,644 +1,622 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
+import Link from 'next/link';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { 
-  Lightbulb, 
-  Send, 
-  Copy, 
-  CheckCircle2, 
-  Target, 
-  PenTool,
-  Video,
-  Clock,
-  PlayCircle,
-  FileDown
+import {
+  Lightbulb, Sparkles, Copy, CheckCircle2, FileDown, ChevronDown, Compass, X, Search, Eye,
+  Zap, Clapperboard, ListChecks, CalendarClock, Film, Scissors, Target, AlertTriangle, MessageSquareText, Repeat,
 } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
 import { CreditNotice } from '@/components/ui/CreditNotice';
 import { db } from '@/lib/firebase';
-import { collection, getDocs, query, where, addDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc } from 'firebase/firestore';
 import { addNotification } from '@/lib/notifications';
-import { streamTool, parseModelJson } from '@/lib/client/api';
+import { streamTool, parseModelJson, callTool } from '@/lib/client/api';
+import { AUTO, IDEA_FIELDS, IDEA_GROUPS, IdeaV2, IdeasResultV2 } from '@/lib/ideaStudio';
+import { IDEAS_MAX, ideasCost } from '@/lib/planConfig';
+import { HubItem, formatCount, hubSearchText, normalizeText } from '@/lib/hub';
+
+type Choices = Record<string, string>;
+
+const fmtTime = (s: number) => `${Math.round(s)}s`;
+
+function scriptText(idea: IdeaV2) {
+  return [
+    `IDEIA: ${idea.titulo}`,
+    `${idea.formato} · ${idea.etapaFunil} · ${idea.pilar} · ${idea.duracaoSeg}s`,
+    '',
+    `GANCHO (${idea.ganchos.tipo})`,
+    `Falado: ${idea.ganchos.falado}`,
+    `Texto na tela: ${idea.ganchos.textoTela}`,
+    `Visual: ${idea.ganchos.visual}`,
+    '',
+    'ROTEIRO',
+    ...idea.beats.map(b => `[${fmtTime(b.inicio)}–${fmtTime(b.fim)}] VISUAL: ${b.visual}${b.fala ? ` | FALA: "${b.fala}"` : ''}${b.textoTela ? ` | TELA: ${b.textoTela}` : ''}${b.som ? ` | SOM: ${b.som}` : ''}`),
+    '',
+    `CTA: ${idea.cta}`,
+    '',
+    'TAKES',
+    ...idea.takes.map(t => `${t.numero}. ${t.descricao} — ${t.plano}, ${t.angulo}, ${t.movimento} (${t.local})`),
+    '',
+    `EDIÇÃO: ${idea.edicao.ritmo} Legendas: ${idea.edicao.legendas} Trilha: ${idea.edicao.trilha} Efeitos: ${idea.edicao.efeitos}`,
+    ...(idea.legenda ? ['', 'LEGENDA DO POST', idea.legenda.texto, '', `Palavras-chave: ${idea.legenda.palavrasChave.join(', ')}`] : []),
+  ].join('\n');
+}
 
 export default function IdeaGeneratorPage() {
   const { user } = useAuth();
   const { hasToolAccess, canUseTool, refreshProfile } = useUserProfile();
-  
-  // Tabs State
-  const [modo, setModo] = useState<'estrategico' | 'livre'>('estrategico');
-  
-  // Data State
+
+  // Briefing
+  const [cliente, setCliente] = useState('');
+  const [nicho, setNicho] = useState('');
+  const [publico, setPublico] = useState('');
+  const [pedido, setPedido] = useState('');
+  const [choices, setChoices] = useState<Choices>({});
+  const [quantidade, setQuantidade] = useState(5);
+  const [diagnosisId, setDiagnosisId] = useState('');
+  const [calculationId, setCalculationId] = useState('');
+  const [hubRefs, setHubRefs] = useState<HubItem[]>([]);
+  const [openGroup, setOpenGroup] = useState<string | null>(null);
+
+  // Dados do usuário
   const [diagnostics, setDiagnostics] = useState<any[]>([]);
   const [calculations, setCalculations] = useState<any[]>([]);
-  
-  // UI State
+
+  // Resultado
   const [loading, setLoading] = useState(false);
+  const [progress, setProgress] = useState('');
+  const [error, setError] = useState('');
+  const [result, setResult] = useState<IdeasResultV2 | null>(null);
+  const [legacy, setLegacy] = useState<any>(null);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  const [copied, setCopied] = useState<number | null>(null);
+  const [captionBusy, setCaptionBusy] = useState<number | null>(null);
   const [loadingPdf, setLoadingPdf] = useState(false);
-  const [result, setResult] = useState<any>(null);
-  const [copiedIndex, setCopiedIndex] = useState<number | null>(null);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
-  // Modo Estratégico Form State
-  const [selectedClient, setSelectedClient] = useState('');
-  const [selectedDiagnosis, setSelectedDiagnosis] = useState('');
-  const [selectedCalculation, setSelectedCalculation] = useState('');
-  const [quantidadeIdeias1, setQuantidadeIdeias1] = useState('8');
-  const [focoCriativo, setFocoCriativo] = useState('Autoridade');
-  const [observacoes, setObservacoes] = useState('');
+  const cost = ideasCost(quantidade);
 
-  // Modo Livre Form State
-  const [nicho, setNicho] = useState('');
-  const [tipoCliente, setTipoCliente] = useState('');
-  const [publicoAlvo, setPublicoAlvo] = useState('');
-  const [objetivo, setObjetivo] = useState('Atrair');
-  const [tema, setTema] = useState('');
-  const [plataforma, setPlataforma] = useState('Instagram Reels');
-  const [quantidadeIdeias2, setQuantidadeIdeias2] = useState('5');
-  const [nivelProducao, setNivelProducao] = useState('Intermediário');
-  const [tom, setTom] = useState('');
-  const [local, setLocal] = useState('');
-  const [materiais, setMateriais] = useState('');
-  const [restricoes, setRestricoes] = useState('');
-  const [cta, setCta] = useState('');
-
-  // Load Firestore Data
+  // Diagnósticos e orçamentos do usuário (para vincular).
   useEffect(() => {
-    async function fetchData() {
-      if (!user) return;
+    if (!user) return;
+    (async () => {
       try {
-        const diagRef = collection(db, 'diagnoses');
-        const calcRef = collection(db, 'calculations');
-        
-        const [diagSnap, calcSnap] = await Promise.all([
-          getDocs(query(diagRef, where('userId', '==', user.uid))),
-          getDocs(query(calcRef, where('userId', '==', user.uid)))
+        const [d, c] = await Promise.all([
+          getDocs(query(collection(db, 'diagnoses'), where('userId', '==', user.uid))),
+          getDocs(query(collection(db, 'calculations'), where('userId', '==', user.uid))),
         ]);
-
-        const diags = diagSnap.docs
-          .map(d => ({ id: d.id, ...d.data() } as any))
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        
-        const calcs = calcSnap.docs
-          .map(d => ({ id: d.id, ...d.data() } as any))
-          .sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-
-        setDiagnostics(diags);
-        setCalculations(calcs);
-      } catch (err) {
-        console.error("Erro ao buscar dados", err);
+        const byDate = (a: any, b: any) => (b.createdAt || '').localeCompare(a.createdAt || '');
+        setDiagnostics(d.docs.map(x => ({ id: x.id, ...x.data() } as any)).sort(byDate));
+        setCalculations(c.docs.map(x => ({ id: x.id, ...x.data() } as any)).sort(byDate));
+      } catch (e) {
+        console.error('[ideias] falha ao carregar diagnósticos/orçamentos:', e);
       }
-    }
-    fetchData();
+    })();
   }, [user]);
 
-  // Carregar do Histórico via ID
+  // Histórico (?id=) e referência vinda do Hub (?hub=).
   useEffect(() => {
-    const loadFromHistory = async () => {
-      const params = new URLSearchParams(window.location.search);
-      const historyId = params.get('id');
-      
-      if (historyId && user) {
-        try {
-          setLoading(true);
-          const docRef = doc(db, 'ideas', historyId);
-          const docSnap = await getDoc(docRef);
-          
-          if (docSnap.exists() && docSnap.data().userId === user.uid) {
-            const data = docSnap.data();
-            setModo(data.modo);
-            if (data.modo === 'estrategico') {
-              setSelectedClient(data.clientName);
-            } else {
-              setNicho(data.clientName);
-            }
-            setResult(data.result_json);
-          }
-        } catch (err) {
-          console.error("Erro ao carregar histórico:", err);
-        } finally {
-          setLoading(false);
+    if (!user) return;
+    const params = new URLSearchParams(window.location.search);
+    const id = params.get('id');
+    if (id) {
+      getDoc(doc(db, 'ideas', id)).then(snap => {
+        if (!snap.exists() || snap.data().userId !== user.uid) return;
+        const data = snap.data();
+        if (data.result_json?.version === 2) {
+          setResult(data.result_json);
+          setSavedId(snap.id);
+          const b = data.briefing || {};
+          setCliente(b.cliente || ''); setNicho(b.nicho || ''); setPublico(b.publico || ''); setPedido(b.pedido || '');
+          setChoices(b.choices || {}); setQuantidade(b.quantidade || 5);
+        } else {
+          setLegacy(data.result_json);
+          setCliente(data.clientName || '');
         }
-      }
-    };
-    
-    loadFromHistory();
-  }, [user]);
-
-  // Vindo do Hub de Referências (?hub=<id>): briefing livre preenchido com o reel de referência.
-  useEffect(() => {
-    const hubId = new URLSearchParams(window.location.search).get('hub');
-    if (!hubId || !user) return;
-    getDoc(doc(db, 'hub_videos', hubId)).then(snap => {
-      if (!snap.exists()) return;
-      const v = snap.data();
-      const ai = v.ai || {};
-      setModo('livre');
-      setNicho(ai.nicho || '');
-      setPlataforma('Instagram Reels');
-      setTema(`Ideia inspirada no reel de @${v.author} (${v.url}): ${ai.tema}. Formato: ${ai.formato}. Gancho: ${ai.gancho} Por que funcionou: ${ai.porqueFuncionou} Adapte o mecanismo, sem copiar o conteúdo.`);
-    }).catch(err => console.error('[ideias] falha ao carregar referência do hub:', err));
-  }, [user]);
-
-  // Clients logic (extract unique clients from diagnostics)
-  const uniqueClients = Array.from(new Set(diagnostics.map(d => d.handle || d.clientName))).filter(Boolean);
-
-  const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-
-    const check = canUseTool('ideas');
-    if (!check.ok) {
-      alert(check.message!);
-      return;
+      }).catch(e => console.error('[ideias] falha ao abrir histórico:', e));
     }
+    const hubId = params.get('hub');
+    if (hubId) {
+      getDoc(doc(db, 'hub_videos', hubId)).then(snap => {
+        if (!snap.exists()) return;
+        const v = snap.data(); const ai = v.ai || {};
+        setHubRefs([{ id: snap.id, url: v.url, author: v.author, thumb: v.thumb, views: v.views, likes: v.likes, comments: v.comments, postedAt: v.postedAt, score: v.score, nicho: ai.nicho, tema: ai.tema, formato: ai.formato, gancho: ai.gancho, tipoGancho: ai.tipoGancho, porque: ai.porqueFuncionou, resumo: ai.resumoVisual, kw: ai.palavrasChave || [], caption: '' }]);
+        if (ai.nicho) setNicho(n => n || ai.nicho);
+      }).catch(e => console.error('[ideias] falha ao carregar referência do hub:', e));
+    }
+  }, [user]);
+
+  const decidedCount = (group: string) => IDEA_FIELDS.filter(f => f.group === group && choices[f.id] && choices[f.id] !== AUTO).length;
+
+  const handleGenerate = async () => {
+    const check = canUseTool('ideas', cost);
+    if (!check.ok) { setError(check.message!); return; }
+    if (!nicho.trim() && !diagnosisId) { setError('Informe o nicho ou vincule um diagnóstico.'); return; }
 
     setLoading(true);
+    setError('');
     setResult(null);
+    setLegacy(null);
+    setSavedId(null);
+    setProgress('Lendo o briefing e planejando a rodada...');
 
-    let payload: any = { modo };
-
-    if (modo === 'estrategico') {
-      const diagData = diagnostics.find(d => d.id === selectedDiagnosis);
-      const calcData = calculations.find(c => c.id === selectedCalculation);
-      payload = {
-        ...payload,
-        diagnostico: diagData,
-        orcamento: calcData,
-        quantidadeIdeias: quantidadeIdeias1,
-        focoCriativo,
-        observacoes
-      };
-    } else {
-      payload = {
-        ...payload,
-        nicho, tipoCliente, publicoAlvo, objetivo, tema, plataforma,
-        quantidadeIdeias: quantidadeIdeias2, nivelProducao,
-        tom, local, materiais, restricoes, cta
-      };
-    }
-
+    const briefing = { cliente, nicho, publico, pedido, choices, quantidade };
     try {
-      // O servidor cobra o crédito e envia o texto em streaming (evita o limite de tempo da Netlify).
-      const fullText = await streamTool('/api/tools/idea-generator', payload);
-      const json = { success: true, data: parseModelJson(fullText), error: '' };
+      const text = await streamTool('/api/tools/idea-generator', {
+        ...briefing, diagnosisId: diagnosisId || undefined, calculationId: calculationId || undefined, hubRefs: hubRefs.map(r => r.id),
+      }, partial => {
+        const done = (partial.match(/"referenciaUsada"/g) || []).length;
+        if (partial.trim()) setProgress(`Roteirizando as ideias... ${done} de ${quantidade} prontas`);
+      });
+      const data = parseModelJson<Omit<IdeasResultV2, 'version'>>(text);
+      if (!data.ideias?.length) throw new Error('A IA não devolveu as ideias. Tente de novo.');
+      const full: IdeasResultV2 = { version: 2, ...data };
+      setResult(full);
       refreshProfile();
-      if (json.success) {
-        setResult(json.data);
-        if (user) {
-          addNotification(
-            user.uid,
-            'Ideias Criativas Geradas',
-            `O roteiro com ${json.data.ideias_geradas?.length || 5} ideias foi gerado com sucesso!`,
-            'success'
-          );
-          try {
-            await addDoc(collection(db, 'ideas'), {
-              userId: user.uid,
-              modo,
-              clientName: modo === 'estrategico' && selectedClient ? selectedClient : (nicho || 'Avulso'),
-              result_json: json.data,
-              createdAt: new Date().toISOString()
-            });
-          } catch (dbErr) {
-            console.error("Falha ao salvar ideia no Firestore:", dbErr);
-          }
+
+      if (user) {
+        try {
+          const ref = await addDoc(collection(db, 'ideas'), {
+            userId: user.uid,
+            modo: diagnosisId ? 'estrategico' : 'livre',
+            clientName: cliente || nicho || 'Avulso',
+            briefing,
+            result_json: full,
+            createdAt: new Date().toISOString(),
+          });
+          setSavedId(ref.id);
+        } catch (e) {
+          console.error('[ideias] falha ao salvar:', e);
         }
-      } else {
-        alert("Erro: " + json.error);
+        addNotification(user.uid, 'Ideias prontas', `${full.ideias.length} roteiros gerados para ${cliente || nicho}.`, 'success');
       }
     } catch (err: any) {
-      alert(err.message);
+      setError(err.message || 'Não foi possível gerar as ideias agora.');
     } finally {
       setLoading(false);
+      setProgress('');
     }
   };
 
-  const downloadPDF = async () => {
-    const reportElement = document.getElementById('pdf-report-content');
-    if (!reportElement) return;
+  const generateCaption = async (index: number) => {
+    if (!result) return;
+    const check = canUseTool('caption');
+    if (!check.ok) { setError(check.message!); return; }
+    setCaptionBusy(index);
+    setError('');
+    try {
+      const res = await callTool<IdeaV2['legenda']>('/api/tools/idea-caption', {
+        idea: result.ideias[index], nicho, cliente, compliance: choices.compliance,
+      });
+      const ideias = result.ideias.map((idea, i) => (i === index ? { ...idea, legenda: res.data } : idea));
+      const next = { ...result, ideias };
+      setResult(next);
+      refreshProfile();
+      if (savedId) await updateDoc(doc(db, 'ideas', savedId), { result_json: next }).catch(e => console.error('[ideias] falha ao salvar legenda:', e));
+    } catch (err: any) {
+      setError(err.message || 'Não foi possível gerar a legenda.');
+    } finally {
+      setCaptionBusy(null);
+    }
+  };
 
+  const copyIdea = (idea: IdeaV2, i: number) => {
+    navigator.clipboard.writeText(scriptText(idea));
+    setCopied(i);
+    setTimeout(() => setCopied(null), 1800);
+  };
+
+  const downloadPDF = async () => {
+    const el = document.getElementById('pdf-report-content');
+    if (!el) return;
     setLoadingPdf(true);
     try {
       const htmlToImage = await import('html-to-image');
       const { jsPDF } = await import('jspdf');
-
-      // Temporarily hide the copy buttons before taking screenshot
-      const copyButtons = reportElement.querySelectorAll('.copy-btn');
-      copyButtons.forEach(btn => (btn as HTMLElement).style.display = 'none');
-
-      const imgData = await htmlToImage.toPng(reportElement, { 
-        backgroundColor: '#0a0a0a',
-        pixelRatio: 2
-      });
-      
-      copyButtons.forEach(btn => (btn as HTMLElement).style.display = 'flex');
-
+      const hidden = el.querySelectorAll('.no-pdf');
+      hidden.forEach(b => ((b as HTMLElement).style.display = 'none'));
+      const imgData = await htmlToImage.toPng(el, { backgroundColor: '#0a0a0a', pixelRatio: 2 });
+      hidden.forEach(b => ((b as HTMLElement).style.display = ''));
       const img = new Image();
       img.src = imgData;
-      await new Promise((resolve) => { img.onload = resolve; });
-
-      const pdf = new jsPDF({
-        orientation: 'portrait',
-        unit: 'px',
-        format: [img.width, img.height]
-      });
-      
+      await new Promise(r => { img.onload = r; });
+      const pdf = new jsPDF({ orientation: 'portrait', unit: 'px', format: [img.width, img.height] });
       pdf.addImage(imgData, 'PNG', 0, 0, img.width, img.height);
-      const fileName = modo === 'estrategico' && selectedClient ? `Ideias_${selectedClient}.pdf` : `Ideias_Criativas.pdf`;
-      pdf.save(fileName);
+      pdf.save(`Ideias_${(cliente || nicho || 'Creator_Lab').replace(/\s+/g, '_')}.pdf`);
     } catch (err: any) {
-      alert(`Falha ao gerar PDF: ${err.message}`);
+      setError(`Falha ao gerar PDF: ${err.message}`);
     } finally {
       setLoadingPdf(false);
     }
   };
 
-  const copyIdeaToClipboard = (idea: any, index: number) => {
-    const text = `
-Ideia: ${idea.titulo}
-Objetivo: ${idea.objetivo_estrategico}
-Gancho: "${idea.gancho}"
-Conceito: ${idea.conceito}
-
-ROTEIRO:
-${idea.roteiro_base}
-
-TAKES E GRAVAÇÃO:
-${idea.lista_takes.map((t: string) => '- ' + t).join('\n')}
-Direção de Câmera: ${idea.direcao_captacao}
-
-EDIÇÃO E CTA:
-Direção de Edição: ${idea.direcao_edicao}
-CTA: ${idea.cta}
-    `.trim();
-
-    navigator.clipboard.writeText(text);
-    setCopiedIndex(index);
-    setTimeout(() => setCopiedIndex(null), 2000);
-  };
-
   return (
-    <div className="max-w-6xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      
+    <div className="max-w-7xl mx-auto space-y-8 pb-20 animate-in fade-in slide-in-from-bottom-4 duration-700">
       {/* Header */}
-      <div className="flex justify-between items-end mb-8">
+      <div className="flex justify-between items-end gap-4 flex-wrap">
         <div className="flex flex-col gap-2">
           <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-neon bg-brand-neon/10 text-sm font-medium w-fit mb-2">
             <Lightbulb className="w-4 h-4" />
             <span className="text-white">Motor Criativo</span>
           </div>
           <h1 className="text-3xl font-bold text-white tracking-tight">Gerador de Ideias</h1>
-          <p className="text-gray-400 font-light tracking-wide">Receba roteiros estruturados baseados na dor do seu cliente e no escopo vendido.</p>
+          <p className="text-gray-400">Roteiros prontos para gravar: gancho, fala, texto na tela e takes. O que você deixar em "Decidir por mim", a IA decide e explica.</p>
         </div>
-        
-        {result && (
-          <Button 
-              onClick={downloadPDF} 
-              className="bg-brand-neon/20 text-brand-neon hover:bg-brand-neon hover:text-black border border-brand-neon/50 h-11"
-              disabled={loadingPdf}
-          >
-             <FileDown className="w-4 h-4 mr-2" />
-             {loadingPdf ? 'Processando...' : 'Baixar PDF'}
+        {(result || legacy) && (
+          <Button onClick={downloadPDF} disabled={loadingPdf}
+            className="bg-brand-neon/20 text-brand-neon hover:bg-brand-neon hover:text-black border border-brand-neon/50 h-11">
+            <FileDown className="w-4 h-4 mr-2" />{loadingPdf ? 'Processando...' : 'Baixar PDF'}
           </Button>
         )}
       </div>
 
       <div className="grid lg:grid-cols-[400px_1fr] gap-8 items-start">
-        
-        {/* Formulário / Setup */}
-        <div className="space-y-6 lg:sticky lg:top-24">
-          <GlassCard className="p-2 border-white/5 flex gap-3">
-            <button 
-              onClick={() => setModo('estrategico')}
-              className={`flex-1 py-3 px-2 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'estrategico' ? 'bg-brand-neon text-black shadow-[0_0_20px_rgba(189,255,0,0.3)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              Modo Estratégico
-            </button>
-            <button 
-              onClick={() => setModo('livre')}
-              className={`flex-1 py-3 px-2 text-[11px] font-bold uppercase tracking-widest rounded-xl transition-all duration-300 ${modo === 'livre' ? 'bg-white text-black shadow-[0_0_20px_rgba(255,255,255,0.2)]' : 'text-gray-400 hover:text-white hover:bg-white/5'}`}
-            >
-              Modo Livre
-            </button>
-          </GlassCard>
-
-          <GlassCard className="p-6 border-white/10">
-            <form onSubmit={handleSubmit} className="space-y-5">
-              
-              {modo === 'estrategico' && (
-                <div className="space-y-5 animate-in fade-in slide-in-from-left-4 duration-500">
-                  <div className="p-4 rounded-xl bg-brand-neon/5 border border-brand-neon/10 text-brand-neon text-sm leading-relaxed">
-                    Use o diagnóstico e o orçamento aprovado para gerar ideias que não extrapolam a capacidade de produção.
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Cliente / Projeto</label>
-                    <select 
-                      required
-                      value={selectedClient} 
-                      onChange={(e) => setSelectedClient(e.target.value)} 
-                      className="w-full glass-input h-12 [&>option]:bg-black"
-                    >
-                      <option value="">Selecione um cliente...</option>
-                      {uniqueClients.map((c, i) => <option key={i} value={c as string}>{c}</option>)}
-                      <option value="avulso">-- Cliente Avulso --</option>
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Diagnóstico (Problema)</label>
-                    <select 
-                      value={selectedDiagnosis} 
-                      onChange={(e) => setSelectedDiagnosis(e.target.value)} 
-                      className="w-full glass-input h-12 [&>option]:bg-black"
-                    >
-                      <option value="">-- Não vincular --</option>
-                      {diagnostics.map((d) => (
-                        <option key={d.id} value={d.id}>
-                          @{d.handle || d.clientName} - Nota: {d.finalScore} ({new Date(d.createdAt).toLocaleDateString('pt-BR')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Orçamento (Escopo)</label>
-                    <select 
-                      value={selectedCalculation} 
-                      onChange={(e) => setSelectedCalculation(e.target.value)} 
-                      className="w-full glass-input h-12 [&>option]:bg-black"
-                    >
-                      <option value="">-- Não vincular --</option>
-                      {calculations.map((c) => (
-                        <option key={c.id} value={c.id}>
-                          {c.clientName ? `${c.clientName} - ` : ''}Pacote: {c.video_quantity} vídeos - {c.precoRecomendado} ({new Date(c.createdAt).toLocaleDateString('pt-BR')})
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Qtd Ideias</label>
-                      <input 
-                        type="number" 
-                        value={quantidadeIdeias1} 
-                        onChange={e => setQuantidadeIdeias1(e.target.value)} 
-                        className="w-full glass-input h-12"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Foco Criativo</label>
-                      <select value={focoCriativo} onChange={e => setFocoCriativo(e.target.value)} className="w-full glass-input h-12 [&>option]:bg-black">
-                        <option value="Autoridade">Autoridade</option>
-                        <option value="Vender">Vender</option>
-                        <option value="Atrair">Atrair novos</option>
-                        <option value="Quebrar Objeções">Quebrar Objeções</option>
-                        <option value="Bastidores">Bastidores</option>
-                        <option value="Misturar Objetivos">Misturado</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Observações / Restrições (Opcional)</label>
-                    <textarea 
-                      value={observacoes}
-                      onChange={e => setObservacoes(e.target.value)}
-                      placeholder="Ex: Não mostrar rosto, gravar em 1 diária..."
-                      className="w-full glass-input min-h-[80px] p-3 text-sm"
-                    />
-                  </div>
-                </div>
-              )}
-
-              {modo === 'livre' && (
-                <div className="space-y-5 animate-in fade-in slide-in-from-right-4 duration-500">
-                   <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-gray-300 text-sm leading-relaxed">
-                    Preencha o briefing detalhado para gerar ideias do zero sem depender de dados já salvos no sistema.
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Nicho / Segmento *</label>
-                    <input required value={nicho} onChange={e => setNicho(e.target.value)} placeholder="Ex: Clínica Odontológica" className="w-full glass-input h-12" />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Público-Alvo *</label>
-                      <input required value={publicoAlvo} onChange={e => setPublicoAlvo(e.target.value)} placeholder="Ex: Mães jovens" className="w-full glass-input h-12" />
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Objetivo *</label>
-                      <select value={objetivo} onChange={e => setObjetivo(e.target.value)} className="w-full glass-input h-12 [&>option]:bg-black">
-                        <option value="Atrair">Atrair</option>
-                        <option value="Vender">Vender</option>
-                        <option value="Educar">Educar</option>
-                        <option value="Conexão">Conexão</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Tema Específico *</label>
-                    <input required value={tema} onChange={e => setTema(e.target.value)} placeholder="Ex: Importância do clareamento antes do casamento" className="w-full glass-input h-12" />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Produção</label>
-                      <select value={nivelProducao} onChange={e => setNivelProducao(e.target.value)} className="w-full glass-input h-12 [&>option]:bg-black">
-                        <option value="Simples">Simples (Celular)</option>
-                        <option value="Intermediário">Intermediário</option>
-                        <option value="Avançado">Avançado (Cinema)</option>
-                      </select>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Qtd Ideias</label>
-                      <input type="number" value={quantidadeIdeias2} onChange={e => setQuantidadeIdeias2(e.target.value)} className="w-full glass-input h-12" />
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-xs font-bold text-gray-400 uppercase tracking-widest ml-1">Restrições (Opcional)</label>
-                    <input value={restricoes} onChange={e => setRestricoes(e.target.value)} placeholder="Ex: Sem usar áudio em off" className="w-full glass-input h-12" />
-                  </div>
-                </div>
-              )}
-
-              {hasToolAccess('ideas') ? (
-                <>
-                  <Button type="submit" className={`w-full h-14 font-bold uppercase tracking-widest text-xs mt-6 ${modo === 'estrategico' ? 'bg-brand-neon text-black hover:bg-brand-neon/90' : ''}`} disabled={loading}>
-                    {!loading ? <Target className="w-4 h-4 mr-2" /> : <div className="w-4 h-4 mr-2 border-2 border-current border-t-transparent rounded-full animate-spin" />}
-                    {modo === 'estrategico' ? 'Gerar Ideias Alinhadas' : 'Gerar Ideias Avulsas'}
-                  </Button>
-                  {!loading && <CreditNotice toolId="ideas" />}
-                </>
-              ) : (
-                <div className="mt-6">
-                  <UpgradeGate locked={true} requiredPlan="Pro" mode="button" />
-                </div>
-              )}
-            </form>
-          </GlassCard>
-        </div>
-
-        {/* Resultados */}
+        {/* Briefing */}
         <div className="space-y-6">
-          {!result && !loading && (
-            <div className="h-full min-h-[500px] border border-white/5 border-dashed rounded-2xl flex flex-col items-center justify-center text-center p-8 text-gray-500 bg-white/[0.01]">
-              <PenTool className="w-12 h-12 mb-4 opacity-20" />
-              <p className="text-sm uppercase tracking-widest font-bold">Aguardando Parâmetros</p>
-              <p className="text-xs mt-2 max-w-sm">Configure o motor criativo ao lado para receber um plano de conteúdo completo e estruturado.</p>
+          <GlassCard className="p-6 border-white/10 space-y-5">
+            {error && <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm break-words">{error}</div>}
+
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Cliente / projeto</label>
+              <input list="idea-clients" value={cliente} onChange={e => setCliente(e.target.value)} placeholder="Ex.: Clínica Sorriso Pleno" className="w-full glass-input h-11" />
+              <datalist id="idea-clients">{Array.from(new Set(diagnostics.map(d => d.handle).filter(Boolean))).map(h => <option key={h} value={h} />)}</datalist>
             </div>
-          )}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Nicho *</label>
+                <input value={nicho} onChange={e => setNicho(e.target.value)} placeholder="Ex.: Odontologia estética" className="w-full glass-input h-11" />
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Público</label>
+                <input value={publico} onChange={e => setPublico(e.target.value)} placeholder="Ex.: mulheres 25–45" className="w-full glass-input h-11" />
+              </div>
+            </div>
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Tema ou pedido da rodada</label>
+              <textarea value={pedido} onChange={e => setPedido(e.target.value)} rows={3} maxLength={1500}
+                placeholder="Ex.: lentes de contato dental, focando nas dúvidas sobre desgaste e naturalidade" className="w-full glass-input text-sm resize-y" />
+            </div>
 
-          {loading && (
-             <div className="h-full min-h-[500px] border border-white/5 border-dashed rounded-2xl flex flex-col items-center justify-center text-center p-8 bg-white/[0.02]">
-                <div className="w-12 h-12 border-4 border-brand-neon/20 border-t-brand-neon rounded-full animate-spin mb-4" />
-                <p className="text-brand-neon font-bold animate-pulse tracking-widest uppercase text-xs">Processando Plano Criativo...</p>
-             </div>
-          )}
+            {/* Vínculos */}
+            <div className="grid grid-cols-2 gap-3">
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Diagnóstico</label>
+                <select value={diagnosisId} onChange={e => setDiagnosisId(e.target.value)} className="w-full glass-input h-11 text-sm [&>option]:bg-black">
+                  <option value="">Não vincular</option>
+                  {diagnostics.map(d => <option key={d.id} value={d.id}>@{d.handle} · nota {d.nota_final}</option>)}
+                </select>
+              </div>
+              <div className="space-y-2">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Orçamento</label>
+                <select value={calculationId} onChange={e => setCalculationId(e.target.value)} className="w-full glass-input h-11 text-sm [&>option]:bg-black">
+                  <option value="">Não vincular</option>
+                  {calculations.map(c => <option key={c.id} value={c.id}>{c.clientName} · {c.video_quantity} vídeos</option>)}
+                </select>
+              </div>
+            </div>
 
-          {result && !loading && (
-            <div id="pdf-report-content" className="space-y-6 animate-in fade-in slide-in-from-bottom-8 duration-700 bg-transparent p-2">
-              
-              {/* Resumo e Direção */}
-              <GlassCard className="p-8 border-white/10 bg-gradient-to-br from-white/[0.03] to-transparent">
-                <h2 className="text-2xl font-extrabold text-white mb-6">Plano Criativo Estratégico</h2>
-                
-                <div className="space-y-6">
-                  <div>
-                    <h3 className="text-xs font-bold text-brand-neon uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <Target className="w-4 h-4" /> Visão Geral
-                    </h3>
-                    <p className="text-gray-300 text-sm leading-relaxed">{result.resumo_estrategico}</p>
-                  </div>
-                  <div className="h-px w-full bg-white/5" />
-                  <div>
-                    <h3 className="text-xs font-bold text-brand-neon uppercase tracking-widest mb-2 flex items-center gap-2">
-                      <Video className="w-4 h-4" /> Direção Criativa
-                    </h3>
-                    <p className="text-gray-300 text-sm leading-relaxed">{result.direcao_criativa}</p>
-                  </div>
+            {/* Referências do Hub */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Referências do Hub</label>
+                <button type="button" onClick={() => setPickerOpen(true)} className="text-xs text-brand-mint hover:underline flex items-center gap-1"><Compass className="w-3.5 h-3.5" /> Escolher</button>
+              </div>
+              {hubRefs.length === 0 ? (
+                <p className="text-[11px] text-gray-500">Até 3 reels virais como inspiração: a IA usa o mecanismo (gancho, estrutura, ritmo), nunca copia.</p>
+              ) : (
+                <div className="flex gap-2">
+                  {hubRefs.map(r => (
+                    <div key={r.id} className="relative w-16 aspect-[9/16] rounded-lg overflow-hidden border border-white/10 bg-black">
+                      {/* eslint-disable-next-line @next/next/no-img-element */}
+                      <img src={r.thumb} alt={r.tema} className="w-full h-full object-cover" />
+                      <button type="button" onClick={() => setHubRefs(hubRefs.filter(x => x.id !== r.id))} className="absolute top-0.5 right-0.5 p-0.5 rounded-full bg-black/80 text-white" aria-label="Remover referência"><X className="w-3 h-3" /></button>
+                    </div>
+                  ))}
                 </div>
-              </GlassCard>
-
-              {/* Organização da Diária */}
-              {result.organizacao_diaria && (
-                <GlassCard className="p-6 border-brand-emerald/20 bg-brand-emerald/5">
-                  <h3 className="text-xs font-bold text-brand-emerald uppercase tracking-widest mb-2 flex items-center gap-2">
-                    <Clock className="w-4 h-4" /> Organização da Gravação (Diária)
-                  </h3>
-                  <p className="text-gray-300 text-sm leading-relaxed">{result.organizacao_diaria}</p>
-                </GlassCard>
               )}
+            </div>
 
-              {/* Lista de Ideias */}
-              <div className="space-y-6 mt-8">
-                <h3 className="text-lg font-bold text-white mb-4 border-b border-white/10 pb-2">Ideias de Conteúdo</h3>
-                
-                {result.ideias_geradas?.map((idea: any, idx: number) => (
-                  <GlassCard key={idx} className="p-6 md:p-8 border-white/10 relative group hover:border-white/20 transition-colors">
-                    <div className="absolute top-6 right-6">
-                      <Button 
-                        variant="ghost" 
-                        size="sm" 
-                        onClick={() => copyIdeaToClipboard(idea, idx)} 
-                        className={`copy-btn ${copiedIndex === idx ? 'text-brand-neon' : 'text-gray-500 hover:text-white'}`}
-                      >
-                        {copiedIndex === idx ? <CheckCircle2 className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                      </Button>
-                    </div>
-
-                    <div className="pr-12">
-                      <div className="flex flex-wrap items-center gap-3 mb-4">
-                        <span className="px-2 py-1 rounded bg-white/10 text-[10px] uppercase tracking-widest font-bold text-gray-300">
-                          Ideia {idx + 1}
-                        </span>
-                        <span className="px-2 py-1 rounded bg-brand-emerald/10 text-[10px] uppercase tracking-widest font-bold text-brand-emerald">
-                          {idea.objetivo_estrategico}
-                        </span>
-                        <span className="px-2 py-1 rounded bg-orange-500/10 text-[10px] uppercase tracking-widest font-bold text-orange-400">
-                          {idea.dificuldade_execucao}
-                        </span>
-                      </div>
-
-                      <h4 className="text-xl font-bold text-white mb-2">{idea.titulo}</h4>
-                      
-                      {/* Gancho Destaque */}
-                      <div className="my-6 p-4 rounded-xl border border-brand-neon/20 bg-brand-neon/5 relative overflow-hidden">
-                         <div className="absolute top-0 left-0 w-1 h-full bg-brand-neon" />
-                         <p className="text-sm font-medium text-brand-neon mb-1">Gancho sugerido:</p>
-                         <p className="text-lg font-semibold text-white">"{idea.gancho}"</p>
-                      </div>
-
-                      {/* Roteiro e Execução Grid */}
-                      <div className="grid md:grid-cols-2 gap-8 mt-6">
-                        <div className="space-y-6">
-                          <div>
-                             <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                               <PlayCircle className="w-4 h-4" /> Conceito
-                             </h5>
-                             <p className="text-sm text-gray-300">{idea.conceito}</p>
+            {/* Decisões por grupo */}
+            <div className="space-y-2">
+              {IDEA_GROUPS.map(group => {
+                const fields = IDEA_FIELDS.filter(f => f.group === group);
+                const open = openGroup === group;
+                const n = decidedCount(group);
+                return (
+                  <div key={group} className="rounded-xl border border-white/5 bg-black/20 overflow-hidden">
+                    <button type="button" onClick={() => setOpenGroup(open ? null : group)} className="w-full flex items-center justify-between px-4 py-3 text-sm font-semibold text-white hover:bg-white/[0.03]">
+                      <span>{group}</span>
+                      <span className="flex items-center gap-2 text-[11px] font-medium text-gray-500">
+                        {n > 0 ? `${n} de ${fields.length} definidos` : 'IA decide'}
+                        <ChevronDown className={`w-4 h-4 transition-transform ${open ? 'rotate-180' : ''}`} />
+                      </span>
+                    </button>
+                    {open && (
+                      <div className="px-4 pb-4 space-y-3">
+                        {fields.map(f => (
+                          <div key={f.id}>
+                            <label className="block text-xs font-medium text-gray-300 mb-1.5">{f.label}</label>
+                            {f.kind === 'select' ? (
+                              <select value={choices[f.id] || AUTO} onChange={e => setChoices({ ...choices, [f.id]: e.target.value })} className="w-full glass-input text-sm [&>option]:bg-black">
+                                <option value={AUTO}>Decidir por mim</option>
+                                {f.options!.map(o => <option key={o} value={o}>{o}</option>)}
+                              </select>
+                            ) : (
+                              <input value={choices[f.id] || ''} maxLength={300} onChange={e => setChoices({ ...choices, [f.id]: e.target.value })} placeholder={f.placeholder} className="w-full glass-input text-sm" />
+                            )}
+                            {f.help && <p className="text-[10px] text-gray-500 mt-1">{f.help}</p>}
                           </div>
-                          <div>
-                             <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2 flex items-center gap-2">
-                               <PenTool className="w-4 h-4" /> Roteiro Base
-                             </h5>
-                             <p className="text-sm text-gray-300 whitespace-pre-wrap">{idea.roteiro_base}</p>
-                          </div>
-                        </div>
-
-                        <div className="space-y-6">
-                          <div>
-                             <h5 className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">Lista de Takes</h5>
-                             <ul className="text-sm text-gray-300 space-y-1 list-disc pl-4 marker:text-white/20">
-                               {idea.lista_takes?.map((take: string, tIdx: number) => (
-                                 <li key={tIdx}>{take}</li>
-                               ))}
-                             </ul>
-                          </div>
-                          <div className="p-4 rounded-xl bg-black/40 border border-white/5 space-y-3">
-                             <div>
-                               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Captação</span>
-                               <span className="text-xs text-gray-300">{idea.direcao_captacao}</span>
-                             </div>
-                             <div>
-                               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Edição</span>
-                               <span className="text-xs text-gray-300">{idea.direcao_edicao}</span>
-                             </div>
-                             <div>
-                               <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Atenção (Retenção)</span>
-                               <span className="text-xs text-brand-neon/80">{idea.observacao_retencao}</span>
-                             </div>
-                          </div>
-                        </div>
+                        ))}
                       </div>
+                    )}
+                  </div>
+                );
+              })}
+            </div>
 
-                      {/* CTA Footer */}
-                      <div className="mt-6 pt-4 border-t border-white/5 flex items-center justify-between">
-                         <div className="flex-1">
-                           <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Call to Action</span>
-                           <span className="text-sm font-medium text-white">{idea.cta}</span>
-                         </div>
-                         <div className="text-right ml-4">
-                           <span className="text-[10px] text-gray-500 uppercase font-bold block mb-1">Tempo Est.</span>
-                           <span className="text-xs font-medium text-gray-400">{idea.tempo_estimado_gravacao}</span>
-                         </div>
-                      </div>
-
-                    </div>
-                  </GlassCard>
+            {/* Quantidade */}
+            <div className="space-y-2">
+              <label className="text-xs font-bold text-gray-400 uppercase tracking-widest">Quantidade de ideias</label>
+              <div className="grid grid-cols-10 gap-1">
+                {Array.from({ length: IDEAS_MAX }, (_, i) => i + 1).map(n => (
+                  <button key={n} type="button" onClick={() => setQuantidade(n)}
+                    className={`h-9 rounded-lg text-sm font-bold border transition-colors ${quantidade === n ? 'bg-brand-neon text-black border-brand-neon' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white'}`}>{n}</button>
                 ))}
               </div>
-
+              <p className="text-[10px] text-gray-500">Até 5 ideias: 1 crédito · de 6 a 10: 2 créditos.</p>
             </div>
-          )}
+
+            <div>
+              {hasToolAccess('ideas') ? (
+                <Button onClick={handleGenerate} disabled={loading}
+                  className="w-full h-12 text-sm uppercase tracking-wider bg-brand-neon text-black hover:shadow-[0_0_20px_rgba(189,255,0,0.4)]">
+                  {loading
+                    ? <span className="flex items-center gap-2 justify-center"><Sparkles className="w-4 h-4 animate-spin" /> Criando...</span>
+                    : <span className="flex items-center gap-2 justify-center"><Lightbulb className="w-4 h-4" /> Gerar {quantidade} {quantidade === 1 ? 'ideia' : 'ideias'}</span>}
+                </Button>
+              ) : (
+                <UpgradeGate locked requiredPlan="Pro" mode="button" />
+              )}
+              {!loading && <CreditNotice toolId="ideas" cost={cost} />}
+              {loading && <p className="text-center text-xs text-gray-500 mt-4 leading-relaxed">{progress} <br />Uma rodada completa leva de 1 a 2 minutos.</p>}
+            </div>
+          </GlassCard>
         </div>
 
+        {/* Resultado */}
+        <div id="pdf-report-content" className="space-y-6">
+          {!result && !legacy && (
+            <GlassCard className="min-h-[420px] flex flex-col items-center justify-center opacity-50 border-white/5 p-8 text-center">
+              <Lightbulb className="w-16 h-16 text-brand-neon/30 mb-4" />
+              <p className="text-gray-400">Preencha o essencial (nicho e tema) e defina o que quiser. O resto, a IA decide e explica.</p>
+            </GlassCard>
+          )}
+
+          {result && (
+            <>
+              <GlassCard className="p-6 border-brand-neon/20 space-y-4">
+                <div>
+                  <p className="text-xs font-bold uppercase tracking-widest text-brand-neon mb-2 flex items-center gap-2"><Target className="w-4 h-4" /> Linha estratégica</p>
+                  <p className="text-sm text-gray-200 leading-relaxed">{result.resumoEstrategico}</p>
+                </div>
+                {result.decisoes?.length > 0 && (
+                  <details className="group">
+                    <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2"><ListChecks className="w-4 h-4" /> Decisões que a IA assumiu ({result.decisoes.length})</summary>
+                    <ul className="mt-3 space-y-2">{result.decisoes.map((d, i) => <li key={i} className="text-sm text-gray-300 pl-3 border-l-2 border-brand-neon/40">{d}</li>)}</ul>
+                  </details>
+                )}
+                {result.planoDiaria && (
+                  <details>
+                    <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-2"><CalendarClock className="w-4 h-4" /> Plano da diária</summary>
+                    <p className="mt-3 text-sm text-gray-300 leading-relaxed whitespace-pre-wrap">{result.planoDiaria}</p>
+                  </details>
+                )}
+              </GlassCard>
+
+              {result.ideias.map((idea, i) => (
+                <GlassCard key={i} className="p-6 border-white/10 space-y-5">
+                  <div className="flex items-start justify-between gap-4 flex-wrap">
+                    <div>
+                      <p className="text-[11px] font-bold text-brand-neon uppercase tracking-widest">Ideia {i + 1}</p>
+                      <h3 className="text-xl font-bold text-white mt-1">{idea.titulo}</h3>
+                      <div className="flex flex-wrap gap-1.5 mt-2">
+                        {[idea.formato, idea.etapaFunil, idea.pilar, `${idea.duracaoSeg}s`, idea.execucao.dificuldade].map(t => (
+                          <span key={t} className="px-2 py-0.5 rounded-full text-[10px] font-semibold bg-white/5 border border-white/10 text-gray-300">{t}</span>
+                        ))}
+                      </div>
+                    </div>
+                    <button onClick={() => copyIdea(idea, i)} className="no-pdf flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-gray-300 hover:text-white">
+                      {copied === i ? <CheckCircle2 className="w-3.5 h-3.5 text-brand-neon" /> : <Copy className="w-3.5 h-3.5" />} {copied === i ? 'Copiado' : 'Copiar roteiro'}
+                    </button>
+                  </div>
+
+                  {/* Gancho */}
+                  <div className="rounded-xl bg-brand-neon/5 border border-brand-neon/20 p-4 space-y-2">
+                    <p className="text-[10px] font-bold uppercase tracking-widest text-brand-neon flex items-center gap-1.5"><Zap className="w-3.5 h-3.5" /> Gancho · {idea.ganchos.tipo}</p>
+                    {idea.ganchos.falado && <p className="text-lg font-semibold text-white">“{idea.ganchos.falado}”</p>}
+                    <div className="grid md:grid-cols-2 gap-2 text-xs">
+                      <p className="text-gray-300"><span className="text-gray-500">Texto na tela:</span> {idea.ganchos.textoTela}</p>
+                      <p className="text-gray-300"><span className="text-gray-500">1º segundo:</span> {idea.ganchos.visual}</p>
+                    </div>
+                  </div>
+
+                  {/* Roteiro em beats */}
+                  <div>
+                    <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2 flex items-center gap-1.5"><Film className="w-3.5 h-3.5" /> Roteiro</p>
+                    <div className="space-y-2">
+                      {idea.beats.map((b, j) => (
+                        <div key={j} className="grid grid-cols-[56px_1fr] gap-3 rounded-lg bg-black/30 border border-white/5 p-3">
+                          <span className="text-xs font-mono font-bold text-brand-neon">{fmtTime(b.inicio)}–{fmtTime(b.fim)}</span>
+                          <div className="space-y-1 text-sm">
+                            {b.fala && <p className="text-white">“{b.fala}”</p>}
+                            <p className="text-gray-400 text-xs"><span className="text-gray-500">Visual:</span> {b.visual}</p>
+                            {b.textoTela && <p className="text-gray-400 text-xs"><span className="text-gray-500">Tela:</span> {b.textoTela}</p>}
+                            {b.som && <p className="text-gray-500 text-xs"><span>Som:</span> {b.som}</p>}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+
+                  <div className="grid md:grid-cols-3 gap-3 text-xs">
+                    {[['Loop aberto', idea.retencao.loopAberto], ['Virada', idea.retencao.virada], ['Recompensa', idea.retencao.recompensa]].map(([l, v]) => (
+                      <div key={l} className="rounded-lg bg-black/30 border border-white/5 p-3"><p className="text-[10px] uppercase font-bold text-gray-500 mb-1 flex items-center gap-1"><Repeat className="w-3 h-3" /> {l}</p><p className="text-gray-300">{v}</p></div>
+                    ))}
+                  </div>
+
+                  <p className="text-sm"><span className="text-[10px] uppercase font-bold tracking-widest text-gray-500 mr-2">CTA</span><span className="text-white font-medium">{idea.cta}</span></p>
+
+                  <details>
+                    <summary className="cursor-pointer text-xs font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5"><Clapperboard className="w-3.5 h-3.5" /> Takes e edição</summary>
+                    <ol className="mt-3 space-y-1.5 text-xs text-gray-300">
+                      {idea.takes.map(t => <li key={t.numero}><span className="font-bold text-white">{t.numero}.</span> {t.descricao} <span className="text-gray-500">— {t.plano}, {t.angulo}, {t.movimento} · {t.local}</span></li>)}
+                    </ol>
+                    <div className="mt-3 grid md:grid-cols-2 gap-2 text-xs text-gray-300">
+                      <p><span className="text-gray-500"><Scissors className="inline w-3 h-3" /> Ritmo:</span> {idea.edicao.ritmo}</p>
+                      <p><span className="text-gray-500">Legendas na tela:</span> {idea.edicao.legendas}</p>
+                      <p><span className="text-gray-500">Trilha:</span> {idea.edicao.trilha}</p>
+                      <p><span className="text-gray-500">Efeitos:</span> {idea.edicao.efeitos}</p>
+                    </div>
+                  </details>
+
+                  <div className="grid md:grid-cols-2 gap-3 text-xs">
+                    <div className="rounded-lg bg-black/30 border border-white/5 p-3"><p className="text-[10px] uppercase font-bold text-gray-500 mb-1">Por que funciona</p><p className="text-gray-300">{idea.porqueFunciona}</p></div>
+                    <div className="rounded-lg bg-black/30 border border-white/5 p-3">
+                      <p className="text-[10px] uppercase font-bold text-gray-500 mb-1 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Execução · {idea.execucao.tempoGravacao}</p>
+                      <p className="text-gray-300">{idea.execucao.riscos}</p>
+                    </div>
+                  </div>
+                  {idea.referenciaUsada && <p className="text-[11px] text-gray-500 flex items-center gap-1.5"><Compass className="w-3.5 h-3.5" /> {idea.referenciaUsada}</p>}
+
+                  {/* Legenda (à parte) */}
+                  {idea.legenda ? (
+                    <div className="rounded-xl bg-white/[0.03] border border-white/10 p-4 space-y-2">
+                      <div className="flex items-center justify-between">
+                        <p className="text-[10px] font-bold uppercase tracking-widest text-gray-400 flex items-center gap-1.5"><MessageSquareText className="w-3.5 h-3.5" /> Legenda do post · capa: “{idea.legenda.capa}”</p>
+                        <button onClick={() => navigator.clipboard.writeText(`${idea.legenda!.texto}`)} className="no-pdf text-xs text-brand-mint hover:underline">Copiar</button>
+                      </div>
+                      <p className="text-sm text-gray-200 whitespace-pre-wrap">{idea.legenda.texto}</p>
+                      <p className="text-[11px] text-gray-500">Palavras-chave de busca: {idea.legenda.palavrasChave.join(' · ')}</p>
+                    </div>
+                  ) : null}
+
+                  <div className="no-pdf flex flex-wrap gap-2 pt-1">
+                    {!idea.legenda && (
+                      <button onClick={() => generateCaption(i)} disabled={captionBusy !== null}
+                        className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">
+                        <MessageSquareText className="w-3.5 h-3.5" /> {captionBusy === i ? 'Escrevendo legenda...' : 'Gerar legenda · 1 crédito'}
+                      </button>
+                    )}
+                    {savedId && (
+                      <Link href={`/dashboard/prompt-studio?idea=${savedId}&i=${i}`} className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-purple-500/15 border border-purple-500/40 text-white hover:bg-purple-500/25">
+                        <Clapperboard className="w-3.5 h-3.5" /> Gerar prompt de cena
+                      </Link>
+                    )}
+                  </div>
+                </GlassCard>
+              ))}
+            </>
+          )}
+
+          {legacy && <LegacyResult data={legacy} />}
+        </div>
+      </div>
+
+      {pickerOpen && <HubPicker selected={hubRefs} onClose={() => setPickerOpen(false)} onChange={setHubRefs} />}
+    </div>
+  );
+}
+
+/** Ideias geradas antes da versão 2 (abertas pelo histórico). */
+function LegacyResult({ data }: { data: any }) {
+  return (
+    <div className="space-y-4">
+      <GlassCard className="p-6 border-white/10">
+        <p className="text-xs font-bold uppercase tracking-widest text-gray-400 mb-2">Resumo (versão anterior do gerador)</p>
+        <p className="text-sm text-gray-300">{data?.resumo_estrategico}</p>
+      </GlassCard>
+      {(data?.ideias_geradas || []).map((idea: any, i: number) => (
+        <GlassCard key={i} className="p-6 border-white/10 space-y-2 text-sm">
+          <h3 className="text-lg font-bold text-white">{idea.titulo}</h3>
+          <p className="text-white">“{idea.gancho}”</p>
+          <p className="text-gray-400">{idea.conceito}</p>
+          <p className="text-gray-300 whitespace-pre-wrap">{idea.roteiro_base}</p>
+          <ul className="text-xs text-gray-400 list-disc list-inside">{(idea.lista_takes || []).map((t: string, j: number) => <li key={j}>{t}</li>)}</ul>
+          <p className="text-xs text-gray-400">CTA: {idea.cta}</p>
+        </GlassCard>
+      ))}
+    </div>
+  );
+}
+
+/** Escolha de até 3 reels do Hub como referência. */
+function HubPicker({ selected, onClose, onChange }: { selected: HubItem[]; onClose: () => void; onChange: (v: HubItem[]) => void }) {
+  const [items, setItems] = useState<(HubItem & { _s: string })[]>([]);
+  const [q, setQ] = useState('');
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const meta = await getDoc(doc(db, 'hub_catalog', 'meta'));
+        if (meta.exists()) {
+          const pages = (meta.data() as any).pages as number;
+          const all = await Promise.all(Array.from({ length: pages }, (_, p) => getDoc(doc(db, 'hub_catalog', `page_${p}`))));
+          setItems(all.flatMap(s => (s.exists() ? (s.data().items as HubItem[]) : [])).map(i => ({ ...i, _s: hubSearchText(i) })));
+        }
+      } finally {
+        setLoading(false);
+      }
+    })();
+  }, []);
+
+  const filtered = useMemo(() => {
+    const terms = normalizeText(q).split(/\s+/).filter(Boolean);
+    return items.filter(i => terms.every(t => i._s.includes(t))).slice(0, 60);
+  }, [items, q]);
+
+  const toggle = (item: HubItem) => {
+    if (selected.some(s => s.id === item.id)) onChange(selected.filter(s => s.id !== item.id));
+    else if (selected.length < 3) onChange([...selected, item]);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-black/80 backdrop-blur-sm flex items-start justify-center p-4 overflow-y-auto" onClick={onClose}>
+      <div className="w-full max-w-4xl bg-[#0b0f0d] border border-white/10 rounded-3xl p-6 space-y-4" onClick={e => e.stopPropagation()}>
+        <div className="flex items-center justify-between">
+          <h2 className="text-lg font-bold text-white flex items-center gap-2"><Compass className="w-5 h-5 text-brand-neon" /> Referências do Hub <span className="text-xs text-gray-500 font-normal">{selected.length}/3</span></h2>
+          <button onClick={onClose} className="p-1.5 rounded-full bg-white/5 text-white" aria-label="Fechar"><X className="w-4 h-4" /></button>
+        </div>
+        <div className="relative">
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+          <input autoFocus value={q} onChange={e => setQ(e.target.value)} placeholder="Busque por tema, nicho, formato ou gancho" className="w-full glass-input !pl-10" />
+        </div>
+        {loading ? <p className="text-center text-gray-500 py-10">Carregando…</p> : filtered.length === 0 ? <p className="text-center text-gray-500 py-10">Nenhuma referência encontrada.</p> : (
+          <div className="grid grid-cols-3 sm:grid-cols-4 md:grid-cols-6 gap-3 max-h-[60vh] overflow-y-auto">
+            {filtered.map(item => {
+              const on = selected.some(s => s.id === item.id);
+              return (
+                <button key={item.id} type="button" onClick={() => toggle(item)} className={`text-left rounded-xl overflow-hidden border ${on ? 'border-brand-neon ring-2 ring-brand-neon/40' : 'border-white/5'} bg-black/30`}>
+                  <div className="relative aspect-[9/16] bg-black">
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={item.thumb} alt={item.tema} loading="lazy" className="w-full h-full object-cover" />
+                    <span className="absolute bottom-1 left-1 text-[10px] text-white bg-black/70 px-1.5 rounded flex items-center gap-1"><Eye className="w-3 h-3" />{formatCount(item.views)}</span>
+                    {on && <CheckCircle2 className="absolute top-1 right-1 w-5 h-5 text-brand-neon" />}
+                  </div>
+                  <p className="p-1.5 text-[10px] text-gray-300 line-clamp-2">{item.tema}</p>
+                </button>
+              );
+            })}
+          </div>
+        )}
+        <div className="flex justify-end">
+          <button onClick={onClose} className="px-5 py-2 rounded-xl bg-brand-neon text-black text-sm font-bold">Usar {selected.length} referência{selected.length === 1 ? '' : 's'}</button>
+        </div>
       </div>
     </div>
   );
