@@ -24,12 +24,13 @@ const ISSUE: Record<Issue, { label: string; hint: string; tone: 'critical' | 'wa
 };
 
 const FILTERS = [
-  { id: 'all', label: 'Todos' },
+  { id: 'plans', label: 'Com plano' },
   { id: 'issues', label: 'Com irregularidade' },
   { id: 'payment', label: 'Pagamento pendente' },
   { id: 'soon', label: 'Renovam em até 7 dias' },
   { id: 'manual', label: 'Concessão manual' },
   { id: 'none', label: 'Sem plano' },
+  { id: 'all', label: 'Todos' },
 ] as const;
 
 const toneText = { critical: 'text-red-400', warning: 'text-amber-300' };
@@ -49,7 +50,8 @@ function renewalText(u: AdminUser) {
 export default function AdminUsersPage() {
   const { user } = useAuth();
   const [users, setUsers] = useState<AdminUser[] | null>(null);
-  const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('all');
+  // Padrão: só quem tem plano (ativo, concessão ou pagamento pendente); contas sem plano ficam no filtro próprio.
+  const [filter, setFilter] = useState<(typeof FILTERS)[number]['id']>('plans');
   const [q, setQ] = useState('');
   const [open, setOpen] = useState<string | null>(null);
   const [busy, setBusy] = useState('');
@@ -99,6 +101,7 @@ export default function AdminUsersPage() {
     const term = q.trim().toLowerCase();
     return (users || []).filter(u => {
       if (term && !`${u.name} ${u.email}`.toLowerCase().includes(term)) return false;
+      if (filter === 'plans') return u.status !== 'none';
       if (filter === 'issues') return u.issues.length > 0;
       if (filter === 'payment') return u.status === 'payment_issue';
       if (filter === 'soon') return u.daysToRenewal !== null && u.daysToRenewal >= 0 && u.daysToRenewal <= 7;
@@ -142,7 +145,7 @@ export default function AdminUsersPage() {
         <div className="rounded-2xl border border-red-500/30 bg-red-500/5 p-4 space-y-2">
           <p className="text-sm font-bold text-red-300 flex items-center gap-2"><AlertTriangle className="w-4 h-4" /> {critical.length} conta(s) precisam de atenção</p>
           {critical.slice(0, 6).map(u => (
-            <button key={u.uid} onClick={() => { setOpen(u.uid); setQ(u.email); setFilter('all'); }} className="block w-full text-left text-xs text-gray-300 hover:text-white">
+            <button key={u.uid} onClick={() => { setOpen(u.uid); setQ(u.email); setFilter('plans'); }} className="block w-full text-left text-xs text-gray-300 hover:text-white">
               <span className="font-semibold">{u.email}</span> · {u.issues.filter(i => ISSUE[i].tone === 'critical').map(i => ISSUE[i].label).join(', ')}
             </button>
           ))}

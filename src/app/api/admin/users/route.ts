@@ -14,6 +14,15 @@ const DAY = 86_400_000;
 /** Irregularidades que o admin precisa ver, da mais grave para a mais leve. */
 export type Issue = 'pagamento_pendente' | 'renovacao_atrasada' | 'assinatura_encerrada' | 'sem_assinatura_vinculada' | 'creditos_esgotados';
 
+/** Datas antigas foram salvas como Timestamp do Firestore; as novas, como texto ISO. */
+function isoDate(v: any): string | null {
+  if (!v) return null;
+  if (typeof v.toDate === 'function') return v.toDate().toISOString();
+  if (typeof v === 'object' && typeof v._seconds === 'number') return new Date(v._seconds * 1000).toISOString();
+  const t = new Date(v);
+  return Number.isNaN(t.getTime()) ? null : t.toISOString();
+}
+
 function diagnose(uid: string, d: any) {
   const state = getAccountState(d);
   const sub = d.stripeSubscriptionStatus || null;
@@ -30,7 +39,7 @@ function diagnose(uid: string, d: any) {
     uid,
     name: d.name || '',
     email: d.email || '',
-    createdAt: d.createdAt || null,
+    createdAt: isoDate(d.createdAt),
     plan: state.plan,
     planLabel: state.planLabel,
     status: state.status,
