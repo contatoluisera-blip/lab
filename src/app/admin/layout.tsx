@@ -4,7 +4,7 @@ import React from 'react';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { AdminProtectedRoute } from '@/components/layout/AdminProtectedRoute';
-import { LayoutDashboard, Users, UserPlus, LogOut, ArrowLeft, Film } from 'lucide-react';
+import { LayoutDashboard, Users, UserPlus, LogOut, ArrowLeft, Film, UserCog } from 'lucide-react';
 import { auth } from '@/lib/firebase';
 
 export default function AdminLayout({ children }: { children: React.ReactNode }) {
@@ -18,6 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { label: 'Visão Geral', href: '/admin', icon: LayoutDashboard },
+    { label: 'Usuários', href: '/admin/usuarios', icon: UserCog },
     { label: 'Hub de Referências', href: '/admin/hub', icon: Film },
   ];
 
