@@ -24,7 +24,9 @@ import {
   Brain,
   CheckCircle2,
   Star,
-  PlayCircle
+  PlayCircle,
+  Compass,
+  Clapperboard
 } from 'lucide-react';
 import PricingSection from '@/app/PricingSection';
 
@@ -329,7 +331,7 @@ export default function LandingPage() {
                   </div>
                 </div>
                 <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Com base no diagnóstico do perfil do cliente, a plataforma gera ideias de vídeo alinhadas ao nicho, ao tom e às lacunas identificadas. Cada ideia já vem com estrutura de cena, roteiro sugerido e duração estimada. Você apresenta como estrategista, não como executor.
+                  Roteiros prontos para gravar, não ideias soltas. Cada ideia vem com três versões do gancho, a fala exata de cada trecho, o texto na tela, a lista de takes e o plano da diária. Use o diagnóstico do cliente ou reels virais do Hub como ponto de partida e, se quiser, gere a legenda do post com um clique.
                 </p>
               </GlassCard>
 
@@ -380,6 +382,48 @@ export default function LandingPage() {
 
             </div>
           </div>
+
+          {/* Creation & inspiration block */}
+          <div className="space-y-6">
+            <div className="flex items-center gap-3">
+              <div className="w-8 h-px bg-brand-emerald/40" />
+              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Criação e Inspiração</span>
+              <div className="flex-1 h-px bg-white/5" />
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Compass className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novo · Referência que explica</span>
+                    <h3 className="text-base font-bold text-white mt-1">Hub de Referências</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Uma curadoria de reels que viralizaram, organizada por nicho, formato e tipo de gancho. Cada vídeo vem com a análise do porquê funcionou: o gancho, o mecanismo e a estética. Busque por tema, salve seus favoritos e transforme qualquer referência em ideia ou prompt. Você para de copiar trend e passa a entender o que faz um vídeo performar.
+                </p>
+              </GlassCard>
+
+              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
+                <div className="flex items-start gap-4">
+                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
+                    <Clapperboard className="w-5 h-5" />
+                  </div>
+                  <div>
+                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novo · Direção de fotografia</span>
+                    <h3 className="text-base font-bold text-white mt-1">Gerador de Prompts</h3>
+                  </div>
+                </div>
+                <p className="text-gray-400 text-xs leading-relaxed font-light">
+                  Prompts com precisão de diretor para Image to Video, Text to Image e Image to Image. Escolha câmera, lente, luz, estilo e movimento, ou deixe a IA decidir: ela lê a sua imagem, monta a ficha técnica e explica cada escolha. Funciona com Seedance, Veo, Kling, Runway, Midjourney e Nano Banana. Chega de vídeo de IA com cara de IA.
+                </p>
+              </GlassCard>
+
+            </div>
+          </div>
         </section>
 
         {/* 5. Dual journey — Beginners + Experienced */}
@@ -414,6 +458,7 @@ export default function LandingPage() {
                 {[
                   { icon: '🎬', text: 'Aulas do zero: gravação, enquadramento, luz e edição pelo celular' },
                   { icon: '🧠', text: 'Assistente de IA para tirar dúvidas técnicas no momento certo' },
+                  { icon: '🧭', text: 'Hub de referências: entende por que um vídeo viraliza antes de gravar o seu' },
                   { icon: '💰', text: 'Calculadora de orçamento: você já cobra certo desde o primeiro cliente' },
                   { icon: '📋', text: 'Proposta comercial pronta: não chega improvisando na conversa' },
                   { icon: '🚀', text: 'Cursos de 3D e IA mobile: você avança enquanto outros ainda estão na base' },
@@ -449,6 +494,7 @@ export default function LandingPage() {
                   { icon: '📊', text: 'Orçamento justificado: para de perder para quem cobra mais barato' },
                   { icon: '📄', text: 'Proposta em PDF: eleva a percepção de valor na hora certa' },
                   { icon: '🗂️', text: 'Gestão de clientes: operação organizada que suporta mais volume' },
+                  { icon: '🎥', text: 'Gerador de prompts: imagem e vídeo com IA no nível de direção de fotografia' },
                   { icon: '⚡', text: 'Conteúdo avançado: 3D mobile e IA que separam você da concorrência' },
                 ].map((item) => (
                   <li key={item.text} className="flex gap-2.5 items-start">

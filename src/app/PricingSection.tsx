@@ -30,6 +30,7 @@ export default function PricingSection() {
       features: [
         'Acesso ao Diagnóstico de Perfil',
         'Acesso à Calculadora de Orçamento',
+        'Hub de Referências e Gerador de Prompts',
         'Acesso limitado ao Gerador de Ideias',
         'Acesso limitado ao Gerador de Propostas',
         'Apoio do Assistente de IA básico',
@@ -60,6 +61,7 @@ export default function PricingSection() {
       subText: 'Ideal para quem quer vender com mais autoridade e organizar melhor sua operação.',
       features: [
         'Acesso completo a todas as ferramentas',
+        'Hub de Referências e Gerador de Prompts',
         'Análises de Perfil Ilimitadas',
         'Gerador de Ideias & Propostas avançados',
         'Apoio do Assistente de IA completo',
