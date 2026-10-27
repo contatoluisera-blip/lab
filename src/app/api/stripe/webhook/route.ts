@@ -6,11 +6,12 @@ import { adminDb } from '@/lib/firebase/admin';
 import { PlatformWelcome } from '@/emails/PlatformWelcome';
 import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
 import { grantCredits } from '@/lib/server/credits';
+import { sendMetaEvent } from '@/lib/server/meta';
 import { currentPeriod, productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
 
 export const dynamic = 'force-dynamic';
 
-const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://mobilelab.com.br';
+const APP_URL = process.env.NEXT_PUBLIC_APP_URL || 'https://labcreator.com.br';
 const EMAIL_FROM = process.env.EMAIL_FROM || 'Creator Lab <contato@luisera.com.br>';
 
 async function findUserByCustomer(customerId: string) {
@@ -88,6 +89,13 @@ export async function POST(req: Request) {
         }, { merge: true });
         if (planId) {
           try { await sendWelcome(userId, planId); } catch (e) { console.error('[stripe] e-mail de boas-vindas falhou:', e); }
+        }
+        if (session.metadata?.mkt_consent === 'granted') {
+          await sendMetaEvent({
+            name: 'Purchase', eventId: session.id, email: session.customer_details?.email || session.customer_email, externalId: userId,
+            fbp: session.metadata?.fbp, fbc: session.metadata?.fbc, sourceUrl: `${APP_URL}/dashboard`,
+            value: (session.amount_total ?? 0) / 100, currency: (session.currency || 'brl').toUpperCase(), contentName: planId || undefined,
+          });
         }
         break;
       }

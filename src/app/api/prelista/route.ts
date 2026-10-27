@@ -2,13 +2,14 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Resend } from 'resend';
 import { PreListaWelcome } from '@/emails/PreListaWelcome';
+import { upsertLead } from '@/lib/server/leads';
 
 const resend = new Resend(process.env.RESEND_API_KEY);
 
 export async function POST(req: Request) {
   try {
     const body = await req.json();
-    const { name, email, instagram, whatsapp } = body;
+    const { name, email, instagram, whatsapp, marketing } = body;
 
     if (!name || !email) {
       return NextResponse.json(
@@ -25,8 +26,12 @@ export async function POST(req: Request) {
         instagram: instagram || '',
         whatsapp: whatsapp || '',
         status: 'registered',
+        attribution: marketing?.attribution ?? null,
         createdAt: new Date(),
       });
+      // Registro central de leads (sem duplicar e-mail) + segmento do Resend.
+      await upsertLead({ email, name, instagram, whatsapp, source: 'pre_lista', attribution: marketing?.attribution, consent: marketing?.consent })
+        .catch(e => console.error('[prelista] falha ao registrar lead:', e));
     } else {
       console.warn('adminDb not initialized, skipping Firestore save');
       // Não retornar erro aqui, o email é mais importante, mas idealmente ambos funcionam

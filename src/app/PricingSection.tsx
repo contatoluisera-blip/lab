@@ -8,6 +8,7 @@ import { cn } from '@/lib/utils';
 import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
+import { getAttribution, marketingContext, planValue, track } from '@/lib/client/tracking';
 
 export default function PricingSection() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -110,8 +111,12 @@ export default function PricingSection() {
         email: customerEmail,
         plan: 'free',
         credits: 0,
-        createdAt: new Date().toISOString()
+        createdAt: new Date().toISOString(),
+        // De onde a pessoa veio (UTM / anúncio / referência), para medir o que traz assinantes.
+        acquisition: getAttribution(),
       });
+      track('CompleteRegistration', { content_name: selectedPlan.name });
+      track('InitiateCheckout', { value: planValue(selectedPlan.name), currency: 'BRL', content_name: selectedPlan.name });
 
       const token = await user.getIdToken();
       const response = await fetch('/api/stripe/checkout', {
@@ -120,7 +125,7 @@ export default function PricingSection() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planName: selectedPlan.name })
+        body: JSON.stringify({ planName: selectedPlan.name, marketing: marketingContext() })
       });
 
       const resData = await response.json();

@@ -3,6 +3,7 @@ import { Geist, Geist_Mono } from "next/font/google";
 import { CosmicBackground } from "@/components/ui/CosmicBackground";
 import "./globals.css";
 import { AuthProvider } from "@/context/AuthContext";
+import { Tracking } from "@/components/Tracking";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -51,6 +52,7 @@ export default function RootLayout({
         <AuthProvider>
           {children}
         </AuthProvider>
+        <Tracking />
       </body>
     </html>
   );

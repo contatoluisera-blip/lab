@@ -24,6 +24,7 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
+import { marketingContext, planValue, track } from '@/lib/client/tracking';
 
 export default function BillingPage() {
   const { user } = useAuth();
@@ -103,8 +104,9 @@ export default function BillingPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planName: plan.name })
+        body: JSON.stringify({ planName: plan.name, marketing: marketingContext() })
       });
+      track('InitiateCheckout', { value: planValue(plan.name), currency: 'BRL', content_name: plan.name });
       const data = await res.json();
       if (data.url) {
         window.location.href = data.url;

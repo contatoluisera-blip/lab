@@ -31,12 +31,23 @@ export async function POST(req: Request) {
 
     const origin = req.headers.get('origin') || process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000';
 
+    // Consentimento e origem do visitante seguem com o pagamento (atribuição da venda e API de Conversões).
+    const mkt = body.marketing || {};
+    const last = mkt.attribution?.last || mkt.attribution?.first || {};
+    const clip = (v: unknown) => (typeof v === 'string' ? v.slice(0, 200) : '');
+    const marketingMeta = {
+      mkt_consent: mkt.consent === 'granted' ? 'granted' : 'denied',
+      fbp: clip(mkt.fbp), fbc: clip(mkt.fbc),
+      utm_source: clip(last.utm_source), utm_medium: clip(last.utm_medium),
+      utm_campaign: clip(last.utm_campaign), utm_content: clip(last.utm_content),
+    };
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer_email: user.email ?? undefined,
       client_reference_id: user.uid,
       allow_promotion_codes: true,
-      metadata: { planName: plan, interval },
+      metadata: { planName: plan, interval, ...marketingMeta },
       line_items: [{ price: priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${origin}/dashboard/billing?checkout_canceled=true`,

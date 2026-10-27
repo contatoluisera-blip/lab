@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
 import { GlassCard } from '@/components/ui/GlassCard';
+import { marketingContext, track } from '@/lib/client/tracking';
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Mail, Phone, ShieldCheck, Smartphone, User } from 'lucide-react';
 
 export default function PreListaForm() {
@@ -35,6 +36,7 @@ export default function PreListaForm() {
           email,
           instagram,
           whatsapp,
+          marketing: marketingContext(),
         }),
       });
 
@@ -44,6 +46,7 @@ export default function PreListaForm() {
         throw new Error(data.error || 'Ocorreu um erro ao registrar.');
       }
 
+      track('Lead', { content_name: 'pre_lista' });
       setIsSuccess(true);
     } catch (err: any) {
       console.error('Erro ao registrar:', err);

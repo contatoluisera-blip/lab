@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { PlanId, ToolId, planHasToolAccess, planHasCourseAccess } from '@/lib/planConfig';
 import { AccountState, ToolCheck, checkTool, getAccountState } from '@/lib/accountState';
 import { callTool } from '@/lib/client/api';
+import { track } from '@/lib/client/tracking';
 
 // ─────────────────────────────────────────────
 // Types
@@ -98,7 +99,9 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     const sessionId = params.get('session_id');
     if (!sessionId) return;
     try {
-      await callTool('/api/stripe/confirm', { sessionId });
+      const res = await callTool<{ purchase: { eventId: string; value: number; currency: string; plan: string } | null }>('/api/stripe/confirm', { sessionId });
+      const p = res.data?.purchase;
+      if (p) track('Purchase', { value: p.value, currency: p.currency, content_name: p.plan }, p.eventId);
     } catch (e) {
       console.error('[UserProfile] Falha ao confirmar checkout:', e);
     } finally {

@@ -5,6 +5,7 @@ import { errorResponse } from '@/lib/server/tool';
 import { currentPeriod, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
 import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
 import { grantCredits } from '@/lib/server/credits';
+import { sendMetaEvent } from '@/lib/server/meta';
 
 export const dynamic = 'force-dynamic';
 
@@ -57,7 +58,20 @@ export async function POST(req: Request) {
       });
     }
 
-    return NextResponse.json({ success: true, activated: true, plan });
+    // Compra: o mesmo id (sessão da Stripe) no servidor e no navegador evita contagem dupla na Meta.
+    const value = (session.amount_total ?? 0) / 100;
+    const consent = session.metadata?.mkt_consent === 'granted';
+    if (consent && !alreadyGranted) {
+      await sendMetaEvent({
+        name: 'Purchase', eventId: session.id, email: user.email, externalId: user.uid,
+        fbp: session.metadata?.fbp, fbc: session.metadata?.fbc,
+        ip: req.headers.get('x-forwarded-for')?.split(',')[0]?.trim(), userAgent: req.headers.get('user-agent'),
+        sourceUrl: `${req.headers.get('origin') || ''}/dashboard`, value, currency: (session.currency || 'brl').toUpperCase(), contentName: plan,
+      });
+    }
+
+    const purchase = consent && !alreadyGranted ? { eventId: session.id, value, currency: (session.currency || 'brl').toUpperCase(), plan } : null;
+    return NextResponse.json({ success: true, activated: true, plan, data: { purchase } });
   } catch (error) {
     return errorResponse(error);
   }

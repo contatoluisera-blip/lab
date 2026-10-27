@@ -27,7 +27,7 @@ export const PreListaWelcome = ({ firstName = 'Creator' }: PreListaWelcomeProps)
           {/* Logo / Header */}
           <Section style={header}>
             <Img
-              src={`${process.env.NEXT_PUBLIC_APP_URL || 'https://mobilelab.com.br'}/img/logo-verde.png`}
+              src={`${process.env.NEXT_PUBLIC_APP_URL || 'https://labcreator.com.br'}/img/logo-verde.png`}
               width="120"
               height="auto"
               alt="Creator Lab"
