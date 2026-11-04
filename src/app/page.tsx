@@ -2,31 +2,10 @@ import React from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
-import { 
-  Sparkles, 
-  Check, 
-  HelpCircle, 
-  TrendingUp,
-  Lightbulb,
-  FileCheck,
-  MessageSquare,
-  History,
-  Briefcase,
-  GraduationCap,
-  ArrowRight,
-  Zap,
-  Target,
-  Clock,
-  DollarSign,
-  AlertTriangle,
-  Video,
-  Brain,
-  CheckCircle2,
-  Star,
-  PlayCircle,
-  Compass,
-  Clapperboard
+import {
+  Sparkles, Check, HelpCircle, TrendingUp, Lightbulb, GraduationCap, ArrowRight, Zap, Clock, DollarSign,
+  CheckCircle2, Star, PlayCircle, Compass, Clapperboard, Film, ImagePlus, Camera, ScanSearch, MessageSquare,
+  Calculator, FileText, IdCard, Briefcase, Rocket,
 } from 'lucide-react';
 import PricingSection from '@/app/PricingSection';
 
@@ -59,640 +38,505 @@ const videos3D = [
   "https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=552167a4-3920-4e63-bfef-6298160641e3"
 ];
 
+/* ─────────────────────────── Conteúdo ─────────────────────────── */
+
+const SCATTERED = [
+  'Um chat de IA para o roteiro',
+  'Outro site para a imagem',
+  'Mais uma assinatura para o vídeo',
+  'Planilha para o orçamento',
+  'Documento para a proposta',
+  'Pasta de prints de referência',
+  'Curso solto no YouTube',
+  'Bloco de notas de clientes',
+];
+
+const FLOW = [
+  { step: 'Planeje', icon: Lightbulb, line: 'Roteiro com gancho, fala e takes, a partir de reels que já viralizaram.', tools: ['Gerador de Ideias', 'Hub de Referências', 'Diagnóstico'] },
+  { step: 'Dirija', icon: Clapperboard, line: 'Câmera, lente e luz escolhidas por você ou decididas pela IA. Sai o prompt pronto.', tools: ['Gerador de Prompts'] },
+  { step: 'Gere', icon: Film, line: 'Frame e cena com os melhores modelos de IA, usando os seus créditos.', tools: ['Gerar Imagem', 'Gerar Vídeo', 'Foto de Estúdio'] },
+  { step: 'Venda', icon: DollarSign, line: 'Preço calculado, proposta em PDF e o cliente organizado.', tools: ['Calculadora', 'Propostas', 'Clientes'] },
+];
+
+type Tone = 'emerald' | 'teal' | 'lime';
+const TONES: Record<Tone, { from: string; to: string; glow: string; text: string }> = {
+  emerald: { from: '#34d399', to: '#059669', glow: 'rgba(16,185,129,0.45)', text: '#a7f3d0' },
+  teal: { from: '#5eead4', to: '#0d9488', glow: 'rgba(45,212,191,0.4)', text: '#99f6e4' },
+  lime: { from: '#bef264', to: '#22c55e', glow: 'rgba(132,204,22,0.35)', text: '#d9f99d' },
+};
+
+const TOOLS: { name: string; line: string; icon: React.ElementType; tone: Tone; size?: 'hero' | 'wide'; tag?: string }[] = [
+  { name: 'Gerar Vídeo', line: 'Anime um frame, crie a cena do zero ou transforme um vídeo seu. Kling, Veo e Wan no mesmo lugar.', icon: Film, tone: 'emerald', size: 'hero', tag: 'Novo' },
+  { name: 'Gerar Imagem', line: 'Frames, capas e cenas com Nano Banana 2 e Pro, de 1K a 4K.', icon: ImagePlus, tone: 'emerald', size: 'wide', tag: 'Novo' },
+  { name: 'Gerador de Prompts', line: 'Image, Text e Video to Video com ficha de direção de fotografia. Chega de vídeo de IA com cara de IA.', icon: Clapperboard, tone: 'emerald', size: 'wide' },
+  { name: 'Gerador de Ideias', line: 'Roteiros prontos para gravar: ganchos, fala exata e takes.', icon: Lightbulb, tone: 'emerald' },
+  { name: 'Hub de Referências', line: 'Reels virais com a análise do porquê funcionaram.', icon: Compass, tone: 'emerald' },
+  { name: 'Foto de Estúdio', line: 'Uma selfie vira retrato profissional.', icon: Camera, tone: 'emerald' },
+  { name: 'Diagnóstico de Perfil', line: 'Descubra o que está segurando o crescimento do perfil, seu ou do cliente.', icon: ScanSearch, tone: 'teal', size: 'wide' },
+  { name: 'Perguntas Rápidas', line: 'Dúvidas de criação e mercado, na hora.', icon: MessageSquare, tone: 'teal' },
+  { name: 'Calculadora', line: 'Custo, lucro e preço final de cada projeto, sem chute.', icon: Calculator, tone: 'lime', size: 'wide' },
+  { name: 'Propostas', line: 'Proposta em PDF em minutos.', icon: FileText, tone: 'lime' },
+  { name: 'Cartão do Creator', line: 'Seu portfólio e serviços num PDF.', icon: IdCard, tone: 'lime' },
+  { name: 'Meus Clientes', line: 'Projetos, status e entregas.', icon: Briefcase, tone: 'lime' },
+];
+
+const COURSES = [
+  { title: 'Mobile Lab', kind: 'Curso completo', line: 'Do enquadramento à edição avançada, tudo pelo celular.', status: 'Disponível' },
+  { title: '3D pelo Celular', kind: 'Masterclass', line: 'Tracking 3D, objetos virtuais e efeitos FOOH no NodeVideo.', status: 'Disponível' },
+  { title: 'Criação com IA', kind: 'Novo curso', line: 'Imagem, vídeo, voz e trilha com IA, gastando pouco e com qualidade de entrega.', status: 'Em produção' },
+  { title: 'Entregas Rápidas', kind: 'Novo curso', line: 'Cobertura de eventos com entrega no mesmo dia, 100% mobile.', status: 'Em breve' },
+];
+
+const FAQ = [
+  { q: 'Já uso o ChatGPT de graça. Por que pagar?', a: 'Porque aqui o método do audiovisual já vem pronto. Você não precisa saber pedir: escolhe opções, a ferramenta escreve o roteiro, o prompt técnico ou a proposta. E a geração de imagem e vídeo já está dentro, sem outra assinatura.' },
+  { q: 'Não tenho tempo para aprender uma plataforma nova.', a: 'Cada ferramenta entrega em minutos e foi feita para o celular. Você abre, preenche o essencial e sai com o resultado. Os cursos ficam para quando quiser evoluir a técnica.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada plano traz créditos por mês. Ferramentas de texto custam 1 ou 2 créditos; imagens a partir de 1; vídeos a partir de 3, conforme o modelo e a qualidade. O custo aparece antes de você confirmar, e se a geração falhar por erro técnico, o crédito volta sozinho.' },
+  { q: 'Serve para o meu nicho?', a: 'Sim. O Gerador de Ideias parte do seu nicho, o Hub mostra referências dele e o Diagnóstico analisa qualquer perfil. Creators, social medias, videomakers e agências usam a mesma base.' },
+  { q: 'Os cursos estão em todos os planos?', a: 'Os cursos fazem parte do plano Elite. Start e Pro dão acesso às ferramentas, incluindo a geração de imagem e vídeo.' },
+  { q: 'Posso cancelar quando quiser?', a: 'Pode. A assinatura é mensal, sem fidelidade. Você cancela pela própria área de planos.' },
+];
+
+/* ─────────────────────────── Peças visuais ─────────────────────────── */
+
+function Eyebrow({ children }: { children: React.ReactNode }) {
+  return (
+    <span className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full border border-brand-emerald/25 bg-brand-emerald/[0.08] text-[11px] font-semibold uppercase tracking-[0.18em] text-brand-mint">
+      {children}
+    </span>
+  );
+}
+
+function SectionTitle({ eyebrow, title, accent, sub }: { eyebrow: React.ReactNode; title: string; accent?: string; sub?: string }) {
+  return (
+    <div className="text-center max-w-2xl mx-auto space-y-4">
+      <Eyebrow>{eyebrow}</Eyebrow>
+      <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.08] text-balance">
+        {title} {accent && <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">{accent}</span>}
+      </h2>
+      {sub && <p className="text-gray-400 leading-relaxed">{sub}</p>}
+    </div>
+  );
+}
+
+/** Mosaico do app flutuando no herói (ilustração da interface, com dados de exemplo). */
+function HeroMosaic() {
+  const glass = 'rounded-3xl border border-white/15 bg-white/[0.06] backdrop-blur-xl shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)]';
+  return (
+    <div className="relative h-[460px] sm:h-[520px] w-full max-w-[520px] mx-auto" aria-hidden>
+      <div className="absolute inset-10 rounded-full bg-brand-emerald/25 blur-[90px]" />
+
+      {/* Cena sendo gerada */}
+      <div className={`absolute left-[4%] top-[6%] w-[46%] p-2.5 ${glass} motion-safe:animate-[float_7s_ease-in-out_infinite]`} style={{ rotate: '-5deg' }}>
+        <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_30%_20%,#34d399_0%,#065f46_45%,#03140d_100%)]">
+          <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,rgba(255,255,255,0.18)_50%,transparent_70%)] bg-[length:250%_100%] animate-[shimmer_2.8s_linear_infinite]" />
+          <span className="absolute top-2.5 left-2.5 w-4 h-4 border-t-2 border-l-2 border-white/70 rounded-tl" />
+          <span className="absolute bottom-2.5 right-2.5 w-4 h-4 border-b-2 border-r-2 border-white/70 rounded-br" />
+          <span className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/50 text-[9px] font-mono uppercase tracking-widest text-white">
+            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Gerando
+          </span>
+          <Film className="absolute inset-0 m-auto w-10 h-10 text-white/40" />
+        </div>
+        <p className="px-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-gray-300">Kling 3.0 · 9:16 · 5 s</p>
+      </div>
+
+      {/* Roteiro pronto */}
+      <div className={`absolute right-[0%] top-[0%] w-[52%] p-4 ${glass} motion-safe:animate-[float_8s_ease-in-out_infinite]`} style={{ animationDelay: '1s', rotate: '3deg' }}>
+        <p className="flex items-center gap-2 text-[11px] font-bold text-white"><Lightbulb className="w-3.5 h-3.5 text-brand-mint" /> Roteiro pronto</p>
+        <div className="mt-3 space-y-2">
+          {['Gancho: “Essa cena não existe.”', 'Fala: “Era só uma foto do celular…”', 'Take 3: tela dividida, antes e depois'].map(l => (
+            <p key={l} className="text-[10.5px] text-gray-300 leading-snug pl-2 border-l-2 border-brand-emerald/50">{l}</p>
+          ))}
+        </div>
+      </div>
+
+      {/* Prompt com direção */}
+      <div className={`absolute right-[2%] top-[38%] w-[56%] p-4 ${glass} motion-safe:animate-[float_9s_ease-in-out_infinite]`} style={{ animationDelay: '2s', rotate: '-2deg' }}>
+        <p className="flex items-center gap-2 text-[11px] font-bold text-white"><Clapperboard className="w-3.5 h-3.5 text-brand-mint" /> Prompt com direção</p>
+        <p className="mt-2.5 font-mono text-[10px] leading-relaxed text-brand-mint/85">[SHOT] Single continuous shot. Slow dolly push-in, 35mm, f/2.8, golden hour…<span className="inline-block w-1.5 h-3 ml-0.5 -mb-0.5 bg-brand-mint animate-pulse" /></p>
+      </div>
+
+      {/* Orçamento */}
+      <div className={`absolute left-[10%] bottom-[2%] w-[58%] p-4 rounded-3xl text-[#03140d] bg-[linear-gradient(140deg,#a7f3d0,#34d399_60%,#10b981)] shadow-[0_30px_60px_-20px_rgba(16,185,129,0.7)] motion-safe:animate-[float_7.5s_ease-in-out_infinite]`} style={{ animationDelay: '0.5s', rotate: '2deg' }}>
+        <div className="flex items-center justify-between">
+          <p className="text-[11px] font-bold uppercase tracking-widest opacity-70">Orçamento</p>
+          <Calculator className="w-4 h-4" />
+        </div>
+        <p className="mt-1 text-3xl font-extrabold tracking-tight">R$ 1.850</p>
+        <p className="text-[11px] font-semibold opacity-75 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Proposta em PDF enviada</p>
+      </div>
+    </div>
+  );
+}
+
+/* ─────────────────────────── Página ─────────────────────────── */
+
 export default function LandingPage() {
   return (
     <div className="min-h-screen bg-transparent overflow-hidden selection:bg-brand-emerald/30">
-      
-      {/* Glow Backgrounds */}
+
+      {/* Brilhos de fundo */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-10%] left-[-10%] w-[40%] h-[40%] bg-brand-jade/10 blur-[150px] rounded-full mix-blend-screen" />
-        <div className="absolute top-[30%] right-[-10%] w-[30%] h-[50%] bg-brand-emerald/5 blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-brand-jade/15 blur-[150px] rounded-full mix-blend-screen" />
+        <div className="absolute top-[25%] right-[-10%] w-[35%] h-[50%] bg-brand-emerald/[0.07] blur-[120px] rounded-full mix-blend-screen" />
         <div className="absolute bottom-[-10%] left-[20%] w-[50%] h-[40%] bg-brand-mint/5 blur-[150px] rounded-full" />
       </div>
 
-      {/* Navigation Header */}
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-8 border border-white/5">
+      {/* Navegação */}
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-5 md:px-8 border border-white/5">
         <div className="flex items-center gap-3">
           <Image src="/logo.png" alt="Creator Lab Logo" width={32} height={32} className="rounded-lg" />
-          <Image src="/logo-text.png" alt="Creator Lab" width={192} height={40} className="w-40 md:w-48 object-contain" />
+          <Image src="/logo-text.png" alt="Creator Lab" width={192} height={40} className="w-32 md:w-44 object-contain" />
         </div>
-        <nav className="hidden md:flex gap-8 text-sm font-medium text-gray-400">
-          <a href="#features" className="hover:text-brand-mint transition-colors">Ferramentas</a>
-          <a href="#formacao" className="hover:text-brand-mint transition-colors">Formação</a>
+        <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-gray-400">
+          <a href="#como-funciona" className="hover:text-brand-mint transition-colors">Como funciona</a>
+          <a href="#ferramentas" className="hover:text-brand-mint transition-colors">Ferramentas</a>
+          <a href="#cursos" className="hover:text-brand-mint transition-colors">Cursos</a>
           <a href="#planos" className="hover:text-brand-mint transition-colors">Planos</a>
-          <Link href="/login" className="text-white hover:text-brand-mint transition-colors">Entrar no App</Link>
+          <Link href="/login" className="px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-white hover:border-brand-emerald/50 transition-colors">Entrar</Link>
         </nav>
+        <Link href="/login" className="md:hidden px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-sm text-white">Entrar</Link>
       </header>
 
-      {/* Main Container */}
-      <main className="relative z-10 max-w-5xl mx-auto px-6 pt-32 pb-24 space-y-32">
-        
-        {/* 1. Hero Section */}
-        <section className="flex flex-col items-center text-center space-y-8 pt-10">
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full neo-glass text-brand-mint text-xs font-semibold mb-4 border border-brand-emerald/10 shadow-[0_0_15px_rgba(16,185,129,0.1)]">
-            <Sparkles className="w-4 h-4 text-brand-emerald" />
-            <span>Do zero ao profissional. Do profissional ao próximo nível.</span>
-          </div>
-          <h1 className="text-5xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.1]">
-            Você cria pelo celular.
-            <br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-jade drop-shadow-[0_0_15px_rgba(16,185,129,0.3)]">
-              Chegou a hora de escalar.
-            </span>
-          </h1>
-          <p className="text-base md:text-lg text-gray-400 max-w-2xl leading-relaxed font-light">
-            A <strong className="text-white">Creator Lab</strong> reúne cursos de criação mobile, ferramentas de diagnóstico, orçamento, geração de ideias e um assistente de IA 24h — tudo para você produzir mais, errar menos e cobrar o que o seu trabalho realmente vale.
-          </p>
-          <div className="flex flex-col sm:flex-row items-center gap-4 pt-4">
-            <a href="#planos">
-              <Button size="lg" className="glow-border text-black px-8 flex items-center gap-2">
-                Escolher Meu Plano <ArrowRight className="w-4 h-4" />
-              </Button>
-            </a>
-            <Link href="/login">
-              <Button size="lg" variant="ghost" className="px-8 border border-white/5 hover:bg-white/5">Entrar no App</Button>
-            </Link>
-          </div>
+      <main className="relative z-10 max-w-6xl mx-auto px-5 md:px-6 pt-28 md:pt-32 pb-24 space-y-28 md:space-y-36">
 
-          {/* Stat bar */}
-          <div className="w-full max-w-2xl grid grid-cols-3 gap-4 pt-4">
-            {[
-              { value: '+ Ticket', label: 'médio por projeto' },
-              { value: '- Tempo', label: 'perdido em orçamentos' },
-              { value: '360°', label: 'do técnico ao comercial' },
-            ].map((stat) => (
-              <div key={stat.label} className="p-4 rounded-2xl neo-glass border border-white/5 text-center">
-                <div className="text-lg font-extrabold text-brand-emerald">{stat.value}</div>
-                <div className="text-[10px] text-gray-500 mt-0.5 leading-tight">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-
-          {/* Video Player */}
-          <div className="w-full max-w-4xl mx-auto mt-12 relative group z-20">
-            {/* Ambient Glow */}
-            <div className="absolute inset-0 bg-brand-emerald/10 blur-[80px] rounded-full group-hover:bg-brand-emerald/20 transition-all duration-700 pointer-events-none" />
-            
-            <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_50px_rgba(16,185,129,0.2)] bg-[#050505] aspect-video">
-              <iframe
-                id="panda-20b25815-5523-4c8d-abbc-27c4bcf8839f"
-                src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=20b25815-5523-4c8d-abbc-27c4bcf8839f&autoplay=true"
-                style={{ border: 'none' }}
-                className="w-full h-full"
-                allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-                allowFullScreen
-              />
-            </div>
-          </div>
-        </section>
-
-        {/* 2. Pain point — raw storytelling */}
-        <section className="py-8 border-t border-white/5">
-          <div className="grid md:grid-cols-2 gap-12 items-center">
-            <div className="space-y-6">
-              <h2 className="text-3xl font-bold text-white tracking-tight leading-snug">
-                Você domina a câmera.<br />
-                <span className="text-gray-500">Mas o mercado exige muito mais do que isso.</span>
-              </h2>
-              <p className="text-gray-300 text-sm leading-relaxed font-light">
-                Saber filmar, enquadrar e editar pelo celular é o ponto de partida, não o destino. Os criadores que estão faturando mais não são necessariamente os que fazem os vídeos mais bonitos — são os que sabem <strong className="text-white">posicionar, precificar e apresentar o valor do seu trabalho</strong> com clareza e autoridade.
-              </p>
-              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
-                Na Creator Lab você não aprende apenas a criar. Você aprende a operar como um profissional de verdade — e as ferramentas fazem o trabalho pesado enquanto você foca no que importa.
-              </div>
-            </div>
-            
-            <GlassCard className="p-8 space-y-5 bg-gradient-to-br from-[#0c0c0c] to-[#050505] border-white/5">
-              <div className="flex items-center gap-2 mb-2">
-                <AlertTriangle className="w-4 h-4 text-amber-400" />
-                <h3 className="text-sm font-bold text-white uppercase tracking-wider">Reconhece alguma dessas situações?</h3>
-              </div>
-              <div className="grid grid-cols-1 gap-3 text-xs text-gray-300 font-mono">
-                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>"Quanto eu cobro? Fico inseguro toda vez que um cliente pergunta o preço."</span>
-                </div>
-                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>"Perco horas criando proposta do zero e o cliente nem lê direito."</span>
-                </div>
-                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>"Não sei se vale a pena prospectar esse perfil. Fico de olho mesmo."</span>
-                </div>
-                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>"Entrego vídeos bons, mas continuo recebendo preço de iniciante."</span>
-                </div>
-                <div className="flex gap-2.5 items-start p-3 rounded-xl bg-white/3 border border-white/5">
-                  <HelpCircle className="w-3.5 h-3.5 text-amber-400 flex-shrink-0 mt-0.5" />
-                  <span>"Quero evoluir tecnicamente — 3D, IA — mas não sei por onde começar."</span>
-                </div>
-              </div>
-            </GlassCard>
-          </div>
-        </section>
-
-        {/* 3. Before / After */}
-        <section className="py-8 border-t border-white/5 text-center max-w-3xl mx-auto space-y-10">
-          <div className="space-y-4">
-            <h2 className="text-2xl md:text-3xl font-extrabold text-white">
-              Esses gargalos têm nome: <span className="text-brand-emerald">falta de sistema.</span>
-            </h2>
-            <p className="text-gray-400 text-sm leading-relaxed font-light">
-              Não é falta de talento. Não é falta de esforço. É que ninguém ensinou você a montar uma operação de criação mobile com método — da técnica ao comercial. A Creator Lab existe exatamente para fechar essa lacuna.
+        {/* 1. Herói */}
+        <section className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-4 items-center pt-6">
+          <div className="space-y-7 text-center lg:text-left">
+            <Eyebrow><Zap className="w-3.5 h-3.5" /> Criação mobile e IA num app só</Eyebrow>
+            <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.6rem] xl:text-[4rem] font-extrabold tracking-tight text-white leading-[1.02] text-balance">
+              Do roteiro à cena pronta.{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-neon">Tudo pelo celular, em minutos.</span>
+            </h1>
+            <p className="text-base md:text-lg text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              A Creator Lab junta tudo o que você usa para criar e vender: roteiro pronto, prompt com direção de cinema,
+              geração de <strong className="text-white">imagem e vídeo com IA</strong>, orçamento e proposta. E os cursos para dominar a técnica.
+              Sem pular de app em app, sem dez assinaturas.
             </p>
-          </div>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-left">
-            <div className="p-6 rounded-2xl border border-red-500/15 bg-red-500/5 space-y-4">
-              <span className="text-xs font-bold text-red-400 uppercase tracking-widest block">Antes da Creator Lab</span>
-              <ul className="space-y-2.5 text-xs text-gray-400 leading-relaxed">
-                <li className="flex gap-2">❌ Precificação no achismo, cliente barganha fácil</li>
-                <li className="flex gap-2">❌ Proposta improvisada no WhatsApp ou Google Docs</li>
-                <li className="flex gap-2">❌ Prospecção no "olhômetro" sem dados do perfil</li>
-                <li className="flex gap-2">❌ Sem processo de gestão: cliente some, prazo passa</li>
-                <li className="flex gap-2">❌ Técnica estagnada, sem evolução para 3D ou IA</li>
-              </ul>
+            <div className="flex flex-col sm:flex-row items-center justify-center lg:justify-start gap-3">
+              <a href="#planos" className="w-full sm:w-auto">
+                <Button size="lg" className="w-full sm:w-auto px-8 flex items-center gap-2 shadow-[0_15px_40px_-10px_rgba(16,185,129,0.7)]">
+                  Começar agora <ArrowRight className="w-4 h-4" />
+                </Button>
+              </a>
+              <a href="#como-funciona" className="w-full sm:w-auto">
+                <Button size="lg" variant="outline" className="w-full sm:w-auto px-8 flex items-center gap-2">
+                  <PlayCircle className="w-4 h-4" /> Ver como funciona
+                </Button>
+              </a>
             </div>
-            <div className="p-6 rounded-2xl border border-brand-emerald/15 bg-brand-emerald/5 space-y-4">
-              <span className="text-xs font-bold text-brand-emerald uppercase tracking-widest block">Depois da Creator Lab</span>
-              <ul className="space-y-2.5 text-xs text-gray-300 leading-relaxed">
-                <li className="flex gap-2">✅ Orçamento preciso, baseado em dados, sem insegurança</li>
-                <li className="flex gap-2">✅ Proposta em PDF profissional em minutos, não horas</li>
-                <li className="flex gap-2">✅ Diagnóstico de perfil real antes de qualquer contato</li>
-                <li className="flex gap-2">✅ Gestão de clientes, status e entregas em um só lugar</li>
-                <li className="flex gap-2">✅ Aulas de 3D mobile, IA na criação e muito mais</li>
-              </ul>
-            </div>
-          </div>
-        </section>
-
-        {/* 4. What's inside */}
-        <section id="features" className="py-8 border-t border-white/5 space-y-14">
-          <div className="text-center space-y-4">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-              A Plataforma
-            </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              Tudo o que você precisa para parar de improvisar e começar a escalar
-            </h2>
-            <p className="text-gray-400 text-sm font-light max-w-2xl mx-auto">
-              Ferramentas que trabalham juntas. Cada uma resolve um gargalo real da sua operação como criador mobile.
-            </p>
-          </div>
-
-          {/* Formation block */}
-          <div id="formacao" className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-px bg-brand-emerald/40" />
-              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Formação Técnica</span>
-              <div className="flex-1 h-px bg-white/5" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <GraduationCap className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Do zero ao avançado</span>
-                    <h3 className="text-base font-bold text-white mt-1">Aulas & Cursos com Luisera</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Formação completa com Luisera: do básico de gravação mobile à produção cinematográfica pelo celular. Aprenda enquadramento, luz, movimento de câmera, edição profissional no CapCut e BlackMagic Cam. Quem está começando tem o caminho claro. Quem já sabe tem onde evoluir.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Brain className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novos cursos</span>
-                    <h3 className="text-base font-bold text-white mt-1">3D pelo Celular & IA para Mobile</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Vá além do convencional. Aulas de criação em 3D usando o celular — efeitos, motion e renders que impressionam qualquer cliente. E um curso completo de IA na produção de conteúdo: automatize roteiros, ideias e edições com as ferramentas que estão moldando o futuro da criação mobile.
-                </p>
-              </GlassCard>
-            </div>
-          </div>
-
-          {/* Business tools block */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-px bg-brand-emerald/40" />
-              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Ferramentas de Negócio</span>
-              <div className="flex-1 h-px bg-white/5" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Sparkles className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Prospecção inteligente</span>
-                    <h3 className="text-base font-bold text-white mt-1">Diagnóstico de Perfil</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Chega de prospectar no escuro. Analise qualquer perfil do Instagram com o @ e receba um diagnóstico completo: engajamento real, consistência de postagens, tom de comunicação, lacunas visuais e oportunidades de conteúdo. Você entra na conversa já sabendo exatamente onde o cliente dói.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <DollarSign className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Fim do achismo</span>
-                    <h3 className="text-base font-bold text-white mt-1">Calculadora de Orçamento</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Uma calculadora séria, feita para criador mobile. Informe o tipo de conteúdo, complexidade, deslocamento, uso de equipamento e prazos — e receba um valor justo, detalhado e justificado. Nunca mais o cliente vai te pedir desconto sem você ter um argumento sólido na mão.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Lightbulb className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Criatividade com contexto</span>
-                    <h3 className="text-base font-bold text-white mt-1">Gerador de Ideias</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Roteiros prontos para gravar, não ideias soltas. Cada ideia vem com três versões do gancho, a fala exata de cada trecho, o texto na tela, a lista de takes e o plano da diária. Use o diagnóstico do cliente ou reels virais do Hub como ponto de partida e, se quiser, gere a legenda do post com um clique.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <FileCheck className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Fechamento profissional</span>
-                    <h3 className="text-base font-bold text-white mt-1">Gerador de Proposta Comercial</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Transforme diagnóstico, orçamento e ideias em uma proposta comercial em PDF — personalizada, visualmente bonita e com argumentação sólida. O cliente recebe um documento que explica o problema dele, a solução proposta e o valor que você entrega. Isso fecha contratos.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Briefcase className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Operação organizada</span>
-                    <h3 className="text-base font-bold text-white mt-1">Gestão de Clientes</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Chega de perder o fio da meada. Acompanhe cada cliente ativo, status das entregas, links de aprovação e histórico de projetos — tudo em um painel integrado. Quanto mais clientes você tiver, mais você vai precisar disso.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <MessageSquare className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Suporte especializado</span>
-                    <h3 className="text-base font-bold text-white mt-1">Assistente de IA</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Um assistente treinado para criadores mobile: CapCut, BlackMagic Cam, Node Video, edição, luz, roteiro, argumentação de venda, negociação com cliente B2B. Pergunte, desbloqueie, avance. Sem precisar de mentor particular para cada dúvida do dia a dia.
-                </p>
-              </GlassCard>
-
-            </div>
-          </div>
-
-          {/* Creation & inspiration block */}
-          <div className="space-y-6">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-px bg-brand-emerald/40" />
-              <span className="text-xs uppercase font-bold tracking-widest text-brand-emerald">Criação e Inspiração</span>
-              <div className="flex-1 h-px bg-white/5" />
-            </div>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Compass className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novo · Referência que explica</span>
-                    <h3 className="text-base font-bold text-white mt-1">Hub de Referências</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Uma curadoria de reels que viralizaram, organizada por nicho, formato e tipo de gancho. Cada vídeo vem com a análise do porquê funcionou: o gancho, o mecanismo e a estética. Busque por tema, salve seus favoritos e transforme qualquer referência em ideia ou prompt. Você para de copiar trend e passa a entender o que faz um vídeo performar.
-                </p>
-              </GlassCard>
-
-              <GlassCard className="p-6 space-y-4 hover:border-brand-emerald/20 transition-colors border-brand-emerald/10">
-                <div className="flex items-start gap-4">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald flex-shrink-0">
-                    <Clapperboard className="w-5 h-5" />
-                  </div>
-                  <div>
-                    <span className="text-[10px] text-brand-emerald font-bold uppercase tracking-widest">Novo · Direção de fotografia</span>
-                    <h3 className="text-base font-bold text-white mt-1">Gerador de Prompts</h3>
-                  </div>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed font-light">
-                  Prompts com precisão de diretor para Image to Video, Text to Image e Image to Image. Escolha câmera, lente, luz, estilo e movimento, ou deixe a IA decidir: ela lê a sua imagem, monta a ficha técnica e explica cada escolha. Funciona com Seedance, Veo, Kling, Runway, Midjourney e Nano Banana. Chega de vídeo de IA com cara de IA.
-                </p>
-              </GlassCard>
-
-            </div>
-          </div>
-        </section>
-
-        {/* 5. Dual journey — Beginners + Experienced */}
-        <section className="py-8 border-t border-white/5 space-y-14">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl font-extrabold text-white tracking-tight">
-              Dois pontos de partida. Um mesmo destino.
-            </h2>
-            <p className="text-gray-400 text-sm font-light max-w-xl mx-auto">
-              A Creator Lab fala igual com quem está começando e com quem já atende clientes. Veja onde você se encaixa.
-            </p>
-          </div>
-
-          {/* Dual track cards */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-
-            {/* Beginner track */}
-            <div className="rounded-3xl border border-brand-emerald/15 bg-gradient-to-br from-brand-emerald/5 to-transparent p-8 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-brand-emerald/15 border border-brand-emerald/25 flex items-center justify-center text-brand-emerald">
-                  <Video className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-brand-emerald block">Para quem está começando</span>
-                  <h3 className="text-lg font-extrabold text-white">Você já inicia na frente.</h3>
-                </div>
-              </div>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                A maioria dos criadores aprende criação durante anos e só depois descobre como vender. Aqui é diferente: você aprende a técnica <em>e</em> os processos de negócio ao mesmo tempo.
-              </p>
-              <ul className="space-y-3 text-xs text-gray-300">
-                {[
-                  { icon: '🎬', text: 'Aulas do zero: gravação, enquadramento, luz e edição pelo celular' },
-                  { icon: '🧠', text: 'Assistente de IA para tirar dúvidas técnicas no momento certo' },
-                  { icon: '🧭', text: 'Hub de referências: entende por que um vídeo viraliza antes de gravar o seu' },
-                  { icon: '💰', text: 'Calculadora de orçamento: você já cobra certo desde o primeiro cliente' },
-                  { icon: '📋', text: 'Proposta comercial pronta: não chega improvisando na conversa' },
-                  { icon: '🚀', text: 'Cursos de 3D e IA mobile: você avança enquanto outros ainda estão na base' },
-                ].map((item) => (
-                  <li key={item.text} className="flex gap-2.5 items-start">
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    <span>{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="p-4 rounded-2xl bg-brand-emerald/8 border border-brand-emerald/10 text-brand-mint text-xs font-semibold leading-relaxed">
-                Quem começa com sistema não desenvolve os vícios que levam anos para desfazer. Aqui você vai construir certo desde o primeiro dia.
-              </div>
-            </div>
-
-            {/* Experienced track */}
-            <div className="rounded-3xl border border-white/8 bg-gradient-to-br from-white/3 to-transparent p-8 space-y-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-white/8 border border-white/10 flex items-center justify-center text-white">
-                  <TrendingUp className="w-5 h-5" />
-                </div>
-                <div>
-                  <span className="text-[10px] font-bold uppercase tracking-widest text-gray-400 block">Para quem já está no mercado</span>
-                  <h3 className="text-lg font-extrabold text-white">Chega de deixar dinheiro na mesa.</h3>
-                </div>
-              </div>
-              <p className="text-gray-300 text-sm leading-relaxed">
-                Você já sabe criar. O problema é que a operação ainda depende de improviso — no preço, na proposta, na prospecção. E isso tem um custo invisivel que você paga todo mês.
-              </p>
-              <ul className="space-y-3 text-xs text-gray-300">
-                {[
-                  { icon: '🔍', text: 'Diagnóstico de perfil: sabe exatamente o que o cliente precisa antes de falar' },
-                  { icon: '📊', text: 'Orçamento justificado: para de perder para quem cobra mais barato' },
-                  { icon: '📄', text: 'Proposta em PDF: eleva a percepção de valor na hora certa' },
-                  { icon: '🗂️', text: 'Gestão de clientes: operação organizada que suporta mais volume' },
-                  { icon: '🎥', text: 'Gerador de prompts: imagem e vídeo com IA no nível de direção de fotografia' },
-                  { icon: '⚡', text: 'Conteúdo avançado: 3D mobile e IA que separam você da concorrência' },
-                ].map((item) => (
-                  <li key={item.text} className="flex gap-2.5 items-start">
-                    <span className="flex-shrink-0">{item.icon}</span>
-                    <span>{item.text}</span>
-                  </li>
-                ))}
-              </ul>
-              <div className="p-4 rounded-2xl bg-white/3 border border-white/8 text-gray-300 text-xs font-semibold leading-relaxed">
-                O mercado não vai te pagar mais só porque você faz vídeos melhores. Vai pagar mais quando você apresentar seu trabalho com mais autoridade e clareza.
-              </div>
-            </div>
-          </div>
-
-          {/* Common outcome strip */}
-          <div className="rounded-2xl border border-white/5 bg-white/2 p-8">
-            <div className="text-center mb-8 space-y-2">
-              <h3 className="text-xl font-bold text-white">O que muda para os dois</h3>
-              <p className="text-gray-500 text-xs">Independente de onde você está, o resultado aponta para o mesmo lugar.</p>
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-              {[
-                { icon: <DollarSign className="w-5 h-5" />, title: 'Ticket mais alto', desc: 'Argumentação embasada que justifica o preço sem descontos' },
-                { icon: <Clock className="w-5 h-5" />, title: 'Mais tempo', desc: 'Ferramentas que fazem em minutos o que tomava horas' },
-                { icon: <Target className="w-5 h-5" />, title: 'Prospecção certa', desc: 'Dados reais antes de qualquer contato com o cliente' },
-                { icon: <Zap className="w-5 h-5" />, title: 'Técnica que diferencia', desc: '3D e IA mobile que a concorrência ainda não sabe fazer' },
-              ].map((item) => (
-                <div key={item.title} className="p-5 rounded-2xl neo-glass border border-white/5 space-y-3 text-center">
-                  <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/20 flex items-center justify-center text-brand-emerald mx-auto">
-                    {item.icon}
-                  </div>
-                  <div className="text-sm font-bold text-white">{item.title}</div>
-                  <p className="text-[11px] text-gray-500 leading-relaxed">{item.desc}</p>
-                </div>
+            <div className="flex flex-wrap items-center justify-center lg:justify-start gap-x-5 gap-y-2 text-xs text-gray-500">
+              {['Assinatura mensal, sem fidelidade', 'Feito para o celular', 'Crédito volta se a IA falhar'].map(t => (
+                <span key={t} className="flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 text-brand-emerald" /> {t}</span>
               ))}
             </div>
           </div>
+          <HeroMosaic />
         </section>
 
-        {/* 5.5 Feedbacks e Resultados */}
-        <section className="py-16 border-t border-white/5 space-y-16 overflow-hidden">
-          
-          {/* Feedbacks Header */}
-          <div className="text-center space-y-4 max-w-2xl mx-auto px-6">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 text-brand-emerald text-xs font-bold uppercase tracking-widest">
-              <Star className="w-3.5 h-3.5" /> Comunidade Ativa
-            </div>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              O que os criadores estão vivendo
-            </h2>
-            <p className="text-gray-400 text-sm font-light">
-              Resultados reais de alunos e profissionais que já aplicaram a metodologia técnica e comercial da formação.
-            </p>
-          </div>
-
-          {/* Infinite Carousel Feedbacks */}
-          <div className="relative w-full flex overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-16 before:bg-gradient-to-r before:from-[#050505] before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-16 after:bg-gradient-to-l after:from-[#050505] after:to-transparent">
-            <style>{`
-              @keyframes slide {
-                0% { transform: translateX(0); }
-                100% { transform: translateX(-50%); }
-              }
-              .animate-slide {
-                animation: slide 50s linear infinite;
-              }
-              .animate-slide:hover {
-                animation-play-state: paused;
-              }
-            `}</style>
-            
-            <div className="flex animate-slide gap-6 w-max px-4">
-              {/* Duplicated list to create the infinite loop effect */}
-              {[...feedbacks, ...feedbacks].map((src, index) => (
-                <div key={index} className="w-[200px] h-[320px] sm:w-[240px] sm:h-[380px] flex-shrink-0 relative group rounded-2xl overflow-hidden border border-white/5 bg-[#0a0a0a] flex items-center justify-center p-2">
-                  <img 
-                    src={src} 
-                    alt={`Feedback ${index + 1}`} 
-                    className="w-full h-full object-contain rounded-xl transition-transform duration-500 group-hover:scale-105" 
-                    loading="lazy"
-                  />
-                  <div className="absolute inset-0 bg-brand-emerald/10 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pointer-events-none mix-blend-overlay" />
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Videos 3D Header */}
-          <div className="text-center space-y-4 max-w-2xl mx-auto px-6 mt-16 pt-8 border-t border-white/5">
-            <div className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full bg-purple-500/10 border border-purple-500/20 text-purple-400 text-xs font-bold uppercase tracking-widest">
-              <PlayCircle className="w-3.5 h-3.5" /> Na Prática
-            </div>
-            <h2 className="text-3xl font-extrabold text-white tracking-tight">
-              Resultados em 3D pelo celular
-            </h2>
-            <p className="text-gray-400 text-sm font-light">
-              Projetos reais finalizados por alunos dominando as técnicas de 3D Mobile para elevar o nível de suas entregas.
-            </p>
-          </div>
-
-          {/* 4 Videos Grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8 px-6 max-w-6xl mx-auto pb-8">
-            {videos3D.map((src, idx) => (
-              <div key={idx} className="relative group mx-auto w-full max-w-[260px]">
-                {/* Backlight / Retroiluminação */}
-                <div className="absolute -inset-1 bg-gradient-to-tr from-brand-emerald/40 via-brand-mint/10 to-brand-jade/40 rounded-[1.5rem] blur-lg opacity-40 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
-                
-                {/* Video Container */}
-                <div className="relative aspect-[9/16] rounded-2xl overflow-hidden border border-brand-emerald/20 bg-[#050505] shadow-2xl">
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent pointer-events-none z-10" />
-                  <iframe
-                    src={`${src}&autoplay=false`}
-                    className="w-full h-full absolute top-0 left-0"
-                    style={{ border: 'none' }}
-                    allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
-                    allowFullScreen
-                    loading="lazy"
-                  />
-                </div>
-              </div>
+        {/* Modelos */}
+        <section aria-label="Modelos de IA disponíveis" className="-mt-12 md:-mt-20">
+          <p className="text-center text-[11px] uppercase tracking-[0.25em] text-gray-600 mb-4">Os modelos de IA que você usa aqui dentro</p>
+          <div className="flex flex-wrap justify-center gap-2.5">
+            {['Kling 3.0', 'Google Veo 3.1', 'Nano Banana Pro', 'Wan 2.6', 'Claude', 'GPT'].map(m => (
+              <span key={m} className="px-4 py-2 rounded-full border border-white/[0.07] bg-white/[0.03] text-sm font-semibold text-gray-300">{m}</span>
             ))}
           </div>
-
         </section>
 
-        {/* 6. Pricing Section */}
-        <section id="planos" className="py-16 border-t border-white/5 scroll-mt-24 space-y-12">
-          <div className="text-center space-y-4 max-w-2xl mx-auto px-6">
-            <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-              Assine Agora
-            </span>
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              Acelere sua operação mobile
-            </h2>
-            <p className="text-gray-400 text-sm font-light">
-              Escolha o plano ideal para o seu momento e ganhe acesso imediato a todas as ferramentas e conteúdos da Creator Lab.
-            </p>
-          </div>
-
-          <PricingSection />
-        </section>
-
-
-        {/* Expert Profile Section */}
-        <section className="py-12 md:py-16 border-t border-white/5">
-          <div className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center">
-            {/* Image column */}
-            <div className="col-span-12 md:col-span-5 relative group md:self-stretch md:flex md:flex-col md:justify-stretch">
-              <div className="absolute -inset-2 md:-inset-3 rounded-[1.5rem] md:rounded-[2rem] bg-gradient-to-tr from-brand-emerald/20 via-brand-mint/5 to-brand-jade/25 blur-xl md:blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
-              <div className="relative rounded-2xl overflow-hidden border border-brand-emerald/25 bg-gradient-to-b from-[#0a0a0a] to-[#040404] shadow-[0_0_40px_rgba(16,185,129,0.2)] group-hover:border-brand-emerald/40 group-hover:shadow-[0_0_70px_rgba(16,185,129,0.45)] transition-all duration-500 md:flex-1 md:flex md:flex-col">
-                <img
-                  src="/img/mockup-app.png"
-                  alt="Luisera - Creator Lab Expert"
-                  className="w-full object-cover object-top h-[280px] sm:h-[340px] md:h-full md:min-h-[580px] hover:scale-[1.03] transition-transform duration-700"
-                  loading="lazy"
+        {/* 2. Vídeo */}
+        <section className="space-y-8">
+          <SectionTitle eyebrow={<><PlayCircle className="w-3.5 h-3.5" /> Em 2 minutos</>} title="Veja a Creator Lab" accent="por dentro" />
+          <div className="relative max-w-4xl mx-auto group">
+            <div className="absolute -inset-4 bg-brand-emerald/15 blur-[80px] rounded-[40px] group-hover:bg-brand-emerald/25 transition-all duration-700 pointer-events-none" />
+            <div className="relative rounded-[28px] p-2 border border-white/10 bg-white/[0.04] backdrop-blur">
+              <div className="rounded-[22px] overflow-hidden bg-[#050505] aspect-video">
+                <iframe
+                  id="panda-20b25815-5523-4c8d-abbc-27c4bcf8839f"
+                  src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=20b25815-5523-4c8d-abbc-27c4bcf8839f&autoplay=true"
+                  style={{ border: 'none' }}
+                  className="w-full h-full"
+                  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                  allowFullScreen
                 />
               </div>
             </div>
+          </div>
+        </section>
 
-            {/* Description column */}
-            <div className="col-span-12 md:col-span-7 space-y-5 md:space-y-6">
-              <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-                Quem construiu isso
-              </span>
-              <h2 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight leading-snug">
-                Criada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">Luisera</span>, a partir de uma dor real.
-              </h2>
-              <div className="space-y-4 text-gray-300 text-sm leading-relaxed font-light">
-                <p>
-                  Luisera passou pelos mesmos gargalos que você. Anos criando conteúdo mobile de alta qualidade, ensinando técnica para outros criadores, e percebendo que o problema não era a câmera — era a ausência de estrutura de negócio.
-                </p>
-                <p>
-                  A Creator Lab nasceu dessa frustração: não existia um lugar que reunisse formação técnica séria <em>com</em> as ferramentas práticas de quem quer viver de criação mobile com profissionalismo e escala.
-                </p>
-                <p>
-                  Cada feature da plataforma foi desenhada a partir de um gargalo real — vivido por Luisera ou pelos criadores que ele ensinou. Aqui, nada é teórico.
-                </p>
+        {/* 3. Um app no lugar de vários */}
+        <section className="space-y-12">
+          <SectionTitle
+            eyebrow={<><Clock className="w-3.5 h-3.5" /> Menos abas, mais entrega</>}
+            title="Pare de montar o quebra-cabeça"
+            accent="a cada projeto."
+            sub="Roteiro num lugar, imagem em outro, vídeo em outro, orçamento na planilha. Cada troca de app é tempo que não volta. Aqui o fluxo inteiro está junto, com o mesmo login e o mesmo saldo."
+          />
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+            <div className="relative rounded-[28px] border border-white/[0.07] bg-white/[0.02] p-6 md:p-8 overflow-hidden">
+              <p className="text-xs font-bold uppercase tracking-widest text-gray-500 mb-5">O jeito de sempre</p>
+              <div className="flex flex-wrap gap-2.5">
+                {SCATTERED.map((t, i) => (
+                  <span key={t} className="px-3.5 py-2 rounded-xl border border-white/[0.08] bg-black/30 text-sm text-gray-500 line-through decoration-red-400/60"
+                    style={{ rotate: `${(i % 3) - 1}deg` }}>{t}</span>
+                ))}
               </div>
-              <div className="p-4 md:p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 text-brand-mint text-sm font-semibold leading-relaxed">
-                "O mercado não paga mais por quem grava bem. Paga por quem sabe transformar criação em resultado comercial."
-              </div>
-              <div className="pt-2">
-                <a href="#planos">
-                  <Button className="glow-border text-black flex items-center gap-2">
-                    Escolher Meu Plano <ArrowRight className="w-4 h-4" />
-                  </Button>
-                </a>
-              </div>
+              <p className="mt-6 text-sm text-gray-500">8 ferramentas, 8 logins, várias assinaturas em dólar.</p>
+            </div>
+            <div className="relative rounded-[28px] border border-brand-emerald/30 p-6 md:p-8 overflow-hidden bg-[linear-gradient(140deg,rgba(16,185,129,0.18),rgba(6,95,70,0.12)_50%,rgba(3,20,13,0.4))]">
+              <div className="absolute -top-20 -right-16 w-64 h-64 rounded-full bg-brand-emerald/25 blur-3xl pointer-events-none" />
+              <p className="relative text-xs font-bold uppercase tracking-widest text-brand-mint mb-5">Com a Creator Lab</p>
+              <ul className="relative grid grid-cols-1 sm:grid-cols-2 gap-x-4 gap-y-3">
+                {['Roteiro e ideias', 'Prompt com direção', 'Imagem com IA', 'Vídeo com IA', 'Orçamento', 'Proposta em PDF', 'Referências virais', 'Cursos e aulas'].map(t => (
+                  <li key={t} className="flex items-center gap-2.5 text-sm text-white"><CheckCircle2 className="w-4 h-4 text-brand-emerald shrink-0" /> {t}</li>
+                ))}
+              </ul>
+              <p className="relative mt-6 text-sm text-brand-mint font-semibold">1 app, 1 login, 1 saldo de créditos.</p>
             </div>
           </div>
         </section>
 
+        {/* 4. Como funciona */}
+        <section id="como-funciona" className="space-y-12 scroll-mt-28">
+          <SectionTitle
+            eyebrow={<><Sparkles className="w-3.5 h-3.5" /> Como funciona</>}
+            title="Quatro passos entre a ideia"
+            accent="e o pagamento."
+          />
+          <div className="relative grid grid-cols-1 md:grid-cols-4 gap-4">
+            <div className="hidden md:block absolute top-9 left-[12%] right-[12%] h-px bg-gradient-to-r from-transparent via-brand-emerald/50 to-transparent" />
+            {FLOW.map((f, i) => (
+              <div key={f.step} className="relative rounded-[26px] border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-5 space-y-4">
+                <div className="flex items-center gap-3">
+                  <span className="relative w-12 h-12 rounded-2xl bg-gradient-to-br from-brand-neon to-brand-jade text-[#03140d] flex items-center justify-center shadow-[0_10px_30px_-8px_rgba(16,185,129,0.6)]">
+                    <f.icon className="w-5 h-5" strokeWidth={2.2} />
+                  </span>
+                  <span className="font-mono text-xs text-gray-500">0{i + 1}</span>
+                </div>
+                <h3 className="text-xl font-bold text-white">{f.step}</h3>
+                <p className="text-sm text-gray-400 leading-relaxed">{f.line}</p>
+                <div className="flex flex-wrap gap-1.5">
+                  {f.tools.map(t => <span key={t} className="px-2.5 py-1 rounded-full bg-brand-emerald/10 border border-brand-emerald/20 text-[10px] font-semibold text-brand-mint">{t}</span>)}
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* 5. Ferramentas */}
+        <section id="ferramentas" className="space-y-12 scroll-mt-28">
+          <SectionTitle
+            eyebrow={<><Zap className="w-3.5 h-3.5" /> 12 ferramentas</>}
+            title="Cada uma resolve uma tarefa."
+            accent="Em minutos."
+            sub="Feitas para quem cria pelo celular e não tem tempo a perder com ferramenta genérica."
+          />
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4 grid-flow-dense">
+            {TOOLS.map(t => {
+              const tone = TONES[t.tone];
+              const span = t.size === 'hero' ? 'col-span-2 row-span-2' : t.size === 'wide' ? 'col-span-2' : '';
+              return (
+                <div key={t.name}
+                  className={`group relative isolate overflow-hidden rounded-[26px] border border-white/[0.08] bg-[#07100c] p-5 flex flex-col justify-between transition-all duration-300 hover:-translate-y-1 hover:border-white/20 ${span} ${t.size === 'hero' ? 'min-h-[340px]' : 'min-h-[180px]'}`}>
+                  <div className="absolute -z-10 -top-20 -right-16 w-56 h-56 rounded-full blur-3xl opacity-25 group-hover:opacity-60 transition-opacity duration-500" style={{ background: tone.glow }} />
+                  <div className="absolute -z-10 inset-x-6 top-0 h-px opacity-60" style={{ background: `linear-gradient(90deg, transparent, ${tone.from}, transparent)` }} />
+                  <t.icon aria-hidden className="absolute -z-10 -bottom-6 -right-4 w-36 h-36 opacity-[0.05] group-hover:opacity-[0.1] group-hover:-rotate-6 transition-all duration-500" style={{ color: tone.text }} strokeWidth={1.2} />
+                  {t.size === 'hero' && (
+                    <div className="absolute -z-10 inset-0 opacity-70" style={{ background: 'radial-gradient(circle at 75% 25%, rgba(52,211,153,0.35), transparent 55%)' }} />
+                  )}
+                  <div className="flex items-start justify-between">
+                    <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[#03140d] group-hover:scale-110 group-hover:-rotate-3 transition-transform"
+                      style={{ background: `linear-gradient(135deg, ${tone.from}, ${tone.to})`, boxShadow: `0 10px 30px -8px ${tone.glow}` }}>
+                      <t.icon className="w-5 h-5" strokeWidth={2.2} />
+                    </span>
+                    {t.tag && <span className="px-2 py-1 rounded-full text-[9px] font-bold uppercase tracking-widest text-[#03140d]" style={{ background: tone.from }}>{t.tag}</span>}
+                  </div>
+                  <div className={t.size === 'hero' ? 'space-y-3' : 'mt-5'}>
+                    {t.size === 'hero' && (
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Imagem → vídeo', 'Texto → vídeo', 'Vídeo → vídeo'].map(m => (
+                          <span key={m} className="px-2.5 py-1 rounded-full bg-black/50 border border-white/10 text-[10px] font-semibold text-gray-200">{m}</span>
+                        ))}
+                      </div>
+                    )}
+                    <h3 className={`${t.size === 'hero' ? 'text-3xl md:text-4xl' : 'text-base'} font-bold text-white tracking-tight leading-tight`}>{t.name}</h3>
+                    <p className={`${t.size === 'hero' ? 'text-sm text-gray-300 max-w-sm' : 'text-xs text-gray-400'} mt-1.5 leading-relaxed`}>{t.line}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </section>
+
+        {/* 6. Cursos */}
+        <section id="cursos" className="space-y-12 scroll-mt-28">
+          <SectionTitle
+            eyebrow={<><GraduationCap className="w-3.5 h-3.5" /> Cursos com Luisera</>}
+            title="Aprenda a técnica."
+            accent="Execute com a ferramenta."
+            sub="A Creator Lab também é escola. Os cursos ensinam o porquê; as ferramentas fazem o trabalho pesado."
+          />
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            {COURSES.map((c, i) => {
+              const live = c.status === 'Disponível';
+              return (
+                <div key={c.title} className={`relative overflow-hidden rounded-[26px] border p-5 flex flex-col gap-4 min-h-[220px] ${live ? 'border-brand-emerald/30 bg-[linear-gradient(160deg,rgba(16,185,129,0.16),rgba(3,20,13,0.3))]' : 'border-white/[0.07] bg-white/[0.02]'}`}>
+                  <div className="flex items-center justify-between">
+                    <span className="font-mono text-xs text-gray-500">0{i + 1}</span>
+                    <span className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider ${live ? 'bg-brand-emerald text-[#03140d]' : 'bg-white/[0.06] text-gray-400 border border-white/10'}`}>{c.status}</span>
+                  </div>
+                  <div className="mt-auto">
+                    <p className="text-[11px] uppercase tracking-widest text-brand-mint/80">{c.kind}</p>
+                    <h3 className="text-xl font-bold text-white mt-1">{c.title}</h3>
+                    <p className="text-sm text-gray-400 mt-2 leading-relaxed">{c.line}</p>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <p className="text-center text-sm text-gray-500">Cursos incluídos no plano Elite. As novas aulas entram na plataforma sem custo extra.</p>
+        </section>
+
+        {/* 7. Para quem */}
+        <section className="grid grid-cols-1 md:grid-cols-2 gap-5">
+          {[
+            {
+              icon: Rocket, tag: 'Está começando', title: 'Comece já com cara de profissional.',
+              items: ['Roteiro pronto quando não sabe o que postar', 'Prompt técnico sem precisar saber o jargão', 'Preço justo desde o primeiro cliente', 'Cursos do básico ao 3D e IA'],
+            },
+            {
+              icon: TrendingUp, tag: 'Já trabalha com isso', title: 'Entregue mais rápido e cobre melhor.',
+              items: ['Imagem e vídeo com IA sem outra assinatura', 'Proposta em PDF em minutos, não em horas', 'Diagnóstico do perfil do cliente antes da reunião', 'Clientes e entregas organizados'],
+            },
+          ].map(card => (
+            <div key={card.tag} className="relative overflow-hidden rounded-[28px] border border-white/[0.07] bg-gradient-to-b from-white/[0.05] to-white/[0.01] p-7 space-y-5">
+              <div className="absolute -top-24 -right-20 w-64 h-64 rounded-full bg-brand-emerald/10 blur-3xl pointer-events-none" />
+              <span className="relative inline-flex items-center gap-2 text-xs font-bold uppercase tracking-widest text-brand-mint"><card.icon className="w-4 h-4" /> {card.tag}</span>
+              <h3 className="relative text-2xl font-extrabold text-white tracking-tight">{card.title}</h3>
+              <ul className="relative space-y-3">
+                {card.items.map(i => <li key={i} className="flex items-start gap-2.5 text-sm text-gray-300"><Check className="w-4 h-4 text-brand-emerald mt-0.5 shrink-0" /> {i}</li>)}
+              </ul>
+            </div>
+          ))}
+        </section>
+
+        {/* 8. Prova */}
+        <section className="space-y-14 overflow-hidden">
+          <SectionTitle
+            eyebrow={<><Star className="w-3.5 h-3.5" /> Comunidade</>}
+            title="Quem já usa,"
+            accent="conta."
+            sub="Prints reais de alunos e criadores que aplicaram o método."
+          />
+          <div className="relative w-full flex overflow-hidden before:absolute before:left-0 before:top-0 before:z-10 before:h-full before:w-16 before:bg-gradient-to-r before:from-[#050505] before:to-transparent after:absolute after:right-0 after:top-0 after:z-10 after:h-full after:w-16 after:bg-gradient-to-l after:from-[#050505] after:to-transparent">
+            <style>{`
+              @keyframes slide { 0% { transform: translateX(0); } 100% { transform: translateX(-50%); } }
+              .animate-slide { animation: slide 50s linear infinite; }
+              .animate-slide:hover { animation-play-state: paused; }
+              @media (prefers-reduced-motion: reduce) { .animate-slide { animation: none; } }
+            `}</style>
+            <div className="flex animate-slide gap-5 w-max px-4">
+              {[...feedbacks, ...feedbacks].map((src, index) => (
+                <div key={index} className="w-[200px] h-[320px] sm:w-[240px] sm:h-[380px] flex-shrink-0 relative group rounded-3xl overflow-hidden border border-white/[0.07] bg-white/[0.03] p-2">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={src} alt={`Feedback ${(index % feedbacks.length) + 1}`} className="w-full h-full object-contain rounded-2xl transition-transform duration-500 group-hover:scale-105" loading="lazy" />
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="space-y-8">
+            <h3 className="text-center text-2xl md:text-3xl font-extrabold text-white tracking-tight">Feito por alunos, <span className="text-brand-mint">em 3D pelo celular.</span></h3>
+            <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 md:gap-6 max-w-5xl mx-auto">
+              {videos3D.map((src, idx) => (
+                <div key={idx} className="relative group w-full">
+                  <div className="absolute -inset-1 bg-gradient-to-tr from-brand-emerald/40 via-brand-mint/10 to-brand-jade/40 rounded-[1.75rem] blur-lg opacity-40 group-hover:opacity-100 transition-opacity duration-700 pointer-events-none" />
+                  <div className="relative aspect-[9/16] rounded-3xl overflow-hidden border border-brand-emerald/20 bg-[#050505] shadow-2xl">
+                    <iframe src={`${src}&autoplay=false`} className="w-full h-full absolute top-0 left-0" style={{ border: 'none' }}
+                      allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture" allowFullScreen loading="lazy" />
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+        </section>
+
+        {/* 9. Planos */}
+        <section id="planos" className="space-y-12 scroll-mt-28">
+          <SectionTitle
+            eyebrow={<><Zap className="w-3.5 h-3.5" /> Planos</>}
+            title="Escolha o ritmo"
+            accent="da sua operação."
+            sub="Acesso imediato. Créditos todo mês para usar nas ferramentas e nas gerações de imagem e vídeo."
+          />
+          <PricingSection />
+        </section>
+
+        {/* 10. Perguntas */}
+        <section className="max-w-3xl mx-auto space-y-10">
+          <SectionTitle eyebrow={<><HelpCircle className="w-3.5 h-3.5" /> Perguntas frequentes</>} title="Antes de você" accent="decidir." />
+          <div className="space-y-3">
+            {FAQ.map(f => (
+              <details key={f.q} className="group rounded-2xl border border-white/[0.07] bg-white/[0.02] open:border-brand-emerald/30 open:bg-brand-emerald/[0.05] transition-colors">
+                <summary className="flex items-center justify-between gap-4 cursor-pointer list-none p-5 text-white font-semibold">
+                  {f.q}
+                  <span className="w-8 h-8 shrink-0 rounded-full border border-white/10 flex items-center justify-center text-brand-mint transition-transform group-open:rotate-45">+</span>
+                </summary>
+                <p className="px-5 pb-5 -mt-1 text-sm text-gray-400 leading-relaxed">{f.a}</p>
+              </details>
+            ))}
+          </div>
+        </section>
+
+        {/* 11. Quem fez */}
+        <section className="grid grid-cols-1 md:grid-cols-12 gap-8 md:gap-12 items-center">
+          <div className="col-span-12 md:col-span-5 relative group">
+            <div className="absolute -inset-3 rounded-[2rem] bg-gradient-to-tr from-brand-emerald/25 via-brand-mint/5 to-brand-jade/25 blur-2xl opacity-70 group-hover:opacity-100 transition-all duration-500 pointer-events-none" />
+            <div className="relative rounded-[28px] overflow-hidden border border-brand-emerald/25 bg-[#050505]">
+              {/* eslint-disable-next-line @next/next/no-img-element */}
+              <img src="/img/mockup-app.png" alt="Luisera, criador da Creator Lab" className="w-full object-cover object-top h-[320px] md:h-[520px] group-hover:scale-[1.03] transition-transform duration-700" loading="lazy" />
+            </div>
+          </div>
+          <div className="col-span-12 md:col-span-7 space-y-5">
+            <Eyebrow>Quem construiu isso</Eyebrow>
+            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
+              Criada por <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">Luisera</span>, para quem cria no ritmo do celular.
+            </h2>
+            <div className="space-y-4 text-gray-300 leading-relaxed">
+              <p>São anos criando vídeos 100% pelo celular para marcas, artistas e autoridades, e ensinando outros criadores a fazer o mesmo. O gargalo nunca foi a câmera: era o tempo perdido entre uma ferramenta e outra, e a falta de método para cobrar.</p>
+              <p>A Creator Lab junta o que eu uso no dia a dia num lugar só. Cada ferramenta nasceu de uma demanda real de gravação, de cliente ou de entrega com prazo curto.</p>
+            </div>
+            <div className="p-5 rounded-2xl bg-brand-emerald/[0.07] border border-brand-emerald/20 text-brand-mint font-semibold leading-relaxed">
+              “Quem entrega rápido e com qualidade é quem fica com o cliente. A ferramenta certa é o que dá esse tempo.”
+            </div>
+          </div>
+        </section>
+
+        {/* 12. Chamada final */}
+        <section className="relative overflow-hidden rounded-[36px] border border-brand-emerald/30 p-8 md:p-14 text-center bg-[linear-gradient(140deg,#10b981_0%,#059669_34%,#065f46_72%,#043b2c_100%)] shadow-[0_40px_120px_-40px_rgba(16,185,129,0.7)]">
+          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-mint/25 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-black/30 blur-3xl pointer-events-none" />
+          <div className="relative space-y-6 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.05] text-balance">Sua próxima entrega pode sair hoje.</h2>
+            <p className="text-brand-mint/90 text-lg">Roteiro, cena com IA, orçamento e proposta, tudo no celular.</p>
+            <a href="#planos" className="inline-flex items-center gap-2 px-8 py-4 rounded-full bg-white text-[#043b2c] font-bold text-lg hover:bg-brand-mint transition-colors shadow-[0_15px_40px_-10px_rgba(0,0,0,0.6)]">
+              Escolher meu plano <ArrowRight className="w-5 h-5" />
+            </a>
+          </div>
+        </section>
       </main>
 
-      {/* Footer */}
-      <footer className="border-t border-white/5 py-12 bg-[#050505] text-center relative z-10">
-        <p className="text-gray-600 text-xs">© 2026 Creator Lab. Desenvolvido para criadores profissionais. Todos os direitos reservados.</p>
+      {/* Rodapé */}
+      <footer className="border-t border-white/5 py-12 bg-[#050505] relative z-10">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-600">
+          <p>© 2026 Creator Lab. Criação mobile e IA num app só.</p>
+          <nav className="flex flex-wrap gap-5">
+            <a href="/termos-de-uso" className="hover:text-brand-mint">Termos de uso</a>
+            <a href="/termos-de-uso/geracao-ia" className="hover:text-brand-mint">Termos da geração com IA</a>
+            <a href="/politica-de-privacidade" className="hover:text-brand-mint">Privacidade</a>
+            <Link href="/login" className="hover:text-brand-mint">Entrar</Link>
+          </nav>
+        </div>
       </footer>
-
     </div>
   );
 }
