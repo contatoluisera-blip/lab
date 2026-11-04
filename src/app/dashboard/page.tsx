@@ -2,13 +2,14 @@
 
 import React from 'react';
 import { DashboardHeader } from '@/components/dashboard/DashboardHeader';
-import { CreditsCard, StudioShowcase, StudyCard, ToolTiles } from '@/components/dashboard/PanelCards';
+import { CreditsCard, StudioShowcase, StudyCard, ToolTiles, useRecentGenerations } from '@/components/dashboard/PanelCards';
 
 /**
  * Painel: a central da conta. Créditos e estudo no topo, o estúdio de geração em destaque
  * e todas as ferramentas a um toque.
  */
 export default function DashboardPage() {
+  const recent = useRecentGenerations();
   return (
     <div className="space-y-8 md:space-y-10 max-w-6xl mx-auto pb-16">
       <DashboardHeader />
@@ -18,9 +19,9 @@ export default function DashboardPage() {
         <div className="lg:col-span-5"><StudyCard /></div>
       </div>
 
-      <StudioShowcase />
+      <StudioShowcase recent={recent.slice(0, 3)} />
 
-      <ToolTiles />
+      <ToolTiles recent={recent} />
     </div>
   );
 }
