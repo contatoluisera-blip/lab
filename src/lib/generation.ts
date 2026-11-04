@@ -59,6 +59,11 @@ export interface GenModel {
   defaults: GenConfig;
   /** Preço em dólar da configuração escolhida (tabela oficial da KIE). */
   priceUsd: (c: GenConfig) => number;
+  /**
+   * Escada de preço por qualidade, em créditos: cada nível acima custa mais, mesmo quando
+   * o custo do provedor quase não muda. O cobrado é o maior entre isto e a regra de custo.
+   */
+  tierCredits?: (c: GenConfig) => number;
 }
 
 const IMAGE_ASPECTS: GenOption[] = [
@@ -81,7 +86,7 @@ export const GEN_MODELS: GenModel[] = [
     id: 'nano-banana-2',
     kind: 'image',
     name: 'Nano Banana 2',
-    tagline: 'Rápido e fiel ao prompt. O melhor custo para frames e testes.',
+    tagline: 'Rápido e fiel ao prompt. O melhor custo para frames, testes e volume.',
     badges: ['Até 4K', 'Edita com referência'],
     modes: ['t2i', 'i2i'],
     aspects: IMAGE_ASPECTS,
@@ -93,13 +98,14 @@ export const GEN_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.04, '2K': 0.06, '4K': 0.09 } as Record<string, number>)[c.resolution || '2K'] ?? 0.09,
+    tierCredits: (c) => ({ '1K': 1, '2K': 2, '4K': 3 } as Record<string, number>)[c.resolution || '2K'] ?? 3,
   },
   {
     id: 'nano-banana-pro',
     kind: 'image',
     name: 'Nano Banana Pro',
-    tagline: 'Máximo detalhe, textos legíveis na imagem e composições complexas.',
-    badges: ['Texto na imagem', 'Alto detalhe'],
+    tagline: 'O modelo mais caro e mais capaz: máximo detalhe, textos legíveis e composições complexas.',
+    badges: ['Premium', 'Texto na imagem', 'Alto detalhe'],
     modes: ['t2i', 'i2i'],
     aspects: IMAGE_ASPECTS,
     resolutions: [
@@ -110,6 +116,7 @@ export const GEN_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => (c.resolution === '4K' ? 0.12 : 0.09),
+    tierCredits: (c) => ({ '1K': 2, '2K': 3, '4K': 4 } as Record<string, number>)[c.resolution || '2K'] ?? 4,
   },
   {
     id: 'kling-3',
@@ -152,6 +159,7 @@ export const GEN_MODELS: GenModel[] = [
     maxImages: { i2v: 2 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.30 : 0.325),
+    tierCredits: (c) => (c.resolution === '720p' ? 3 : 4),
   },
   {
     id: 'veo-quality',
@@ -170,6 +178,7 @@ export const GEN_MODELS: GenModel[] = [
     maxImages: { i2v: 2 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 1.25 : 1.275),
+    tierCredits: (c) => (c.resolution === '720p' ? 11 : 12),
   },
   {
     id: 'wan-v2v',
@@ -221,18 +230,23 @@ function pick<T extends string | number>(options: GenOption<T>[] | undefined, va
 
 /** Normaliza a configuração para os valores aceitos pelo modelo (o servidor confia só nisto). */
 export function normalizeConfig(model: GenModel, raw: GenConfig = {}): GenConfig {
-  return {
+  const config: GenConfig = {
     aspect: pick(model.aspects, raw.aspect, model.defaults.aspect),
     resolution: pick(model.resolutions, raw.resolution, model.defaults.resolution),
     duration: pick(model.durations, Number(raw.duration), model.defaults.duration),
     quality: pick(model.qualities, raw.quality, model.defaults.quality),
     audio: model.audioToggle ? Boolean(raw.audio ?? model.defaults.audio) : model.nativeAudio ? true : undefined,
   };
+  // Só as opções que o modelo tem (o Firestore não aceita campos vazios).
+  for (const key of Object.keys(config) as (keyof GenConfig)[]) if (config[key] === undefined) delete config[key];
+  return config;
 }
 
 export function quote(model: GenModel, config: GenConfig) {
-  const usd = model.priceUsd(normalizeConfig(model, config));
-  return { usd, credits: creditsForUsd(usd), kieCredits: Math.round(usd / KIE_USD_PER_CREDIT) };
+  const c = normalizeConfig(model, config);
+  const usd = model.priceUsd(c);
+  const credits = Math.max(creditsForUsd(usd), model.tierCredits?.(c) ?? 0);
+  return { usd, credits, kieCredits: Math.round(usd / KIE_USD_PER_CREDIT) };
 }
 
 /** Menor custo em créditos do modelo, para o "a partir de". */

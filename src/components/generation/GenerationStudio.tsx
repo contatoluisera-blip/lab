@@ -111,6 +111,9 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
   const config = normalizeConfig(model, configs[model.id] || model.defaults);
   const setConfig = (patch: GenConfig) => setConfigs(prev => ({ ...prev, [model.id]: { ...config, ...patch } }));
   const price = quote(model, config);
+  /** Custo em créditos se esta opção for escolhida (mostra a escada de qualidade). */
+  const costIf = (patch: GenConfig) => quote(model, { ...config, ...patch }).credits;
+  const hintWith = (hint: string | undefined, credits: number) => `${hint ? `${hint} · ` : ''}${credits} cr`;
 
   const [prompt, setPrompt] = useState('');
   const [negative, setNegative] = useState('');
@@ -472,7 +475,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Duração</p>
                 <div className="flex flex-wrap gap-2">
-                  {model.durations.map(d => <Chip key={d.value} active={config.duration === d.value} onClick={() => setConfig({ duration: d.value })}>{d.label}</Chip>)}
+                  {model.durations.map(d => <Chip key={d.value} active={config.duration === d.value} hint={hintWith(undefined, costIf({ duration: d.value }))} onClick={() => setConfig({ duration: d.value })}>{d.label}</Chip>)}
                 </div>
               </div>
             )}
@@ -480,7 +483,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Qualidade</p>
                 <div className="flex flex-wrap gap-2">
-                  {model.qualities.map(q => <Chip key={q.value} active={config.quality === q.value} hint={q.hint} onClick={() => setConfig({ quality: q.value })}>{q.label}</Chip>)}
+                  {model.qualities.map(q => <Chip key={q.value} active={config.quality === q.value} hint={hintWith(q.hint, costIf({ quality: q.value }))} onClick={() => setConfig({ quality: q.value })}>{q.label}</Chip>)}
                 </div>
               </div>
             )}
@@ -488,7 +491,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Resolução</p>
                 <div className="flex flex-wrap gap-2">
-                  {model.resolutions.map(r => <Chip key={r.value} active={config.resolution === r.value} hint={r.hint} onClick={() => setConfig({ resolution: r.value })}>{r.label}</Chip>)}
+                  {model.resolutions.map(r => <Chip key={r.value} active={config.resolution === r.value} hint={hintWith(r.hint, costIf({ resolution: r.value }))} onClick={() => setConfig({ resolution: r.value })}>{r.label}</Chip>)}
                 </div>
               </div>
             )}
@@ -496,7 +499,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
               <label className="flex items-center justify-between gap-3 p-3 rounded-xl bg-black/30 border border-white/[0.06] cursor-pointer">
                 <span>
                   <span className="block text-xs font-semibold text-white">Áudio gerado</span>
-                  <span className="block text-[10px] text-gray-500">Ambiência e efeitos sincronizados. Aumenta o custo.</span>
+                  <span className="block text-[10px] text-gray-500">Ambiência e efeitos sincronizados · {costIf({ audio: true })} créditos com áudio, {costIf({ audio: false })} sem.</span>
                 </span>
                 <input type="checkbox" checked={!!config.audio} onChange={e => setConfig({ audio: e.target.checked })} className="accent-emerald-500 w-4 h-4" />
               </label>

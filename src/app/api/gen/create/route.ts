@@ -120,7 +120,11 @@ export async function POST(req: Request) {
 
     return NextResponse.json({ success: true, data: { id, credits: price.credits, position: positions[id] ?? null } });
   } catch (err) {
-    if (charge && uid) await refundCredit(uid, tool, charge, 'generation_not_created');
+    if (charge && uid) {
+      await refundCredit(uid, tool, charge, 'generation_not_created');
+      // O pedido nem entrou na fila: o teste grátis não conta como usado.
+      if (charge.trial) await adminDb.collection('users').doc(uid).update({ [`trialUsed.${tool}`]: false }).catch(() => {});
+    }
     return errorResponse(err);
   }
 }
