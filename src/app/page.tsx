@@ -245,7 +245,7 @@ export default function LandingPage() {
 
         {/* 2. Vídeo */}
         <section className="space-y-8">
-          <SectionTitle eyebrow={<><PlayCircle className="w-3.5 h-3.5" /> Em 2 minutos</>} title="Veja a Creator Lab" accent="por dentro" />
+          <SectionTitle eyebrow={<><PlayCircle className="w-3.5 h-3.5" /> Tour pela plataforma</>} title="Veja a Creator Lab" accent="por dentro" />
           <div className="relative max-w-4xl mx-auto group">
             <div className="absolute -inset-4 bg-brand-emerald/15 blur-[80px] rounded-[40px] group-hover:bg-brand-emerald/25 transition-all duration-700 pointer-events-none" />
             <div className="relative rounded-[28px] p-2 border border-white/10 bg-white/[0.04] backdrop-blur">
