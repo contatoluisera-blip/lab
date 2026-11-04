@@ -11,11 +11,11 @@ service cloud.firestore {
         && request.resource.data.plan == 'free'
         && request.resource.data.credits == 0
         && !request.resource.data.keys().hasAny(['trialUsed', 'creditsResetAt', 'currentPeriodEnd', 'manualGrant',
-                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus']);
+                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus', 'genTerms', 'genBlocked']);
       allow update: if request.auth != null && request.auth.uid == userId
         && !request.resource.data.diff(resource.data).affectedKeys()
             .hasAny(['plan', 'credits', 'trialUsed', 'creditsResetAt', 'currentPeriodEnd', 'manualGrant',
-                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus']);
+                     'stripeCustomerId', 'stripeSubscriptionId', 'stripeSubscriptionStatus', 'genTerms', 'genBlocked']);
       allow delete: if false;
 
       // Favoritos do Hub de Referências: só o dono lê e escreve.
@@ -93,6 +93,13 @@ service cloud.firestore {
       allow read, delete: if request.auth != null
         && resource.data.userId == request.auth.uid;
       allow create, update: if false;
+    }
+
+    // Geração de imagens e vídeos: o dono acompanha os seus pedidos em tempo real;
+    // fila, status e resultado são gravados só pelo servidor.
+    match /gen_jobs/{jobId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
     }
 
     // Clientes gerenciados

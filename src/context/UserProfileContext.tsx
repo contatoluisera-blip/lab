@@ -28,6 +28,10 @@ export interface UserProfile {
   stripeSubscriptionStatus?: string;
   currentPeriodEnd?: string | null;
   manualGrant?: { by?: string; at?: string } | null;
+  /** Aceite dos termos de uso da geração de imagem e vídeo (versão vigente em src/lib/generation.ts). */
+  genTerms?: { version: string; acceptedAt: string } | null;
+  /** Bloqueio de geração por mau uso (gravado pelo admin). */
+  genBlocked?: { by?: string; at?: string; reason?: string } | null;
 }
 
 interface UserProfileContextType {

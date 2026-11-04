@@ -1,0 +1,30 @@
+rules_version = '2';
+
+// Firebase Storage — publicar em Console > Storage > Regras.
+// O servidor (Admin SDK) não passa por estas regras: Foto de Estúdio e resultados da geração
+// são gravados por ele. Os resultados são abertos pelo link com token de download.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    // Arquivos de entrada da geração (frames, referências e vídeo para vídeo):
+    // cada pessoa só envia e lê na própria pasta, até 10 MB, imagem JPG/PNG ou vídeo MP4/MOV.
+    match /gen-inputs/{userId}/{fileName} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow create: if request.auth != null && request.auth.uid == userId
+        && request.resource.size <= 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/(jpeg|png)|video/(mp4|quicktime)');
+      allow update, delete: if false;
+    }
+
+    // Resultados: só leitura do dono (o servidor grava).
+    match /gen-outputs/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
+    // Todo o resto: fechado.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

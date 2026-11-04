@@ -18,8 +18,14 @@ const IMAGE_ROLES: Record<PromptMode, { role: ImageRole; label: string; required
     { role: 'base', label: 'Imagem 1 — imagem base a ser editada', required: true },
     { role: 'referencia', label: 'Imagem 2 — referência apenas de estilo, cor e luz', required: false },
   ],
+  v2v: [
+    { role: 'referencia', label: 'Imagem de referência — aparência desejada (personagem, estilo ou cenário)', required: false },
+  ],
   t2i: [],
 };
+
+/** Quadros tirados do vídeo no navegador (o modelo de texto não lê vídeo): até 4, do início ao fim. */
+const MAX_FRAMES = 4;
 
 const MEDIA_TYPES = ['image/jpeg', 'image/png', 'image/webp'] as const;
 type MediaType = typeof MEDIA_TYPES[number];
@@ -90,6 +96,18 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
   }
 
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
+  if (mode === 'v2v') {
+    const frames = Array.isArray(body.videoFrames) ? body.videoFrames.slice(0, MAX_FRAMES) : [];
+    if (frames.length < 2) throw new HttpError(400, 'missing_video', 'Envie o vídeo de entrada.');
+    const meta = body.videoMeta || {};
+    const seconds = Number(meta.duration) > 0 ? `${Number(meta.duration).toFixed(1)} s` : 'duração desconhecida';
+    const size = Number(meta.width) > 0 ? `${Math.round(meta.width)}x${Math.round(meta.height)}` : 'tamanho desconhecido';
+    content.push({ type: 'text', text: `VÍDEO DE ENTRADA (${seconds}, ${size}): ${frames.length} quadros em ordem, do início ao fim.` });
+    frames.forEach((f: unknown, i: number) => {
+      content.push({ type: 'text', text: `Quadro ${i + 1} de ${frames.length}` });
+      content.push({ type: 'image', source: { type: 'base64', ...parseImage(f) } });
+    });
+  }
   const images = (body.images || {}) as Record<string, unknown>;
   for (const slot of IMAGE_ROLES[mode]) {
     if (!images[slot.role]) {

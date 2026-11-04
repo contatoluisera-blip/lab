@@ -21,7 +21,9 @@ export type ToolId =
   | 'prompts'
   | 'proposal-rewrite'
   | 'caption'
-  | 'hub';
+  | 'hub'
+  | 'gen-image'
+  | 'gen-video';
 
 export interface PlanConfig {
   id: PlanId;
@@ -38,7 +40,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video'],
     courses: false,
   },
   pro: {
@@ -46,7 +48,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video'],
     courses: false,
   },
   elite: {
@@ -78,6 +80,9 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   'proposal-rewrite': 0, // ajuste fino de um trecho: custo ~R$ 0,01, não consome crédito
   caption: 1, // legenda do post de uma ideia, gerada à parte
   hub: 0, // navegar no hub é gratuito; as ações de IA cobram na ferramenta de destino
+  // Geração de imagem e vídeo: o custo real de cada pedido vem de src/lib/generation.ts (modelo e configuração).
+  'gen-image': 1,
+  'gen-video': 3,
 };
 
 /** Gerador de Ideias: 1 crédito até 5 ideias, 2 créditos de 6 a 10 (o custo de IA cresce com a quantidade). */
@@ -89,6 +94,8 @@ export function ideasCost(quantidade: unknown) {
 
 /** Primeiro uso de cada ferramenta é gratuito (teste). */
 export const FREE_FIRST_USE = true;
+/** Ferramentas sem teste grátis: o custo real por uso é alto demais para dar de graça (vídeo ~R$ 2 a 7). */
+export const NO_FREE_TRIAL: ToolId[] = ['gen-video'];
 
 /** Mapeia o ID do produto no Stripe para o plano. Lê as variáveis de ambiente uma vez. */
 export function planFromStripeProduct(productId: string | null | undefined): PlanId | null {

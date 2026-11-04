@@ -5,7 +5,7 @@
 // Nenhum valor é suposto: o que não está no perfil aparece como ausente.
 // ─────────────────────────────────────────────────────────────
 
-import { FREE_FIRST_USE, PLAN_CONFIGS, PlanId, TOOL_COSTS, ToolId, isPaidPlan, planHasToolAccess } from './planConfig';
+import { FREE_FIRST_USE, NO_FREE_TRIAL, PLAN_CONFIGS, PlanId, TOOL_COSTS, ToolId, isPaidPlan, planHasToolAccess } from './planConfig';
 
 /**
  * - active: assinatura da Stripe ativa (renova sozinha)
@@ -108,7 +108,7 @@ export interface ToolCheck {
  */
 export function checkTool(state: AccountState, trialUsed: AccountProfile['trialUsed'], tool: ToolId, costOverride?: number): ToolCheck {
   const cost = costOverride ?? TOOL_COSTS[tool] ?? 1;
-  const trial = FREE_FIRST_USE && cost > 0 && !trialUsed?.[tool];
+  const trial = FREE_FIRST_USE && !NO_FREE_TRIAL.includes(tool) && cost > 0 && !trialUsed?.[tool];
 
   if (state.status === 'none') {
     return { ok: false, reason: 'no_subscription', cost, trial, message: 'Você não tem uma assinatura ativa. Escolha um plano em Planos e Faturamento.' };

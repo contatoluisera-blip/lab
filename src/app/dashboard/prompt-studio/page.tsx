@@ -3,7 +3,10 @@
 import React, { useEffect, useState } from 'react';
 import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
-import { Clapperboard, Sparkles, Copy, Check, ImagePlus, X, Wand2, ListChecks, HelpCircle, LifeBuoy, ScanEye, ChevronDown, History } from 'lucide-react';
+import { Clapperboard, Sparkles, Copy, Check, ImagePlus, X, Wand2, ListChecks, HelpCircle, LifeBuoy, ScanEye, ChevronDown, History, Film, Image as ImageIcon, ArrowRight } from 'lucide-react';
+import { useRouter } from 'next/navigation';
+import { setGenHandoff } from '@/lib/client/handoff';
+import { GEN_LIMITS } from '@/lib/generation';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
@@ -28,8 +31,54 @@ const IMAGE_SLOTS: Record<PromptMode, { role: keyof Images; label: string; requi
     { role: 'base', label: 'Imagem a editar', required: true },
     { role: 'referencia', label: 'Referência de estilo (opcional)', required: false },
   ],
+  v2v: [
+    { role: 'referencia', label: 'Referência de aparência (opcional)', required: false },
+  ],
   t2i: [],
 };
+
+/** Modelo da ficha do Gerador → modelo disponível para gerar na Creator Lab. */
+function genModelFromChoices(mode: PromptMode, choices: Choices): string | null {
+  const m = String(choices.modelo || choices.modeloImagem || choices.modeloVideo || '');
+  if (mode === 'v2v') return 'wan-v2v';
+  if (/kling/i.test(m)) return 'kling-3';
+  if (/veo/i.test(m)) return 'veo-fast';
+  if (/nano banana pro/i.test(m)) return 'nano-banana-pro';
+  if (/nano banana/i.test(m)) return 'nano-banana-2';
+  return null;
+}
+
+/** Tira quadros do vídeo no navegador (início → fim) para a IA ler o movimento. */
+async function extractFrames(file: File, count = 4, max = 1024): Promise<{ frames: string[]; duration: number; width: number; height: number }> {
+  const url = URL.createObjectURL(file);
+  const video = document.createElement('video');
+  video.muted = true;
+  video.playsInline = true;
+  video.preload = 'auto';
+  video.src = url;
+  try {
+    await new Promise<void>((resolve, reject) => {
+      video.onloadeddata = () => resolve();
+      video.onerror = () => reject(new Error('Não foi possível ler este vídeo. Use MP4 ou MOV.'));
+    });
+    const duration = video.duration || 0;
+    const scale = Math.min(1, max / Math.max(video.videoWidth, video.videoHeight));
+    const canvas = document.createElement('canvas');
+    canvas.width = Math.round(video.videoWidth * scale);
+    canvas.height = Math.round(video.videoHeight * scale);
+    const ctx = canvas.getContext('2d')!;
+    const frames: string[] = [];
+    for (let i = 0; i < count; i++) {
+      const t = Math.min(Math.max(duration - 0.1, 0), (duration * (i + 0.15)) / count);
+      await new Promise<void>((resolve) => { video.onseeked = () => resolve(); video.currentTime = t; });
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+      frames.push(canvas.toDataURL('image/jpeg', 0.82));
+    }
+    return { frames, duration, width: video.videoWidth, height: video.videoHeight };
+  } finally {
+    URL.revokeObjectURL(url);
+  }
+}
 
 /** Reduz a imagem para no máximo 1600px (JPEG) antes de enviar: mais rápido e dentro do limite do servidor. */
 async function resizeImage(file: File, max = 1600): Promise<string> {
@@ -65,6 +114,7 @@ function CopyButton({ text, label = 'Copiar' }: { text: string; label?: string }
 
 export default function PromptStudioPage() {
   const { user } = useAuth();
+  const router = useRouter();
   const { hasToolAccess, canUseTool, refreshProfile } = useUserProfile();
 
   const [mode, setMode] = useState<PromptMode>('i2v');
@@ -72,6 +122,11 @@ export default function PromptStudioPage() {
   const [choices, setChoices] = useState<Choices>({});
   const [images, setImages] = useState<Images>({});
   const [openGroup, setOpenGroup] = useState<string | null>('Plataforma');
+  const [video, setVideo] = useState<{ file: File; preview: string; frames: string[]; duration: number; width: number; height: number } | null>(null);
+  const [readingVideo, setReadingVideo] = useState(false);
+  const [savedId, setSavedId] = useState<string | null>(null);
+  /** Entradas usadas no resultado atual (para levar à geração). */
+  const [resultInputs, setResultInputs] = useState<{ images: string[]; video: File | null; choices: Choices } | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
@@ -101,6 +156,8 @@ export default function PromptStudioPage() {
     if (!user) return;
     loadHistory();
     const params = new URLSearchParams(window.location.search);
+    const requestedMode = params.get('mode');
+    if (requestedMode && PROMPT_MODES.some(m => m.id === requestedMode)) setMode(requestedMode as PromptMode);
     const id = params.get('id');
     if (id) openSaved(id);
     // Vindo do Gerador de Ideias (?idea=<id>&i=<n>): frame-chave da abertura da ideia.
@@ -139,13 +196,53 @@ export default function PromptStudioPage() {
     setDescription(data.description || '');
     setChoices(data.choices || {});
     setResult(data.result);
+    setSavedId(id);
+    setResultInputs({ images: [], video: null, choices: data.choices || {} });
     setError('');
   };
 
   const changeMode = (m: PromptMode) => {
     setMode(m);
     setImages({});
+    if (video) URL.revokeObjectURL(video.preview);
+    setVideo(null);
     setError('');
+  };
+
+  const handleVideo = async (file?: File) => {
+    if (!file) return;
+    if (!/^video\/(mp4|quicktime)$/.test(file.type)) { setError('Envie o vídeo em MP4 ou MOV.'); return; }
+    if (file.size > 200 * 1024 * 1024) { setError('Vídeo grande demais para ler no navegador. Use um trecho menor.'); return; }
+    setReadingVideo(true);
+    setError('');
+    try {
+      const info = await extractFrames(file);
+      if (video) URL.revokeObjectURL(video.preview);
+      setVideo({ file, preview: URL.createObjectURL(file), ...info });
+    } catch (e: any) {
+      setError(e.message || 'Não foi possível ler este vídeo.');
+    } finally {
+      setReadingVideo(false);
+    }
+  };
+
+  /** Leva o prompt pronto para a aba de geração, com as mesmas imagens e o vídeo. */
+  const sendToGeneration = () => {
+    if (!result) return;
+    const kind = resultMode === 't2i' || resultMode === 'i2i' ? 'image' : 'video';
+    const inputs = resultInputs || { images: [], video: null, choices };
+    setGenHandoff({
+      kind,
+      mode: resultMode,
+      prompt: result.prompt,
+      negativePrompt: result.negativePrompt || undefined,
+      promptId: savedId,
+      images: inputs.images,
+      video: inputs.video,
+      modelId: genModelFromChoices(resultMode, inputs.choices),
+      source: 'prompts',
+    });
+    router.push(kind === 'image' ? '/dashboard/imagens?from=prompts' : '/dashboard/videos?from=prompts');
   };
 
   const setChoice = (id: string, value: string | string[]) => setChoices(prev => ({ ...prev, [id]: value }));
@@ -176,12 +273,13 @@ export default function PromptStudioPage() {
 
     const missingImage = IMAGE_SLOTS[mode].find(s => s.required && !images[s.role]);
     if (missingImage) { setError(`Envie a ${missingImage.label.toLowerCase()}.`); return; }
+    if (mode === 'v2v' && !video) { setError('Envie o vídeo de entrada.'); return; }
     if (main.required && !description.trim()) { setError(`Preencha "${main.label}".`); return; }
 
     setLoading(true);
     setError('');
     setResult(null);
-    setProgress(IMAGE_SLOTS[mode].length ? 'Lendo a imagem e montando a ficha técnica...' : 'Montando a ficha técnica...');
+    setProgress(mode === 'v2v' ? 'Lendo o vídeo e montando a ficha técnica...' : IMAGE_SLOTS[mode].length ? 'Lendo a imagem e montando a ficha técnica...' : 'Montando a ficha técnica...');
 
     try {
       const relevantChoices = Object.fromEntries(
@@ -189,6 +287,7 @@ export default function PromptStudioPage() {
       );
       const text = await streamTool('/api/tools/prompt-studio', {
         mode, description, choices: relevantChoices, images,
+        ...(mode === 'v2v' && video ? { videoFrames: video.frames, videoMeta: { duration: video.duration, width: video.width, height: video.height } } : {}),
       }, (partial) => {
         if (partial.trim()) setProgress(`Escrevendo o prompt... (${partial.trim().length} caracteres)`);
       });
@@ -197,17 +296,25 @@ export default function PromptStudioPage() {
 
       setResult(data);
       setResultMode(mode);
+      setSavedId(null);
+      setResultInputs({
+        images: mode === 'i2v' ? [images.inicial, images.final].filter(Boolean) as string[]
+          : mode === 'i2i' ? [images.base, images.referencia].filter(Boolean) as string[] : [],
+        video: mode === 'v2v' ? video?.file || null : null,
+        choices: relevantChoices,
+      });
       refreshProfile();
 
       if (user) {
-        await addDoc(collection(db, 'prompts'), {
+        const saved = await addDoc(collection(db, 'prompts'), {
           userId: user.uid,
           mode,
           description,
           choices: relevantChoices,
           result: data,
           createdAt: new Date().toISOString(),
-        }).catch(e => console.error('[prompts] falha ao salvar:', e));
+        }).catch(e => { console.error('[prompts] falha ao salvar:', e); return null; });
+        if (saved) setSavedId(saved.id);
         loadHistory();
         addNotification(user.uid, 'Prompt pronto', `Seu prompt de ${PROMPT_MODES.find(m => m.id === mode)!.label} foi gerado.`, 'success');
       }
@@ -245,7 +352,7 @@ export default function PromptStudioPage() {
             )}
 
             {/* Modo */}
-            <div className="grid grid-cols-3 gap-2 mb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
               {PROMPT_MODES.map(m => (
                 <button
                   key={m.id}
@@ -262,6 +369,39 @@ export default function PromptStudioPage() {
             <p className="text-xs text-gray-500 mb-5">{PROMPT_MODES.find(m => m.id === mode)!.description}</p>
 
             <div className="space-y-5">
+              {/* Vídeo de entrada (Video to Video) */}
+              {mode === 'v2v' && (
+                <div>
+                  <p className="text-xs font-medium text-gray-300 mb-1.5">Vídeo de entrada</p>
+                  {video ? (
+                    <div className="space-y-2">
+                      <div className="relative rounded-xl overflow-hidden border border-white/10 bg-black/40">
+                        <video src={video.preview} className="w-full max-h-64 object-contain" controls muted playsInline />
+                        <button type="button" onClick={() => { URL.revokeObjectURL(video.preview); setVideo(null); }}
+                          className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white hover:bg-black" aria-label="Remover vídeo">
+                          <X className="w-3.5 h-3.5" />
+                        </button>
+                      </div>
+                      <div className="grid grid-cols-4 gap-1.5">
+                        {video.frames.map((f, i) => (
+                          // eslint-disable-next-line @next/next/no-img-element
+                          <img key={i} src={f} alt={`Quadro ${i + 1}`} className="w-full aspect-video object-cover rounded-md border border-white/5" />
+                        ))}
+                      </div>
+                      <p className="text-[10px] text-gray-500">{video.duration.toFixed(1)} s · {video.width}x{video.height} · a IA lê estes {video.frames.length} quadros para entender o movimento.</p>
+                    </div>
+                  ) : (
+                    <label className="flex flex-col items-center justify-center gap-1.5 h-32 rounded-xl border border-dashed border-white/15 bg-black/20 text-gray-500 hover:border-brand-jade/50 hover:text-brand-mint cursor-pointer transition-colors">
+                      <Film className="w-6 h-6" />
+                      <span className="text-[11px] text-center px-2">{readingVideo ? 'Lendo o vídeo…' : 'Toque para enviar o vídeo (MP4 ou MOV)'}</span>
+                      <input type="file" accept="video/mp4,video/quicktime" className="hidden" disabled={readingVideo}
+                        onChange={e => { handleVideo(e.target.files?.[0]); e.target.value = ''; }} />
+                    </label>
+                  )}
+                  <p className="text-[10px] text-gray-500 mt-1">Para gerar na Creator Lab depois, o vídeo precisa ter até {GEN_LIMITS.videoMaxSeconds} s e {GEN_LIMITS.videoMaxBytes / 1024 / 1024} MB.</p>
+                </div>
+              )}
+
               {/* Imagens */}
               {IMAGE_SLOTS[mode].length > 0 && (
                 <div className="grid grid-cols-2 gap-3">
@@ -435,6 +575,21 @@ export default function PromptStudioPage() {
                   <h3 className="text-lg font-bold text-white">Prompt</h3>
                   <CopyButton text={result.prompt} label="Copiar prompt" />
                 </div>
+                <button type="button" onClick={sendToGeneration}
+                  className="group w-full mb-4 flex items-center justify-between gap-3 px-4 py-3 rounded-xl bg-gradient-to-r from-brand-jade/40 via-emerald-700/30 to-transparent border border-brand-emerald/40 hover:border-brand-emerald/80 transition-colors text-left">
+                  <span className="flex items-center gap-3">
+                    <span className="p-2 rounded-lg bg-brand-emerald/20 text-brand-mint">
+                      {resultMode === 't2i' || resultMode === 'i2i' ? <ImageIcon className="w-4 h-4" /> : <Film className="w-4 h-4" />}
+                    </span>
+                    <span>
+                      <span className="block text-sm font-bold text-white">
+                        {resultMode === 't2i' || resultMode === 'i2i' ? 'Gerar esta imagem aqui' : 'Gerar este vídeo aqui'}
+                      </span>
+                      <span className="block text-[11px] text-gray-400">Leva o prompt{resultInputs?.images.length || resultInputs?.video ? ' e os arquivos' : ''} para a aba de geração, sem copiar e colar.</span>
+                    </span>
+                  </span>
+                  <ArrowRight className="w-4 h-4 text-brand-mint group-hover:translate-x-1 transition-transform" />
+                </button>
                 <pre className="whitespace-pre-wrap break-words text-sm leading-relaxed text-gray-200 bg-black/40 border border-white/5 rounded-xl p-4 font-mono">{result.prompt}</pre>
                 {result.negativePrompt && (
                   <div className="mt-4">
