@@ -8,6 +8,7 @@ import {
   Calculator, FileText, IdCard, Briefcase, Rocket,
 } from 'lucide-react';
 import PricingSection from '@/app/PricingSection';
+import { LoopVideo } from '@/components/landing/LoopVideo';
 
 const feedbacks = [
   "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint1.jpeg?alt=media&token=84a37184-0121-45af-93ca-a017124e91e2",
@@ -65,19 +66,32 @@ const TONES: Record<Tone, { from: string; to: string; glow: string; text: string
   lime: { from: '#bef264', to: '#22c55e', glow: 'rgba(132,204,22,0.35)', text: '#d9f99d' },
 };
 
-const TOOLS: { name: string; line: string; icon: React.ElementType; tone: Tone; size?: 'hero' | 'wide'; tag?: string }[] = [
-  { name: 'Gerar Vídeo', line: 'Anime um frame, crie a cena do zero ou transforme um vídeo seu. Kling, Veo e Wan no mesmo lugar.', icon: Film, tone: 'emerald', size: 'hero', tag: 'Novo' },
-  { name: 'Gerar Imagem', line: 'Frames, capas e cenas com Nano Banana 2 e Pro, de 1K a 4K.', icon: ImagePlus, tone: 'emerald', size: 'wide', tag: 'Novo' },
+const TOOLS: { name: string; line: string; icon: React.ElementType; tone: Tone; size?: 'hero' | 'wide'; tag?: string; media?: { src: string; type: 'video' | 'image'; poster?: string } }[] = [
+  { name: 'Gerar Vídeo', line: 'Anime um frame, crie a cena do zero ou transforme um vídeo seu. Kling, Veo e Wan no mesmo lugar.', icon: Film, tone: 'emerald', size: 'hero', tag: 'Novo', media: { src: '/media/ia/fogo.mp4', type: 'video', poster: '/media/ia/fogo.jpg' } },
+  { name: 'Gerar Imagem', line: 'Frames, capas e cenas com Nano Banana 2 e Pro, de 1K a 4K.', icon: ImagePlus, tone: 'emerald', size: 'wide', tag: 'Novo', media: { src: '/media/ia/frame-feirante.jpg', type: 'image' } },
   { name: 'Gerador de Prompts', line: 'Image, Text e Video to Video com ficha de direção de fotografia. Chega de vídeo de IA com cara de IA.', icon: Clapperboard, tone: 'emerald', size: 'wide' },
   { name: 'Gerador de Ideias', line: 'Roteiros prontos para gravar: ganchos, fala exata e takes.', icon: Lightbulb, tone: 'emerald' },
   { name: 'Hub de Referências', line: 'Reels virais com a análise do porquê funcionaram.', icon: Compass, tone: 'emerald' },
   { name: 'Foto de Estúdio', line: 'Uma selfie vira retrato profissional.', icon: Camera, tone: 'emerald' },
-  { name: 'Diagnóstico de Perfil', line: 'Descubra o que está segurando o crescimento do perfil, seu ou do cliente.', icon: ScanSearch, tone: 'teal', size: 'wide' },
+  { name: 'Diagnóstico de Perfil', line: 'Descubra o que está segurando o crescimento do perfil, seu ou do cliente.', icon: ScanSearch, tone: 'teal', size: 'wide', media: { src: '/media/ia/diagnostico.mp4', type: 'video', poster: '/media/ia/diagnostico.jpg' } },
   { name: 'Perguntas Rápidas', line: 'Dúvidas de criação e mercado, na hora.', icon: MessageSquare, tone: 'teal' },
   { name: 'Calculadora', line: 'Custo, lucro e preço final de cada projeto, sem chute.', icon: Calculator, tone: 'lime', size: 'wide' },
   { name: 'Propostas', line: 'Proposta em PDF em minutos.', icon: FileText, tone: 'lime' },
   { name: 'Cartão do Creator', line: 'Seu portfólio e serviços num PDF.', icon: IdCard, tone: 'lime' },
   { name: 'Meus Clientes', line: 'Projetos, status e entregas.', icon: Briefcase, tone: 'lime' },
+];
+
+/** Exemplos reais gerados com IA (vídeos curtos em /public/media/ia). */
+const GALLERY = [
+  { src: '/media/ia/pelucia.mp4', poster: '/media/ia/pelucia.jpg', title: 'Narrativa com personagem', tag: 'Storytelling' },
+  { src: '/media/ia/fogo-2.mp4', poster: '/media/ia/fogo-2.jpg', title: 'Tipografia 3D na paisagem', tag: 'Campanha' },
+  { src: '/media/ia/campanha.mp4', poster: '/media/ia/campanha.jpg', title: 'Direção de luz dramática', tag: 'Institucional' },
+  { src: '/media/ia/fogo.mp4', poster: '/media/ia/fogo.jpg', title: 'Plano aéreo sem drone', tag: 'Documental' },
+];
+
+const FRAMES = [
+  { src: '/media/ia/frame-feirante.jpg', title: 'Retrato na feira', ratio: 'aspect-video' },
+  { src: '/media/ia/frame-familia.jpg', title: 'Cena em família', ratio: 'aspect-video' },
 ];
 
 const COURSES = [
@@ -127,16 +141,15 @@ function HeroMosaic() {
 
       {/* Cena sendo gerada */}
       <div className={`absolute left-[4%] top-[6%] w-[46%] p-2.5 ${glass} motion-safe:animate-[float_7s_ease-in-out_infinite]`} style={{ rotate: '-5deg' }}>
-        <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[radial-gradient(circle_at_30%_20%,#34d399_0%,#065f46_45%,#03140d_100%)]">
-          <div className="absolute inset-0 bg-[linear-gradient(110deg,transparent_30%,rgba(255,255,255,0.18)_50%,transparent_70%)] bg-[length:250%_100%] animate-[shimmer_2.8s_linear_infinite]" />
+        <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-[#03140d]">
+          <LoopVideo src="/media/ia/gisele.mp4" poster="/media/ia/gisele.jpg" label="Cena gerada com IA" className="absolute inset-0 w-full h-full object-cover" />
           <span className="absolute top-2.5 left-2.5 w-4 h-4 border-t-2 border-l-2 border-white/70 rounded-tl" />
           <span className="absolute bottom-2.5 right-2.5 w-4 h-4 border-b-2 border-r-2 border-white/70 rounded-br" />
-          <span className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/50 text-[9px] font-mono uppercase tracking-widest text-white">
-            <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-pulse" /> Gerando
+          <span className="absolute top-3 right-3 flex items-center gap-1.5 px-2 py-1 rounded-full bg-black/60 text-[9px] font-mono uppercase tracking-widest text-white">
+            <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald" /> Pronto
           </span>
-          <Film className="absolute inset-0 m-auto w-10 h-10 text-white/40" />
         </div>
-        <p className="px-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-gray-300">Kling 3.0 · 9:16 · 5 s</p>
+        <p className="px-1 pt-2 font-mono text-[10px] uppercase tracking-widest text-gray-300">Cena com IA · 9:16</p>
       </div>
 
       {/* Roteiro pronto */}
@@ -189,6 +202,7 @@ export default function LandingPage() {
         </div>
         <nav className="hidden md:flex items-center gap-7 text-sm font-medium text-gray-400">
           <a href="#como-funciona" className="hover:text-brand-mint transition-colors">Como funciona</a>
+          <a href="#exemplos" className="hover:text-brand-mint transition-colors">Exemplos</a>
           <a href="#ferramentas" className="hover:text-brand-mint transition-colors">Ferramentas</a>
           <a href="#cursos" className="hover:text-brand-mint transition-colors">Cursos</a>
           <a href="#planos" className="hover:text-brand-mint transition-colors">Planos</a>
@@ -322,6 +336,70 @@ export default function LandingPage() {
           </div>
         </section>
 
+        {/* 4.5 Galeria */}
+        <section id="exemplos" className="space-y-12 scroll-mt-28">
+          <SectionTitle
+            eyebrow={<><Film className="w-3.5 h-3.5" /> Feito com IA</>}
+            title="Qualidade de entrega,"
+            accent="não de teste."
+            sub="Frames e cenas gerados com IA, com o mesmo método de direção que você aplica aqui dentro."
+          />
+
+          {/* Da foto à cena */}
+          <div className="relative grid grid-cols-1 md:grid-cols-[1fr_auto_1fr] items-center gap-5 md:gap-8 rounded-[32px] border border-white/[0.07] bg-[#050907] p-5 md:p-10 overflow-hidden">
+            <div className="absolute inset-0 opacity-40 pointer-events-none" style={{ backgroundImage: 'radial-gradient(circle at 50% 50%, rgba(16,185,129,0.25), transparent 60%)' }} />
+            <figure className="relative mx-auto w-full max-w-[280px] space-y-3">
+              <div className="rounded-3xl p-2 border border-white/15 bg-white/[0.05] backdrop-blur">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src="/media/ia/frame-moradora.jpg" alt="Frame gerado com IA: moradora sorrindo em frente a um conjunto habitacional" loading="lazy" className="w-full aspect-[9/16] object-cover rounded-2xl" />
+              </div>
+              <figcaption className="text-center"><span className="font-mono text-[10px] uppercase tracking-widest text-brand-mint">1 · Frame</span><span className="block text-sm text-gray-400">Gerar Imagem</span></figcaption>
+            </figure>
+            <div className="relative flex md:flex-col items-center justify-center gap-3 text-brand-mint">
+              <span className="hidden md:block w-px h-16 bg-gradient-to-b from-transparent to-brand-emerald/60" />
+              <span className="w-14 h-14 rounded-full bg-gradient-to-br from-brand-neon to-brand-jade text-[#03140d] flex items-center justify-center shadow-[0_10px_30px_-8px_rgba(16,185,129,0.8)]">
+                <ArrowRight className="w-6 h-6 rotate-90 md:rotate-0" />
+              </span>
+              <span className="text-xs font-semibold text-gray-300 text-center">Prompt com<br className="hidden md:block" /> direção</span>
+              <span className="hidden md:block w-px h-16 bg-gradient-to-t from-transparent to-brand-emerald/60" />
+            </div>
+            <figure className="relative mx-auto w-full max-w-[280px] space-y-3">
+              <div className="rounded-3xl p-2 border border-brand-emerald/40 bg-brand-emerald/[0.08] backdrop-blur shadow-[0_30px_80px_-30px_rgba(16,185,129,0.7)]">
+                <div className="relative aspect-[9/16] rounded-2xl overflow-hidden bg-black">
+                  <LoopVideo src="/media/ia/gisele.mp4" poster="/media/ia/gisele.jpg" label="Cena em vídeo gerada a partir do frame" className="absolute inset-0 w-full h-full object-cover" />
+                </div>
+              </div>
+              <figcaption className="text-center"><span className="font-mono text-[10px] uppercase tracking-widest text-brand-mint">2 · Cena</span><span className="block text-sm text-gray-400">A mesma pessoa, agora em movimento</span></figcaption>
+            </figure>
+          </div>
+
+          {/* Cenas */}
+          <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 md:gap-4">
+            {GALLERY.map(g => (
+              <figure key={g.src} className="group relative aspect-[9/16] rounded-[26px] overflow-hidden border border-white/[0.08] bg-black">
+                <LoopVideo src={g.src} poster={g.poster} label={g.title} className="absolute inset-0 w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" />
+                <div className="absolute inset-x-0 bottom-0 p-4 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
+                  <span className="px-2 py-0.5 rounded-full bg-brand-emerald/90 text-[9px] font-bold uppercase tracking-widest text-[#03140d]">{g.tag}</span>
+                  <figcaption className="mt-2 text-sm font-semibold text-white leading-snug">{g.title}</figcaption>
+                </div>
+              </figure>
+            ))}
+          </div>
+
+          {/* Frames */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4">
+            {FRAMES.map(f => (
+              <figure key={f.src} className="group relative rounded-[26px] overflow-hidden border border-white/[0.08] bg-black">
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={f.src} alt={`Frame gerado com IA: ${f.title.toLowerCase()}`} loading="lazy" className={`w-full ${f.ratio} object-cover group-hover:scale-105 transition-transform duration-700`} />
+                <figcaption className="absolute left-4 bottom-4 px-3 py-1.5 rounded-full bg-black/60 backdrop-blur text-xs font-semibold text-white">
+                  <ImagePlus className="inline w-3.5 h-3.5 mr-1.5 -mt-0.5 text-brand-mint" />{f.title}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+        </section>
+
         {/* 5. Ferramentas */}
         <section id="ferramentas" className="space-y-12 scroll-mt-28">
           <SectionTitle
@@ -340,8 +418,14 @@ export default function LandingPage() {
                   <div className="absolute -z-10 -top-20 -right-16 w-56 h-56 rounded-full blur-3xl opacity-25 group-hover:opacity-60 transition-opacity duration-500" style={{ background: tone.glow }} />
                   <div className="absolute -z-10 inset-x-6 top-0 h-px opacity-60" style={{ background: `linear-gradient(90deg, transparent, ${tone.from}, transparent)` }} />
                   <t.icon aria-hidden className="absolute -z-10 -bottom-6 -right-4 w-36 h-36 opacity-[0.05] group-hover:opacity-[0.1] group-hover:-rotate-6 transition-all duration-500" style={{ color: tone.text }} strokeWidth={1.2} />
-                  {t.size === 'hero' && (
-                    <div className="absolute -z-10 inset-0 opacity-70" style={{ background: 'radial-gradient(circle at 75% 25%, rgba(52,211,153,0.35), transparent 55%)' }} />
+                  {t.media && (
+                    <div className="absolute -z-10 inset-0">
+                      {t.media.type === 'video'
+                        ? <LoopVideo src={t.media.src} poster={t.media.poster} className={`w-full h-full object-cover ${t.name.startsWith('Diagn') ? 'object-top opacity-40' : 'opacity-60'} group-hover:scale-105 transition-transform duration-700`} />
+                        // eslint-disable-next-line @next/next/no-img-element
+                        : <img src={t.media.src} alt="" loading="lazy" className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-700" />}
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#050907] via-[#050907]/75 to-[#050907]/10" />
+                    </div>
                   )}
                   <div className="flex items-start justify-between">
                     <span className="w-12 h-12 rounded-2xl flex items-center justify-center text-[#03140d] group-hover:scale-110 group-hover:-rotate-3 transition-transform"
