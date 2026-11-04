@@ -508,7 +508,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
           </div>
 
           {/* Resumo e ação */}
-          <div className="sticky bottom-3 z-10 -mx-2 p-4 rounded-2xl border border-brand-emerald/25 bg-[#07100c]/95 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)] space-y-3">
+          <div className="lg:sticky lg:bottom-3 z-10 -mx-2 p-4 rounded-2xl border border-brand-emerald/25 bg-[#07100c]/95 backdrop-blur-xl shadow-[0_20px_60px_-20px_rgba(0,0,0,0.9)] space-y-3">
             <div className="flex items-end justify-between gap-3">
               <div>
                 <p className="text-[10px] uppercase tracking-widest text-gray-500">Custo desta geração</p>
