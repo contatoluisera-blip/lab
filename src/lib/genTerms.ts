@@ -25,7 +25,7 @@ export const GEN_TERMS_SECTIONS: TermsSection[] = [
     title: '1. O que é a geração de imagens e vídeos',
     items: [
       'A Creator Lab oferece a geração de imagens e vídeos por inteligência artificial a partir de textos (prompts), imagens e vídeos enviados por você.',
-      'As gerações são processadas por provedores parceiros de IA (como a KIE AI e os modelos que ela disponibiliza, entre eles Google Veo, Nano Banana, Kling e Wan). Ao gerar, você também se sujeita às políticas de uso desses modelos.',
+      'As gerações são processadas por provedores parceiros de IA (como a KIE AI e os modelos que ela disponibiliza, entre eles Google Veo, Imagen e Nano Banana, Kling, Wan, OpenAI GPT Image, ByteDance Seedream e Seedance, xAI Grok, MiniMax Hailuo, PixVerse, Runway, FLUX e Ideogram). Ao gerar, você também se sujeita às políticas de uso desses modelos.',
       'Estes termos complementam os Termos de Uso gerais da Creator Lab e valem para as abas Gerar imagem e Gerar vídeo e para qualquer recurso de geração que venha a existir.',
     ],
   },

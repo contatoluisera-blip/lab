@@ -52,6 +52,13 @@ export const AI_VIDEO_TOOLS: AiTool[] = [
   { id: 'veo-fast', label: 'Veo 3.1 Fast (1080p, som)', hint: 'Preço de API', costPerUnit: perSecond('veo-fast', { resolution: '1080p', duration: 8 }) },
   { id: 'veo-quality', label: 'Veo 3.1 Quality (1080p, som)', hint: 'Preço de API', costPerUnit: perSecond('veo-quality', { resolution: '1080p', duration: 8 }) },
   { id: 'wan-v2v', label: 'Wan 2.6 vídeo para vídeo (1080p)', hint: 'Preço de API', costPerUnit: perSecond('wan-v2v', { resolution: '1080p', duration: 5 }) },
+  { id: 'veo-lite', label: 'Veo 3.1 Lite (1080p, som)', hint: 'Preço de API', costPerUnit: perSecond('veo-lite', { resolution: '1080p', duration: 8 }) },
+  { id: 'kling-4', label: 'Kling 4.0 (1080p)', hint: 'Preço de API', costPerUnit: perSecond('kling-4', { resolution: '1080p', duration: 5 }) },
+  { id: 'kling-turbo', label: 'Kling 3.0 Turbo (1080p, som)', hint: 'Preço de API', costPerUnit: perSecond('kling-turbo', { resolution: '1080p', duration: 5 }) },
+  { id: 'seedance-fast', label: 'Seedance 2 Fast (720p, som)', hint: 'Preço de API', costPerUnit: perSecond('seedance-fast', { resolution: '720p', duration: 5 }) },
+  { id: 'hailuo-23-pro', label: 'Hailuo 2.3 Pro (1080p)', hint: 'Preço de API', costPerUnit: perSecond('hailuo-23-pro', { resolution: '1080P', duration: 6 }) },
+  { id: 'wan-27', label: 'Wan 2.7 (1080p)', hint: 'Preço de API', costPerUnit: perSecond('wan-27', { resolution: '1080p', duration: 5 }) },
+  { id: 'grok-imagine', label: 'Grok Imagine (720p, som)', hint: 'Preço de API', costPerUnit: perSecond('grok-imagine', { resolution: '720p', duration: 10 }) },
   { id: 'creator-lab', label: 'Créditos da Creator Lab', hint: 'Calculado pelo valor do crédito no seu plano', costPerUnit: null },
   { id: 'custom', label: 'Outra ferramenta (informar R$ por segundo)', hint: 'Assinatura própria, Higgsfield, Runway…', costPerUnit: null },
 ];
@@ -59,6 +66,9 @@ export const AI_VIDEO_TOOLS: AiTool[] = [
 export const AI_IMAGE_TOOLS: AiTool[] = [
   { id: 'nb2', label: 'Nano Banana 2 (2K)', hint: 'Preço de API', costPerUnit: Number((0.06 * USD_TO_BRL).toFixed(3)) },
   { id: 'nb-pro', label: 'Nano Banana Pro (2K)', hint: 'Preço de API', costPerUnit: Number((0.09 * USD_TO_BRL).toFixed(3)) },
+  { id: 'gpt-image-2', label: 'GPT Image 2 (2K)', hint: 'Preço de API', costPerUnit: Number((0.05 * USD_TO_BRL).toFixed(3)) },
+  { id: 'seedream-5', label: 'Seedream 5.0 Pro (2K)', hint: 'Preço de API', costPerUnit: Number((0.07 * USD_TO_BRL).toFixed(3)) },
+  { id: 'flux-klein', label: 'FLUX 3 Klein (2K)', hint: 'Preço de API', costPerUnit: Number((0.0125 * USD_TO_BRL).toFixed(3)) },
   { id: 'creator-lab', label: 'Créditos da Creator Lab', hint: 'Calculado pelo valor do crédito no seu plano', costPerUnit: null },
   { id: 'custom', label: 'Outra ferramenta (informar R$ por imagem)', hint: 'Midjourney, Freepik…', costPerUnit: null },
 ];

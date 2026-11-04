@@ -125,6 +125,9 @@ Os rótulos só organizam; se o modelo escolhido responde melhor a texto corrido
 - Veo 3: áudio e diálogo nativos fortes, clipes curtos (~8s, limite a duração). Para fala: quem fala, texto exato entre aspas, tom.
 - Kling: use o negative prompt; frases mais diretas. Se o usuário usar o controle de câmera da interface, não descreva outro movimento no texto.
 - Runway / Luma: prompts enxutos focados em movimento e câmera; sem áudio.
+- Hailuo 2.3: forte em movimento de pessoas e expressões; descreva a ação corporal e o gesto com clareza, câmera simples; sem áudio.
+- Wan 2.7: aceita negative prompt e primeiro + último frame; frases diretas, uma ação principal por clipe.
+- Grok Imagine / PixVerse V6: prompts curtos e visuais, uma ideia por clipe; descreva o som em uma frase se o áudio estiver ligado.
 
 # MODO TEXT TO IMAGE
 
@@ -159,6 +162,8 @@ Não há âncora visual: o prompt precisa construir a imagem inteira, do mais im
 ## Formato do prompt (T2I) — em inglês
 Texto corrido em parágrafo único, nesta ordem: sujeito e ação → composição e enquadramento → cenário → lente e óptica → luz → estilo, cor e textura → restrições positivas ("clean background without text").
 - Nano Banana / GPT Image / Seedream: linguagem natural descritiva, frases completas; textos que devem aparecer na imagem vão entre aspas, com fonte e posição.
+- Ideogram V3: o melhor para texto na imagem; escreva o texto exato entre aspas e diga estilo tipográfico, posição e hierarquia; use o negative prompt.
+- Imagen 4: descrição fotográfica objetiva (sujeito, luz, lente, ambiente); aceita negative prompt.
 - Midjourney: frase descritiva enxuta seguida de parâmetros (--ar <proporção> --style raw --v 7); negativos em --no.
 - Flux: linguagem natural detalhada, sem pesos nem parâmetros.
 

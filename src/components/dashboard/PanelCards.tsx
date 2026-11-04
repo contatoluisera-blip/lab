@@ -12,6 +12,10 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { readStudyProgress, StudyProgress } from '@/lib/client/studyProgress';
 import { GenJob, GEN_MODELS, minCredits } from '@/lib/generation';
+
+const VIDEO_MODEL_COUNT = GEN_MODELS.filter(m => m.kind === 'video').length;
+const IMAGE_MODEL_COUNT = GEN_MODELS.filter(m => m.kind === 'image').length;
+const minFor = (kind: 'image' | 'video') => Math.min(...GEN_MODELS.filter(m => m.kind === kind).map(minCredits));
 import { TOOL_COSTS, ToolId } from '@/lib/planConfig';
 import { LoopVideo } from '@/components/landing/LoopVideo';
 
@@ -215,7 +219,7 @@ export function StudioShowcase() {
             Da ideia à cena pronta, <span className="text-brand-mint">sem sair da Creator Lab.</span>
           </h2>
           <p className="text-gray-400 leading-relaxed max-w-md">
-            Dirija o prompt no Gerador, gere o frame com Nano Banana e anime com Kling ou Veo. Tudo com os seus créditos, num lugar só.
+            Dirija o prompt no Gerador, gere o frame com Nano Banana, GPT Image ou Seedream e anime com Kling, Veo, Seedance e outros. Tudo com os seus créditos, num lugar só.
           </p>
           <div className="flex flex-wrap gap-3">
             <Link href="/dashboard/imagens" className="group flex items-center gap-3 pl-4 pr-2 py-2 rounded-full bg-white/[0.06] border border-white/10 hover:border-brand-emerald/50 transition-colors">
@@ -272,8 +276,8 @@ const TONE: Record<Category, { from: string; to: string; glow: string; text: str
 interface ToolDef { name: string; desc: string; href: string; icon: React.ElementType; tool?: ToolId; cat: Category; cost?: string; size?: Size; badge?: string; pitch?: string }
 
 const TOOLS: ToolDef[] = [
-  { name: 'Gerar Vídeo', desc: 'Cenas com Kling, Veo e Wan', pitch: 'Anime um frame, crie do texto ou transforme um vídeo seu.', href: '/dashboard/videos', icon: Film, cat: 'Criar', cost: 'desde 3 cr', size: 'hero', badge: 'Novo' },
-  { name: 'Gerar Imagem', desc: 'Frames com Nano Banana 2 e Pro', href: '/dashboard/imagens', icon: ImagePlus, cat: 'Criar', cost: 'desde 1 cr', size: 'wide', badge: 'Novo' },
+  { name: 'Gerar Vídeo', desc: `${VIDEO_MODEL_COUNT} modelos: Kling, Veo, Seedance…`, pitch: `Anime um frame, crie do texto ou transforme um vídeo seu. ${VIDEO_MODEL_COUNT} modelos de vídeo num lugar só.`, href: '/dashboard/videos', icon: Film, cat: 'Criar', cost: `desde ${minFor('video')} cr`, size: 'hero', badge: 'Novo' },
+  { name: 'Gerar Imagem', desc: `${IMAGE_MODEL_COUNT} modelos: Nano Banana, GPT Image…`, href: '/dashboard/imagens', icon: ImagePlus, cat: 'Criar', cost: `desde ${minFor('image')} cr`, size: 'wide', badge: 'Novo' },
   { name: 'Gerador de Prompts', desc: 'Direção de fotografia para IA', href: '/dashboard/prompt-studio', icon: Clapperboard, tool: 'prompts', cat: 'Criar', size: 'wide' },
   { name: 'Gerador de Ideias', desc: 'Roteiros prontos para gravar', href: '/dashboard/idea-generator', icon: Lightbulb, tool: 'ideas', cat: 'Criar' },
   { name: 'Hub de Referências', desc: 'Reels virais analisados', pitch: 'Reels que viralizaram, com a análise do gancho, do formato e do porquê funcionou.', href: '/dashboard/hub', icon: Compass, tool: 'hub', cat: 'Criar', size: 'wide' },
@@ -351,7 +355,7 @@ function ToolCard({ t, locked, cost, media }: { t: ToolDef; locked: boolean; cos
       <div className={size === 'hero' ? 'space-y-3' : 'mt-4'}>
         {size === 'hero' && (
           <div className="flex flex-wrap gap-1.5">
-            {['Kling 3.0', 'Veo 3.1', 'Wan 2.6'].map(m => (
+            {['Kling 4.0', 'Veo 3.1', 'Seedance 2', `+${VIDEO_MODEL_COUNT - 3}`].map(m => (
               <span key={m} className="px-2.5 py-1 rounded-full bg-black/50 border border-white/10 backdrop-blur text-[10px] font-semibold text-gray-200">{m}</span>
             ))}
           </div>

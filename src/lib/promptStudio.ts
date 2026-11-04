@@ -31,11 +31,11 @@ export const PROMPT_MODES: { id: PromptMode; label: string; description: string 
 export const PROMPT_FIELDS: PromptField[] = [
   // Plataforma
   { id: 'modelo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['i2v'], kind: 'select',
-    options: ['Seedance 2.5 (KIE AI)', 'Veo 3', 'Kling', 'Runway', 'Luma'] },
+    options: ['Seedance 2.5 (KIE AI)', 'Veo 3', 'Kling', 'Kling 4.0', 'Hailuo 2.3', 'Wan 2.7', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
   { id: 'modeloVideo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['v2v'], kind: 'select',
     options: ['Wan 2.6 (KIE AI)', 'Kling 3.0 Omni', 'Seedance 2 (vídeo de referência)', 'Luma Modify', 'Runway'] },
   { id: 'modeloImagem', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['t2i', 'i2i'], kind: 'select',
-    options: ['Nano Banana 2 (KIE AI)', 'Seedream (KIE AI)', 'GPT Image', 'Midjourney', 'Flux'] },
+    options: ['Nano Banana 2 (KIE AI)', 'Nano Banana Pro', 'Seedream (KIE AI)', 'GPT Image', 'Ideogram V3', 'Imagen 4', 'Midjourney', 'Flux'] },
   { id: 'proporcao', label: 'Proporção', group: 'Plataforma', modes: ['i2v', 'v2v', 't2i', 'i2i'], kind: 'select',
     options: ['9:16 (vertical)', '16:9 (horizontal)', '1:1 (quadrado)', '4:5 (feed)', '3:4', '21:9 (cinema)'],
     help: 'Com imagem ou vídeo de entrada, "Decidir por mim" herda a proporção do original.' },

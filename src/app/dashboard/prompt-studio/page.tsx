@@ -41,10 +41,13 @@ const IMAGE_SLOTS: Record<PromptMode, { role: keyof Images; label: string; requi
 function genModelFromChoices(mode: PromptMode, choices: Choices): string | null {
   const m = String(choices.modelo || choices.modeloImagem || choices.modeloVideo || '');
   if (mode === 'v2v') return 'wan-v2v';
-  if (/kling/i.test(m)) return 'kling-3';
-  if (/veo/i.test(m)) return 'veo-fast';
-  if (/nano banana pro/i.test(m)) return 'nano-banana-pro';
-  if (/nano banana/i.test(m)) return 'nano-banana-2';
+  const map: [RegExp, string][] = [
+    [/kling 4/i, 'kling-4'], [/kling/i, 'kling-3'], [/veo/i, 'veo-fast'], [/seedance/i, 'seedance-fast'],
+    [/hailuo/i, 'hailuo-23-std'], [/wan/i, 'wan-27'], [/grok/i, 'grok-imagine'], [/pixverse/i, 'pixverse-v6'], [/runway/i, 'runway'],
+    [/nano banana pro/i, 'nano-banana-pro'], [/nano banana/i, 'nano-banana-2'], [/seedream/i, 'seedream-5-pro'],
+    [/gpt image/i, 'gpt-image-2'], [/ideogram/i, 'ideogram-v3'], [/imagen/i, 'imagen4-fast'], [/flux/i, 'flux-3-klein'],
+  ];
+  for (const [re, id] of map) if (re.test(m)) return id;
   return null;
 }
 

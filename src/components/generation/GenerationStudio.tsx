@@ -107,6 +107,14 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
   const available = useMemo(() => modelsFor(kind, mode), [kind, mode]);
   const [modelId, setModelId] = useState<string>(available[0].id);
   const model = available.find(m => m.id === modelId) || available[0];
+  const [showAllModels, setShowAllModels] = useState(false);
+  // Recomendados (e o escolhido, se não for um deles) primeiro; o resto agrupado por empresa.
+  const featured = useMemo(() => available.filter(m => m.featured || m.id === model.id), [available, model.id]);
+  const families = useMemo(() => {
+    const groups = new Map<string, typeof available>();
+    for (const m of available) groups.set(m.family || 'Outros', [...(groups.get(m.family || 'Outros') || []), m]);
+    return [...groups.entries()];
+  }, [available]);
   const [configs, setConfigs] = useState<Record<string, GenConfig>>({});
   const config = normalizeConfig(model, configs[model.id] || model.defaults);
   const setConfig = (patch: GenConfig) => setConfigs(prev => ({ ...prev, [model.id]: { ...config, ...patch } }));
@@ -134,7 +142,10 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
 
   // Entradas exigidas por modo.
   const slotDefs = useMemo(() => {
-    if (mode === 'i2v') return [{ label: 'Frame inicial', required: true }, { label: 'Frame final', required: false }];
+    if (mode === 'i2v') {
+      const frames = [{ label: 'Frame inicial', required: true }, { label: 'Frame final', required: false }];
+      return frames.slice(0, Math.max(1, model.maxImages?.i2v ?? 2));
+    }
     if (mode === 'i2i') {
       const max = model.maxImages?.i2i ?? 4;
       return Array.from({ length: max }, (_, i) => ({ label: i === 0 ? 'Imagem base' : `Referência ${i + 1}`, required: i === 0 }));
@@ -441,7 +452,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
                   ))}
                 </div>
               )}
-              {mode === 'i2v' && <p className="text-[10px] text-gray-500 mt-2">Com o frame final, o modelo faz o caminho entre as duas imagens.</p>}
+              {mode === 'i2v' && slotDefs.length > 1 && <p className="text-[10px] text-gray-500 mt-2">Com o frame final, o modelo faz o caminho entre as duas imagens.</p>}
             </div>
           )}
 
@@ -449,17 +460,32 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
           <div>
             <StepHeader n={slotDefs.length > 0 || mode === 'v2v' ? 3 : 2} title="Modelo" />
             <div className="space-y-2.5">
-              {available.map(m => (
+              {(showAllModels ? [] : featured).map(m => (
                 <ModelCard key={m.id} model={m} active={m.id === model.id} credits={m.id === model.id ? price.credits : undefined}
                   onClick={() => setModelId(m.id)} />
               ))}
+              {showAllModels && families.map(([family, list]) => (
+                <div key={family} className="space-y-2.5">
+                  <p className="pt-2 text-[10px] font-bold uppercase tracking-widest text-gray-500">{family}</p>
+                  {list.map(m => (
+                    <ModelCard key={m.id} model={m} active={m.id === model.id} credits={m.id === model.id ? price.credits : undefined}
+                      onClick={() => setModelId(m.id)} />
+                  ))}
+                </div>
+              ))}
+              {available.length > featured.length && (
+                <button type="button" onClick={() => setShowAllModels(v => !v)}
+                  className="w-full py-3 rounded-2xl border border-dashed border-white/15 text-xs font-semibold text-gray-300 hover:border-brand-emerald/40 hover:text-white transition-colors">
+                  {showAllModels ? 'Mostrar só os recomendados' : `Ver todos os ${available.length} modelos`}
+                </button>
+              )}
             </div>
           </div>
 
           {/* 4. Ajustes */}
           <div className="space-y-4">
             <StepHeader n={slotDefs.length > 0 || mode === 'v2v' ? 4 : 3} title="Ajustes" />
-            {model.aspects && !(mode === 'i2v' && model.id === 'kling-3') && (
+            {model.aspects && !(mode === 'i2v' && !model.id.startsWith('veo')) && (
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Proporção{mode === 'i2v' ? ' (o vídeo segue o frame inicial quando possível)' : ''}</p>
                 <div className="flex flex-wrap gap-2">

@@ -64,7 +64,10 @@ export function ModelCard({ model, active, credits, onClick }: { model: GenModel
     >
       <div className="flex items-start justify-between gap-3">
         <div className="min-w-0">
-          <p className="text-sm font-bold text-white">{model.name}</p>
+          <p className="text-sm font-bold text-white flex flex-wrap items-center gap-2">
+            {model.name}
+            {model.highlight && <span className="px-1.5 py-0.5 rounded-md bg-brand-emerald/15 border border-brand-emerald/30 text-[9px] font-bold uppercase tracking-wider text-brand-mint">{model.highlight}</span>}
+          </p>
           <p className="text-[11px] text-gray-400 leading-snug mt-1">{model.tagline}</p>
         </div>
         <span className={`shrink-0 flex items-center justify-center w-5 h-5 rounded-full border ${active ? 'bg-brand-emerald border-brand-emerald text-black' : 'border-white/20'}`}>

@@ -67,8 +67,8 @@ const TONES: Record<Tone, { from: string; to: string; glow: string; text: string
 };
 
 const TOOLS: { name: string; line: string; icon: React.ElementType; tone: Tone; size?: 'hero' | 'wide'; tag?: string; media?: { src: string; type: 'video' | 'image'; poster?: string } }[] = [
-  { name: 'Gerar Vídeo', line: 'Anime um frame, crie a cena do zero ou transforme um vídeo seu. Kling, Veo e Wan no mesmo lugar.', icon: Film, tone: 'emerald', size: 'hero', tag: 'Novo', media: { src: '/media/ia/fogo.mp4', type: 'video', poster: '/media/ia/fogo.jpg' } },
-  { name: 'Gerar Imagem', line: 'Frames, capas e cenas com Nano Banana 2 e Pro, de 1K a 4K.', icon: ImagePlus, tone: 'emerald', size: 'wide', tag: 'Novo', media: { src: '/media/ia/frame-feirante.jpg', type: 'image' } },
+  { name: 'Gerar Vídeo', line: 'Anime um frame, crie a cena do zero ou transforme um vídeo seu. Kling, Veo, Seedance, Hailuo, Wan e mais no mesmo lugar.', icon: Film, tone: 'emerald', size: 'hero', tag: 'Novo', media: { src: '/media/ia/fogo.mp4', type: 'video', poster: '/media/ia/fogo.jpg' } },
+  { name: 'Gerar Imagem', line: 'Frames, capas e cenas com Nano Banana, GPT Image 2, Seedream, FLUX e Ideogram, de 1K a 4K.', icon: ImagePlus, tone: 'emerald', size: 'wide', tag: 'Novo', media: { src: '/media/ia/frame-feirante.jpg', type: 'image' } },
   { name: 'Gerador de Prompts', line: 'Image, Text e Video to Video com ficha de direção de fotografia. Chega de vídeo de IA com cara de IA.', icon: Clapperboard, tone: 'emerald', size: 'wide' },
   { name: 'Gerador de Ideias', line: 'Roteiros prontos para gravar: ganchos, fala exata e takes.', icon: Lightbulb, tone: 'emerald' },
   { name: 'Hub de Referências', line: 'Reels virais com a análise do porquê funcionaram.', icon: Compass, tone: 'emerald' },
@@ -104,7 +104,7 @@ const COURSES = [
 const FAQ = [
   { q: 'Já uso o ChatGPT de graça. Por que pagar?', a: 'Porque aqui o método do audiovisual já vem pronto. Você não precisa saber pedir: escolhe opções, a ferramenta escreve o roteiro, o prompt técnico ou a proposta. E a geração de imagem e vídeo já está dentro, sem outra assinatura.' },
   { q: 'Não tenho tempo para aprender uma plataforma nova.', a: 'Cada ferramenta entrega em minutos e foi feita para o celular. Você abre, preenche o essencial e sai com o resultado. Os cursos ficam para quando quiser evoluir a técnica.' },
-  { q: 'Como funcionam os créditos?', a: 'Cada plano traz créditos por mês. Ferramentas de texto custam 1 ou 2 créditos; imagens a partir de 1; vídeos a partir de 3, conforme o modelo e a qualidade. O custo aparece antes de você confirmar, e se a geração falhar por erro técnico, o crédito volta sozinho.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada plano traz créditos por mês. Ferramentas de texto custam 1 ou 2 créditos; imagens e vídeos a partir de 1, conforme o modelo e a qualidade. O custo aparece antes de você confirmar, e se a geração falhar por erro técnico, o crédito volta sozinho.' },
   { q: 'Serve para o meu nicho?', a: 'Sim. O Gerador de Ideias parte do seu nicho, o Hub mostra referências dele e o Diagnóstico analisa qualquer perfil. Creators, social medias, videomakers e agências usam a mesma base.' },
   { q: 'Os cursos estão em todos os planos?', a: 'Os cursos fazem parte do plano Elite. Start e Pro dão acesso às ferramentas, incluindo a geração de imagem e vídeo.' },
   { q: 'Posso cancelar quando quiser?', a: 'Pode. A assinatura é mensal, sem fidelidade. Você cancela pela própria área de planos.' },
@@ -255,7 +255,7 @@ export default function LandingPage() {
         <section aria-label="Modelos de IA disponíveis" className="-mt-12 md:-mt-20">
           <p className="text-center text-[11px] uppercase tracking-[0.25em] text-gray-600 mb-4">Os modelos de IA que você usa aqui dentro</p>
           <div className="flex flex-wrap justify-center gap-2.5">
-            {['Kling 3.0', 'Google Veo 3.1', 'Nano Banana Pro', 'Wan 2.6', 'Claude', 'GPT'].map(m => (
+            {['Kling 4.0', 'Google Veo 3.1', 'Seedance 2', 'Nano Banana Pro', 'GPT Image 2', 'Seedream 5', 'Hailuo 2.3', 'Wan 2.7', 'Runway', 'Claude'].map(m => (
               <span key={m} className="px-4 py-2 rounded-full border border-white/[0.07] bg-white/[0.03] text-sm font-semibold text-gray-300">{m}</span>
             ))}
           </div>
