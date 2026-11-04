@@ -81,3 +81,8 @@ body {
   from { background-position: 200% 0; }
   to { background-position: -50% 0; }
 }
+
+@keyframes float {
+  0%, 100% { translate: 0 0; }
+  50% { translate: 0 -10px; }
+}

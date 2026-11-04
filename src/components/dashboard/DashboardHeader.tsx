@@ -98,21 +98,19 @@ export function DashboardHeader() {
   };
 
   return (
-    <div className="py-12 mt-4 relative flex flex-col items-center text-center px-4 md:px-0">
-      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[500px] h-[300px] bg-brand-emerald/10 rounded-full blur-[100px] -z-10 pointer-events-none" />
-      
-      <div className="text-gray-400 font-light text-sm md:text-base tracking-[0.2em] uppercase mb-4 flex items-center gap-2 h-8">
-        {currentTime ? getFormattedDate() : ""}
+    <div className="flex flex-wrap items-center justify-between gap-4 pt-2">
+      <div className="flex items-center gap-4">
+        <span className="w-14 h-14 rounded-2xl bg-gradient-to-br from-brand-mint to-brand-emerald text-[#03140d] text-2xl font-extrabold flex items-center justify-center shadow-[0_12px_30px_-10px_rgba(16,185,129,0.7)]">
+          {userName.charAt(0).toUpperCase()}
+        </span>
+        <div>
+          <p className="text-sm text-gray-400">{getGreeting()}</p>
+          <h1 className="text-3xl md:text-4xl font-extrabold tracking-tight text-white">{userName}<span className="text-brand-emerald">.</span></h1>
+        </div>
       </div>
-      
-      <h1 className="text-5xl md:text-7xl flex flex-col items-center">
-        <span className="font-extralight tracking-tight text-transparent bg-clip-text bg-gradient-to-b from-gray-200 to-gray-400 mb-1">
-          {getGreeting()}
-        </span>
-        <span className="font-extrabold tracking-tighter text-white drop-shadow-lg">
-          {userName}.
-        </span>
-      </h1>
+      <p className="text-xs md:text-sm text-gray-400 font-light tracking-[0.15em] uppercase">
+        {currentTime ? getFormattedDate() : ''}
+      </p>
     </div>
   );
 }
