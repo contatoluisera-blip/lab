@@ -19,7 +19,7 @@ export default function DashboardPage() {
         <div className="lg:col-span-5"><StudyCard /></div>
       </div>
 
-      <StudioShowcase recent={recent.slice(0, 3)} />
+      <StudioShowcase />
 
       <ToolTiles recent={recent} />
     </div>

@@ -13,6 +13,7 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { readStudyProgress, StudyProgress } from '@/lib/client/studyProgress';
 import { GenJob, GEN_MODELS, minCredits } from '@/lib/generation';
 import { TOOL_COSTS, ToolId } from '@/lib/planConfig';
+import { LoopVideo } from '@/components/landing/LoopVideo';
 
 /* ─────────────────────────── Créditos ─────────────────────────── */
 
@@ -167,11 +168,16 @@ export function StudyCard() {
 
 /* ─────────────────────────── Estúdio de geração ─────────────────────────── */
 
+/** Exemplos reais de IA (os mesmos da página de vendas) nos quadros flutuantes. */
 const FLOAT_FRAMES = [
-  { rotate: -7, x: '0%', y: '12%', delay: '0s', ratio: '9 / 16', w: 'w-[34%]', label: 'Vídeo · 9:16', z: 'z-10' },
-  { rotate: 4, x: '30%', y: '0%', delay: '1.2s', ratio: '4 / 5', w: 'w-[40%]', label: 'Imagem · 2K', z: 'z-20' },
-  { rotate: 10, x: '64%', y: '16%', delay: '2.4s', ratio: '9 / 16', w: 'w-[32%]', label: 'Cena · 1080p', z: 'z-10' },
-];
+  { rotate: -7, x: '0%', y: '12%', delay: '0s', ratio: '9 / 16', w: 'w-[34%]', label: 'Cena com IA · 9:16', z: 'z-10', media: { type: 'video', src: '/media/ia/gisele.mp4', poster: '/media/ia/gisele.jpg' } },
+  { rotate: 4, x: '30%', y: '0%', delay: '1.2s', ratio: '4 / 5', w: 'w-[40%]', label: 'Frame com IA', z: 'z-20', media: { type: 'image', src: '/media/ia/frame-moradora.jpg' } },
+  { rotate: 10, x: '64%', y: '16%', delay: '2.4s', ratio: '9 / 16', w: 'w-[32%]', label: 'Cena com IA · 9:16', z: 'z-10', media: { type: 'video', src: '/media/ia/pelucia.mp4', poster: '/media/ia/pelucia.jpg' } },
+] as const;
+
+/** Mídia de exemplo para os blocos de geração quando a pessoa ainda não gerou nada. */
+const SAMPLE_VIDEO = { url: '/media/ia/fogo.mp4', type: 'video' };
+const SAMPLE_IMAGE = { url: '/media/ia/frame-feirante.jpg', type: 'image' };
 
 /** Últimas gerações concluídas da pessoa (para dar vida ao painel). */
 export function useRecentGenerations(max = 6) {
@@ -188,7 +194,7 @@ export function useRecentGenerations(max = 6) {
   return recent;
 }
 
-export function StudioShowcase({ recent }: { recent: GenJob[] }) {
+export function StudioShowcase() {
 
   const imageFrom = Math.min(...GEN_MODELS.filter(m => m.kind === 'image').map(minCredits));
   const videoFrom = Math.min(...GEN_MODELS.filter(m => m.kind === 'video').map(minCredits));
@@ -227,35 +233,24 @@ export function StudioShowcase({ recent }: { recent: GenJob[] }) {
 
         {/* Quadros flutuantes de vidro */}
         <div className="relative h-[300px] md:h-[360px]" aria-hidden>
-          {FLOAT_FRAMES.map((f, i) => {
-            const job = recent[i];
-            const out = job?.outputs?.[0];
-            return (
-              <div key={i}
-                className={`absolute ${f.w} ${f.z} motion-safe:animate-[float_7s_ease-in-out_infinite]`}
-                style={{ left: f.x, top: f.y, animationDelay: f.delay }}>
-                <div className="rounded-2xl p-2 border border-white/15 bg-white/[0.06] backdrop-blur-xl shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.15)]"
-                  style={{ transform: `rotate(${f.rotate}deg)` }}>
-                  <div className="relative rounded-xl overflow-hidden bg-gradient-to-br from-brand-emerald/25 via-black/40 to-brand-mint/10" style={{ aspectRatio: f.ratio }}>
-                    {out ? (out.type === 'video'
-                      ? <video src={`${out.url}#t=0.5`} muted playsInline autoPlay loop className="w-full h-full object-cover" />
-                      // eslint-disable-next-line @next/next/no-img-element
-                      : <img src={out.url} alt="" className="w-full h-full object-cover" />)
-                      : (
-                        <div className="absolute inset-0 flex items-center justify-center">
-                          {i === 1 ? <ImagePlus className="w-8 h-8 text-white/30" /> : <Film className="w-7 h-7 text-white/30" />}
-                        </div>
-                      )}
-                    <span className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-brand-mint/70 rounded-tl" />
-                    <span className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-brand-mint/70 rounded-br" />
-                  </div>
-                  <p className="px-1 pt-2 pb-0.5 font-mono text-[9px] uppercase tracking-widest text-gray-300 truncate">
-                    {job ? `${job.modelName} · ${job.config?.aspect || ''}` : f.label}
-                  </p>
+          {FLOAT_FRAMES.map((f, i) => (
+            <div key={i}
+              className={`absolute ${f.w} ${f.z} motion-safe:animate-[float_7s_ease-in-out_infinite]`}
+              style={{ left: f.x, top: f.y, animationDelay: f.delay }}>
+              <div className="rounded-2xl p-2 border border-white/15 bg-white/[0.06] backdrop-blur-xl shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.15)]"
+                style={{ transform: `rotate(${f.rotate}deg)` }}>
+                <div className="relative rounded-xl overflow-hidden bg-black" style={{ aspectRatio: f.ratio }}>
+                  {f.media.type === 'video'
+                    ? <LoopVideo src={f.media.src} poster={f.media.poster} className="absolute inset-0 w-full h-full object-cover" />
+                    // eslint-disable-next-line @next/next/no-img-element
+                    : <img src={f.media.src} alt="" className="absolute inset-0 w-full h-full object-cover" />}
+                  <span className="absolute top-2 left-2 w-3 h-3 border-t-2 border-l-2 border-brand-mint/70 rounded-tl" />
+                  <span className="absolute bottom-2 right-2 w-3 h-3 border-b-2 border-r-2 border-brand-mint/70 rounded-br" />
                 </div>
+                <p className="px-1 pt-2 pb-0.5 font-mono text-[9px] uppercase tracking-widest text-gray-300 truncate">{f.label}</p>
               </div>
-            );
-          })}
+            </div>
+          ))}
         </div>
       </div>
     </div>
@@ -383,8 +378,8 @@ export function ToolTiles({ recent }: { recent: GenJob[] }) {
   const { hasToolAccess } = useUserProfile();
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]>('Todas');
   const list = useMemo(() => TOOLS.filter(t => cat === 'Todas' || t.cat === cat), [cat]);
-  const lastVideo = recent.find(j => j.kind === 'video')?.outputs?.[0] || null;
-  const lastImage = recent.find(j => j.kind === 'image')?.outputs?.[0] || null;
+  const lastVideo = recent.find(j => j.kind === 'video')?.outputs?.[0] || SAMPLE_VIDEO;
+  const lastImage = recent.find(j => j.kind === 'image')?.outputs?.[0] || SAMPLE_IMAGE;
 
   return (
     <section aria-labelledby="painel-ferramentas" className="space-y-5">

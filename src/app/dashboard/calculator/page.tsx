@@ -5,8 +5,11 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { 
   Calculator, Sparkles, User, Briefcase, Video, CheckCircle2, 
-  Plus, Trash2, ArrowRight, ArrowLeft, RefreshCw, FileText
+  Plus, Trash2, ArrowRight, ArrowLeft, RefreshCw, FileText, Wand2, Clapperboard
 } from 'lucide-react';
+import { AiScope } from '@/components/calculator/AiScope';
+import { ExplainPanel, MarginBar } from '@/components/calculator/ResultExtras';
+import { AiDetails, BudgetMode, DEFAULT_AI_DETAILS, DISCARD_LEVELS, AI_VIDEO_TOOLS } from '@/lib/budget/engine';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { UpgradeGate } from '@/components/ui/UpgradeGate';
@@ -25,6 +28,11 @@ export default function CalculatorPage() {
   const [error, setError] = useState('');
   const [result, setResult] = useState<any>(null);
   const [savedDocId, setSavedDocId] = useState<string | null>(null);
+  // Modo do orçamento: produção tradicional ou operação com IA (100% ou parcial).
+  const [mode, setMode] = useState<BudgetMode>('tradicional');
+  const [ai_details, setAiDetails] = useState<AiDetails>({ ...DEFAULT_AI_DETAILS });
+  /** Entrada do último cálculo (para a explicação com IA refazer a mesma conta no servidor). */
+  const [lastInput, setLastInput] = useState<any>(null);
 
   // --- STEP 1: SOBRE VOCÊ ---
   const [personal_info, setPersonalInfo] = useState({
@@ -132,6 +140,7 @@ export default function CalculatorPage() {
       getDoc(docRef).then(docSnap => {
         if (docSnap.exists() && docSnap.data().userId === user.uid) {
           setResult(docSnap.data().resultado_json);
+          if (docSnap.data().input) setLastInput(docSnap.data().input);
           setStep(5); // Pula direto para o resultado final
         }
         setLoading(false);
@@ -184,6 +193,8 @@ export default function CalculatorPage() {
       const region_type = getRegionType(personal_info.state, personal_info.city);
 
       const payload = {
+        mode,
+        ai_details: { ...ai_details, plan: userProfile?.plan || null },
         personal_info,
         recurrent_costs,
         experience,
@@ -195,6 +206,7 @@ export default function CalculatorPage() {
       };
 
       const resData = await callTool('/api/tools/calculator', payload);
+      setLastInput(payload);
       
       setResult(resData.data);
       setStep(5); // Vai para o resultado final
@@ -208,7 +220,9 @@ export default function CalculatorPage() {
             userId: user.uid,
             clientName: client_info.company_name || 'Cliente Avulso',
             status: 'draft',
-            service_type: service_details.sub_type,
+            service_type: mode === 'ia' ? 'ia' : service_details.sub_type,
+            mode,
+            input: payload,
             video_quantity: Number(service_details.video_quantity),
             precoRecomendado: resData.data.precoRecomendado,
             resultado_json: resData.data,
@@ -252,13 +266,14 @@ export default function CalculatorPage() {
 
   const discardBudget = () => {
     setResult(null);
+    setLastInput(null);
     setStep(1);
   };
 
   const steps = [
     { num: 1, label: 'Sobre Você', icon: <User className="w-4 h-4" /> },
     { num: 2, label: 'O Cliente', icon: <Briefcase className="w-4 h-4" /> },
-    { num: 3, label: 'O Serviço', icon: <Video className="w-4 h-4" /> },
+    { num: 3, label: mode === 'ia' ? 'Operação IA' : 'O Serviço', icon: mode === 'ia' ? <Wand2 className="w-4 h-4" /> : <Video className="w-4 h-4" /> },
     { num: 4, label: 'Revisão', icon: <FileText className="w-4 h-4" /> },
     { num: 5, label: 'Orçamento', icon: <CheckCircle2 className="w-4 h-4" /> }
   ];
@@ -303,6 +318,26 @@ export default function CalculatorPage() {
           ))}
         </div>
       </div>
+
+      {step < 5 && (
+        <div role="radiogroup" aria-label="Tipo de produção" className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {([
+            { id: 'tradicional', title: 'Produção tradicional', desc: 'Captação e edição pelo celular.', icon: <Video className="w-5 h-5" /> },
+            { id: 'ia', title: 'Produção com IA', desc: 'Vídeo 100% ou em parte gerado por IA, com custos de geração e direção.', icon: <Clapperboard className="w-5 h-5" /> },
+          ] as const).map(m => (
+            <button key={m.id} type="button" role="radio" aria-checked={mode === m.id} onClick={() => setMode(m.id)}
+              className={`flex items-start gap-3 p-4 rounded-2xl border text-left transition-all ${mode === m.id
+                ? 'border-brand-emerald/60 bg-gradient-to-br from-brand-emerald/[0.14] to-transparent shadow-[0_12px_40px_-18px_rgba(16,185,129,0.7)]'
+                : 'border-white/[0.07] bg-black/25 hover:border-white/20'}`}>
+              <span className={`w-10 h-10 rounded-xl flex items-center justify-center shrink-0 ${mode === m.id ? 'bg-brand-emerald text-black' : 'bg-white/5 text-gray-400'}`}>{m.icon}</span>
+              <span>
+                <span className="block text-sm font-bold text-white">{m.title}</span>
+                <span className="block text-xs text-gray-400 mt-0.5">{m.desc}</span>
+              </span>
+            </button>
+          ))}
+        </div>
+      )}
 
       {error && (
         <div className="p-4 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-sm text-center">
@@ -521,6 +556,55 @@ export default function CalculatorPage() {
         <div className="space-y-6 animate-in fade-in slide-in-from-right-4">
           <GlassCard className="p-6 md:p-8 space-y-8">
             
+            {mode === 'ia' ? (
+              <div className="space-y-8">
+                <div>
+                  <h2 className="text-xl font-bold text-white mb-1">Escopo do Projeto</h2>
+                  <p className="text-sm text-gray-400 mb-6">Quantidade de vídeos, prazo e a parte gravada, se houver.</p>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Quantidade de Vídeos</label>
+                      <input type="number" min={1} value={service_details.video_quantity} onChange={e => setServiceDetails({...service_details, video_quantity: Number(e.target.value)})} className="w-full glass-input px-3 py-2 text-sm text-white" />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Prazo de Entrega</label>
+                      <select value={service_details.deadline_type} onChange={e => setServiceDetails({...service_details, deadline_type: e.target.value})} className="w-full glass-input px-3 py-2 text-sm">
+                        <option value="flexivel">Flexível (Sem pressa) [-5%]</option>
+                        <option value="normal">Normal (Adequado)</option>
+                        <option value="rapido">Rápido (Semana vigente) [+10%]</option>
+                        <option value="urgente">Urgente (Menos de 48h) [+20%]</option>
+                        <option value="imediatissimo">Imediatíssimo (Para ontem / Madrugada) [+35%]</option>
+                      </select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-300 mb-1">Direitos de uso</label>
+                      <select value={service_details.usage_rights} onChange={e => setServiceDetails({...service_details, usage_rights: e.target.value})} className="w-full glass-input px-3 py-2 text-sm">
+                        <option value="organico">Só orgânico</option>
+                        <option value="organico_trafego_local_3m">Orgânico + tráfego local por 3 meses [+8%]</option>
+                        <option value="trafego_local_forte">Tráfego local forte [+12%]</option>
+                        <option value="trafego_nacional">Tráfego nacional [+25%]</option>
+                        <option value="site_ads_12m">Site e anúncios por 12 meses [+35%]</option>
+                        <option value="uso_amplo">Uso amplo / cessão [+50%]</option>
+                      </select>
+                    </div>
+                    {ai_details.ai_share < 100 && (
+                      <div className="p-4 rounded-xl border border-white/5 bg-white/[0.02]">
+                        <label className="flex items-center justify-between gap-3 cursor-pointer">
+                          <span className="text-sm font-bold text-white">Haverá captação para a parte gravada?</span>
+                          <input type="checkbox" checked={service_details.external_capture} onChange={e => setServiceDetails({...service_details, external_capture: e.target.checked})} className="accent-emerald-500 w-4 h-4" />
+                        </label>
+                        {service_details.external_capture && (
+                          <input type="number" step="0.5" value={service_details.capture_hours} onChange={e => setServiceDetails({...service_details, capture_hours: Number(e.target.value)})} className="w-32 glass-input px-3 py-2 text-sm mt-3" aria-label="Horas de captação" />
+                        )}
+                      </div>
+                    )}
+                  </div>
+                </div>
+                <div className="pt-6 border-t border-white/5">
+                  <AiScope ai={ai_details} setAi={setAiDetails} videoQuantity={Number(service_details.video_quantity) || 1} />
+                </div>
+              </div>
+            ) : (
             <div>
               <h2 className="text-xl font-bold text-white mb-1">Escopo de Produção</h2>
               <p className="text-sm text-gray-400 mb-6">Detalhes do projeto que impactam no tempo e complexidade.</p>
@@ -591,6 +675,7 @@ export default function CalculatorPage() {
                 </div>
               </div>
             </div>
+            )}
 
             <div className="pt-6 border-t border-white/5">
               <div className="flex items-center justify-between mb-1">
@@ -710,12 +795,21 @@ export default function CalculatorPage() {
 
               {/* Box: Serviço */}
               <div className="space-y-3 p-4 rounded-xl bg-white/5 border border-white/5">
-                <h3 className="text-sm font-bold text-brand-jade uppercase tracking-wider mb-3">3. O Serviço</h3>
+                <h3 className="text-sm font-bold text-brand-jade uppercase tracking-wider mb-3">3. {mode === 'ia' ? 'Operação com IA' : 'O Serviço'}</h3>
+                {mode === 'ia' ? (<>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Vídeos:</span> <span className="text-white font-medium">{service_details.video_quantity} × {ai_details.seconds_per_video}s</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Feito com IA:</span> <span className="text-white font-medium">{ai_details.ai_share}% · {ai_details.scenes_per_video} cenas/vídeo</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Ferramenta:</span> <span className="text-white font-medium">{AI_VIDEO_TOOLS.find(t => t.id === ai_details.video_tool)?.label}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Tentativas:</span> <span className="text-white font-medium">{DISCARD_LEVELS[ai_details.discard_level].factor}x por take</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Revisões:</span> <span className="text-white font-medium">{ai_details.revision_rounds}</span></div>
+                <div className="flex justify-between text-sm"><span className="text-gray-400">Prazo:</span> <span className="text-white font-medium capitalize">{service_details.deadline_type}</span></div>
+                </>) : (<>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Formato:</span> <span className="text-white font-medium capitalize">{service_details.sub_type.replace('_', ' ')}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Quantidade:</span> <span className="text-white font-medium">{service_details.video_quantity} vídeos</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Edição:</span> <span className="text-white font-medium capitalize">{service_details.edit_complexity}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Captação Externa:</span> <span className="text-white font-medium">{service_details.external_capture ? `${service_details.capture_hours} horas estimadas` : 'Não'}</span></div>
                 <div className="flex justify-between text-sm"><span className="text-gray-400">Prazo:</span> <span className="text-white font-medium capitalize">{service_details.deadline_type}</span></div>
+                </>)}
               </div>
 
               {/* Box: Extras */}
@@ -796,6 +890,9 @@ export default function CalculatorPage() {
                DESCARTAR E REFAZER
             </Button>
           </div>
+
+          {result.analise && <div className="mt-10"><MarginBar analise={result.analise} mode={result.mode || 'tradicional'} /></div>}
+          {lastInput && <div className="mt-6"><ExplainPanel input={lastInput} /></div>}
 
           <div className="mt-12">
             <GlassCard className="p-6 md:p-8">
