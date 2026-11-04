@@ -171,11 +171,15 @@ function HeroMosaic() {
       {/* Orçamento */}
       <div className={`absolute left-[10%] bottom-[2%] w-[58%] p-4 rounded-3xl text-[#03140d] bg-[linear-gradient(140deg,#a7f3d0,#34d399_60%,#10b981)] shadow-[0_30px_60px_-20px_rgba(16,185,129,0.7)] motion-safe:animate-[float_7.5s_ease-in-out_infinite]`} style={{ animationDelay: '0.5s', rotate: '2deg' }}>
         <div className="flex items-center justify-between">
-          <p className="text-[11px] font-bold uppercase tracking-widest opacity-70">Orçamento</p>
+          <p className="text-[11px] font-bold uppercase tracking-widest opacity-70">Calculadora</p>
           <Calculator className="w-4 h-4" />
         </div>
-        <p className="mt-1 text-3xl font-extrabold tracking-tight">R$ 1.850</p>
-        <p className="text-[11px] font-semibold opacity-75 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5" /> Proposta em PDF enviada</p>
+        <p className="mt-1 text-2xl font-extrabold tracking-tight leading-tight">Orçamento pronto</p>
+        <div className="mt-2 space-y-1">
+          {['Custo, lucro e preço calculados', 'Proposta em PDF enviada'].map(l => (
+            <p key={l} className="text-[11px] font-semibold opacity-80 flex items-center gap-1.5"><CheckCircle2 className="w-3.5 h-3.5 shrink-0" /> {l}</p>
+          ))}
+        </div>
       </div>
     </div>
   );
