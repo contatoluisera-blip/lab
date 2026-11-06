@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server';
 import { dispatchKey, dispatchQueue, sweep } from '@/lib/server/generation/queue';
+import { sweepRenders } from '@/lib/server/render/queue';
 
 export const dynamic = 'force-dynamic';
 
@@ -8,6 +9,7 @@ const sleep = (ms: number) => new Promise(r => setTimeout(r, ms));
 /**
  * Rotina de 1 minuto (netlify/functions/gen-dispatch.mts): destrava pedidos parados,
  * confere os que estão gerando e esvazia a fila em até 3 janelas de 10 s.
+ * Também cuida da fila de renderização da Montagem.
  */
 export async function POST(req: Request) {
   if (req.headers.get('x-gen-key') !== dispatchKey()) {
@@ -26,6 +28,11 @@ export async function POST(req: Request) {
     report.sent = sent;
   } catch (e: any) {
     report.error = e?.message;
+  }
+  try {
+    report.renders = await sweepRenders();
+  } catch (e: any) {
+    report.rendersError = e?.message;
   }
   return NextResponse.json({ ok: true, ...report });
 }

@@ -549,6 +549,9 @@ export interface GenJob {
   inputPreviews?: string[];
   error?: string | null;
   promptId?: string | null;
+  /** Projeto de vídeo e cena de origem (Montagem). */
+  projectId?: string | null;
+  sceneId?: string | null;
   createdAt: string;
   submittedAt?: string | null;
   completedAt?: string | null;

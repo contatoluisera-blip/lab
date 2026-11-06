@@ -28,7 +28,8 @@ import {
   Clapperboard,
   Compass,
   ImagePlus,
-  Film
+  Film,
+  Scissors
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -44,6 +45,7 @@ const MENU_ITEMS = [
   { name: 'Gerador de Prompts', href: '/dashboard/prompt-studio', icon: Clapperboard },
   { name: 'Gerar Imagem', href: '/dashboard/imagens', icon: ImagePlus },
   { name: 'Gerar Vídeo', href: '/dashboard/videos', icon: Film },
+  { name: 'Montagem de Vídeo', href: '/dashboard/montagem', icon: Scissors },
   { name: 'Minhas Ações', href: '/dashboard/actions', icon: FolderArchive },
   { name: 'Meus Clientes', href: '/dashboard/clients', icon: Briefcase },
   { name: 'Perguntas Rápidas', href: '/dashboard/assistant', icon: MessageSquare },

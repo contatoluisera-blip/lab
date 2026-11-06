@@ -6,6 +6,8 @@ import { Button } from '@/components/ui/Button';
 import { Clapperboard, Sparkles, Copy, Check, ImagePlus, X, Wand2, ListChecks, HelpCircle, LifeBuoy, ScanEye, ChevronDown, History, Film, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
 import { setGenHandoff } from '@/lib/client/handoff';
+import { useProjectContext, withProject } from '@/lib/client/project';
+import { ProjectBar } from '@/components/montagem/ProjectBar';
 import { GEN_LIMITS } from '@/lib/generation';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
@@ -137,6 +139,18 @@ export default function PromptStudioPage() {
   const [result, setResult] = useState<PromptResult | null>(null);
   const [resultMode, setResultMode] = useState<PromptMode>('i2v');
   const [history, setHistory] = useState<{ id: string; mode: PromptMode; description: string; createdAt: string }[]>([]);
+  const projectCtx = useProjectContext();
+
+  // Aberto a partir de uma cena do Projeto de vídeo: a descrição e a proporção vêm do projeto.
+  const sceneKey = projectCtx?.scene?.id;
+  useEffect(() => {
+    if (!projectCtx?.scene) return;
+    const { project, scene } = projectCtx;
+    const aspect = { '9:16': '9:16 (vertical)', '4:5': '4:5 (feed)', '16:9': '16:9 (horizontal)' }[project.format];
+    setChoices(prev => (prev.proporcao ? prev : { ...prev, proporcao: aspect }));
+    setDescription(prev => prev || `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`.slice(0, 2000));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey]);
 
   const fields = fieldsForMode(mode);
   const main = MAIN_TEXT[mode];
@@ -245,7 +259,7 @@ export default function PromptStudioPage() {
       modelId: genModelFromChoices(resultMode, inputs.choices),
       source: 'prompts',
     });
-    router.push(kind === 'image' ? '/dashboard/imagens?from=prompts' : '/dashboard/videos?from=prompts');
+    router.push(withProject(kind === 'image' ? '/dashboard/imagens?from=prompts' : '/dashboard/videos?from=prompts', projectCtx));
   };
 
   const setChoice = (id: string, value: string | string[]) => setChoices(prev => ({ ...prev, [id]: value }));
@@ -315,9 +329,17 @@ export default function PromptStudioPage() {
           description,
           choices: relevantChoices,
           result: data,
+          ...(projectCtx ? { projectId: projectCtx.project.id, sceneId: projectCtx.scene?.id || null } : {}),
           createdAt: new Date().toISOString(),
         }).catch(e => { console.error('[prompts] falha ao salvar:', e); return null; });
         if (saved) setSavedId(saved.id);
+        // Na cena do projeto: frame (imagem) ou movimento (vídeo) ficam prontos para gerar.
+        if (saved && projectCtx?.scene) {
+          const isImage = mode === 't2i' || mode === 'i2i';
+          await projectCtx.updateScene(isImage
+            ? { framePromptId: saved.id, framePrompt: data.prompt }
+            : { motionPromptId: saved.id, motionPrompt: data.prompt }).catch(e => console.error('[prompts] falha ao ligar à cena:', e));
+        }
         loadHistory();
         addNotification(user.uid, 'Prompt pronto', `Seu prompt de ${PROMPT_MODES.find(m => m.id === mode)!.label} foi gerado.`, 'success');
       }
@@ -331,6 +353,7 @@ export default function PromptStudioPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-24">
+      {projectCtx && <ProjectBar ctx={projectCtx} step="Prompts" />}
       {/* Header */}
       <div className="flex flex-col gap-2 mb-8">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-jade bg-brand-jade/10 text-sm font-medium w-fit mb-2">

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   ArrowUpRight, Coins, GraduationCap, Lock, PlayCircle, ImagePlus, Film, Clapperboard, Lightbulb, Camera, Compass,
-  ScanSearch, MessageSquare, Calculator, FileText, IdCard, Briefcase, Sparkles,
+  ScanSearch, MessageSquare, Calculator, FileText, IdCard, Briefcase, Sparkles, Scissors,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -279,6 +279,7 @@ const TOOLS: ToolDef[] = [
   { name: 'Gerar Vídeo', desc: `${VIDEO_MODEL_COUNT} modelos: Kling, Veo, Seedance…`, pitch: `Anime um frame, crie do texto ou transforme um vídeo seu. ${VIDEO_MODEL_COUNT} modelos de vídeo num lugar só.`, href: '/dashboard/videos', icon: Film, cat: 'Criar', cost: `desde ${minFor('video')} cr`, size: 'hero', badge: 'Novo' },
   { name: 'Gerar Imagem', desc: `${IMAGE_MODEL_COUNT} modelos: Nano Banana, GPT Image…`, href: '/dashboard/imagens', icon: ImagePlus, cat: 'Criar', cost: `desde ${minFor('image')} cr`, size: 'wide', badge: 'Novo' },
   { name: 'Gerador de Prompts', desc: 'Direção de fotografia para IA', href: '/dashboard/prompt-studio', icon: Clapperboard, tool: 'prompts', cat: 'Criar', size: 'wide' },
+  { name: 'Montagem de Vídeo', desc: 'Do roteiro ao MP4, com o Claude', href: '/dashboard/montagem', icon: Scissors, tool: 'montagem', cat: 'Criar', cost: 'desde 2 cr', badge: 'Novo' },
   { name: 'Gerador de Ideias', desc: 'Roteiros prontos para gravar', href: '/dashboard/idea-generator', icon: Lightbulb, tool: 'ideas', cat: 'Criar' },
   { name: 'Hub de Referências', desc: 'Reels virais analisados', pitch: 'Reels que viralizaram, com a análise do gancho, do formato e do porquê funcionou.', href: '/dashboard/hub', icon: Compass, tool: 'hub', cat: 'Criar', size: 'wide' },
   { name: 'Foto de Estúdio', desc: 'Retrato profissional com IA', href: '/dashboard/estudia', icon: Camera, tool: 'estudia', cat: 'Criar' },

@@ -102,6 +102,23 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // Projetos de vídeo (Montagem): o dono cria, edita cenas e linha do tempo e apaga.
+    // O servidor valida o plano de novo antes de renderizar e nunca confia nestes dados para cobrar.
+    match /video_projects/{projectId} {
+      allow read, delete: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow create: if request.auth != null && request.resource.data.uid == request.auth.uid
+        && !request.resource.data.keys().hasAny(['aiUsage']);
+      allow update: if request.auth != null && resource.data.uid == request.auth.uid
+        && request.resource.data.uid == resource.data.uid
+        && !request.resource.data.diff(resource.data).affectedKeys().hasAny(['uid', 'aiUsage']);
+    }
+
+    // Exportações da Montagem: só leitura do dono (o servidor grava).
+    match /render_jobs/{jobId} {
+      allow read: if request.auth != null && resource.data.uid == request.auth.uid;
+      allow write: if false;
+    }
+
     // Clientes gerenciados
     match /clients/{docId} {
       allow read, update, delete: if request.auth != null

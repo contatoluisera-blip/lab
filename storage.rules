@@ -22,6 +22,12 @@ service firebase.storage {
       allow write: if false;
     }
 
+    // Vídeos exportados na Montagem: só leitura do dono (o servidor grava).
+    match /renders/{userId}/{allPaths=**} {
+      allow read: if request.auth != null && request.auth.uid == userId;
+      allow write: if false;
+    }
+
     // Todo o resto: fechado.
     match /{allPaths=**} {
       allow read, write: if false;

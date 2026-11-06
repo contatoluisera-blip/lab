@@ -8,6 +8,7 @@ import { GEN_LIMITS, GEN_TERMS_VERSION, GenMode, getModel, normalizeConfig, quot
 import { ToolId } from '@/lib/planConfig';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
 import { StoredJob, dispatchQueue, newJobId, queuePositions } from '@/lib/server/generation/queue';
+import { loadOwnedProject } from '@/lib/server/montagem/projects';
 
 export const dynamic = 'force-dynamic';
 
@@ -83,6 +84,15 @@ export async function POST(req: Request) {
       throw new HttpError(429, 'too_many_active', `Você já tem ${active.size} gerações em andamento. Espere uma terminar para pedir outra.`);
     }
 
+    // Dentro de um Projeto de vídeo: o resultado volta para a cena na Montagem.
+    let projectId: string | null = null;
+    let sceneId: string | null = null;
+    if (body.projectId) {
+      const project = await loadOwnedProject(uid, body.projectId);
+      projectId = project.id;
+      sceneId = project.scenes.some(s => s.id === body.sceneId) ? String(body.sceneId) : null;
+    }
+
     const config = normalizeConfig(model, body.config || {});
     const price = quote(model, config);
     charge = await chargeCredit(uid, tool, price.credits);
@@ -105,6 +115,8 @@ export async function POST(req: Request) {
       outputs: [],
       inputPaths: { images: imagePaths, video: videoPath },
       promptId: typeof body.promptId === 'string' ? body.promptId.slice(0, 64) : null,
+      projectId,
+      sceneId,
       expectedKieCredits: price.kieCredits,
       refunded: false,
       attempts: 0,

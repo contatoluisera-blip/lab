@@ -13,6 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { callTool } from '@/lib/client/api';
 import { setGenHandoff, takeGenHandoff } from '@/lib/client/handoff';
+import { useProjectContext, withProject } from '@/lib/client/project';
+import { ProjectBar } from '@/components/montagem/ProjectBar';
 import {
   GEN_LIMITS, GEN_MODES, GEN_TERMS_VERSION, GenConfig, GenJob, GenKind, GenMode, STATUS_LABEL,
   getModel, modelsFor, normalizeConfig, quote,
@@ -139,6 +141,20 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [positions, setPositions] = useState<Record<string, number | null>>({});
   const termsOk = useRef(false);
+  const projectCtx = useProjectContext();
+
+  // Aberto a partir de uma cena do Projeto de vídeo: o prompt da cena entra se o campo estiver vazio.
+  const sceneKey = projectCtx?.scene?.id;
+  useEffect(() => {
+    const scene = projectCtx?.scene;
+    if (!scene) return;
+    const scenePrompt = kind === 'image' ? scene.framePrompt : scene.motionPrompt;
+    const promptId = kind === 'image' ? scene.framePromptId : scene.motionPromptId;
+    if (!scenePrompt || prompt) return;
+    setPrompt(scenePrompt);
+    setSource({ id: promptId, label: `Cena ${projectCtx!.sceneIndex + 1} do projeto` });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sceneKey, kind]);
 
   // Entradas exigidas por modo.
   const slotDefs = useMemo(() => {
@@ -308,6 +324,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
       const res = await callTool<{ id: string; position: number | null }>('/api/gen/create', {
         kind, mode, modelId: model.id, config, prompt: prompt.trim(), negativePrompt: negative.trim(),
         inputs: { images, video: videoPath }, promptId: source?.id || null,
+        projectId: projectCtx?.project.id || null, sceneId: projectCtx?.scene?.id || null,
       });
       setSelectedId(res.data.id);
       setPositions(prev => ({ ...prev, [res.data.id]: res.data.position }));
@@ -321,7 +338,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
     } finally {
       setSubmitting(false);
     }
-  }, [user, userProfile, prompt, negative, slots, slotDefs, mode, video, canUseTool, copy.tool, price.credits, kind, model.id, config, source, refreshProfile]);
+  }, [user, userProfile, prompt, negative, slots, slotDefs, mode, video, canUseTool, copy.tool, price.credits, kind, model.id, config, source, refreshProfile, projectCtx]);
 
   const reuse = (job: GenJob) => {
     if (modes.some(m => m.id === job.mode)) changeMode(job.mode);
@@ -336,12 +353,12 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
     const out = job.outputs?.[0];
     if (!out?.path) return;
     setGenHandoff({ kind: 'video', mode: 'i2v', prompt: '', storedImages: [{ preview: out.url, path: out.path }], source: 'imagens' });
-    router.push('/dashboard/videos?from=imagens');
+    router.push(withProject('/dashboard/videos?from=imagens', projectCtx));
   };
 
   const blocked = !!userProfile?.genBlocked;
   const balanceAfter = account.credits - price.credits;
-  const createHref = `/dashboard/prompt-studio?mode=${mode === 'v2v' ? 'v2v' : mode === 'i2i' ? 'i2i' : mode === 't2i' ? 't2i' : 'i2v'}`;
+  const createHref = withProject(`/dashboard/prompt-studio?mode=${mode === 'v2v' ? 'v2v' : mode === 'i2i' ? 'i2i' : mode === 't2i' ? 't2i' : 'i2v'}`, projectCtx);
 
   if (!hasToolAccess(copy.tool)) {
     return (
@@ -355,6 +372,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
 
   return (
     <div className="space-y-8 pb-24">
+      {projectCtx && <ProjectBar ctx={projectCtx} step={kind === 'video' ? 'Cenas' : 'Frames'} />}
       {/* Cabeçalho */}
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
         <div className="space-y-3 max-w-2xl">

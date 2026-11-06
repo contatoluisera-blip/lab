@@ -23,7 +23,8 @@ export type ToolId =
   | 'caption'
   | 'hub'
   | 'gen-image'
-  | 'gen-video';
+  | 'gen-video'
+  | 'montagem';
 
 export interface PlanConfig {
   id: PlanId;
@@ -40,7 +41,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Start',
     price: 'R$ 67/mês',
     credits: 20,
-    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video', 'montagem'],
     courses: false,
   },
   pro: {
@@ -48,7 +49,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     label: 'Pro',
     price: 'R$ 117/mês',
     credits: 50,
-    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video'],
+    tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video', 'montagem'],
     courses: false,
   },
   elite: {
@@ -83,6 +84,8 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   // Geração de imagem e vídeo: o custo real de cada pedido vem de src/lib/generation.ts (modelo e configuração).
   'gen-image': 1,
   'gen-video': 3,
+  // Montagem: o custo de cada exportação vem dos segundos do vídeo (src/lib/montagem.ts, montagemCost).
+  montagem: 2,
 };
 
 /** Gerador de Ideias: 1 crédito até 5 ideias, 2 créditos de 6 a 10 (o custo de IA cresce com a quantidade). */
