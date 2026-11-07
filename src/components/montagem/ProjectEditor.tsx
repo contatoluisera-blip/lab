@@ -212,8 +212,11 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   return (
     <div className="space-y-8 pb-24">
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
-        <div className="space-y-2 min-w-0">
-          <Link href="/dashboard/montagem" className="inline-flex items-center gap-1.5 text-xs text-gray-500 hover:text-white"><ArrowLeft className="w-3.5 h-3.5" /> Projetos</Link>
+        <div className="space-y-3 min-w-0">
+          <Link href="/dashboard/montagem"
+            className="inline-flex items-center gap-2 px-3.5 py-2 rounded-full border border-white/10 bg-white/[0.03] text-xs font-semibold text-gray-300 hover:text-white hover:border-brand-emerald/50 hover:bg-brand-emerald/10 transition-colors">
+            <ArrowLeft className="w-3.5 h-3.5" /> Voltar aos projetos
+          </Link>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight truncate">{project.title}</h1>
           <p className="text-sm text-gray-400">{project.format} · {project.scenes.length} cena(s){project.goal ? ` · ${project.goal}` : ''}</p>
         </div>
