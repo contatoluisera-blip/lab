@@ -65,9 +65,26 @@ export interface VideoProject {
   edl: Edl | null;
   /** Direção geral de edição para o Claude (ritmo, tom, texto na tela...). */
   editDirection?: string;
+  /** Personagens, cenário e estilo fixos (em inglês), repetidos nos prompts para manter as cenas coerentes. */
+  styleBible?: string;
+  /** Documento de onde o agente de roteiro tirou as cenas. */
+  scriptSource?: { name: string; kind: 'pdf' | 'text' } | null;
+  /** Observações do agente sobre o fatiamento (cortes, decisões). */
+  scriptNotes?: string;
+  /** Storyboard (frames em ordem) aprovado: libera a animação em lote. */
+  storyboardApprovedAt?: string | null;
   createdAt: string;
   updatedAt: string;
 }
+
+// ── Agente de roteiro ────────────────────────────────────────────────────────
+/** Lê o documento, fatia em cenas e escreve os prompts de frame e movimento de cada uma. */
+export const SCRIPT_AGENT_CREDITS = 4;
+/** PDF de até ~3 MB (vai em base64 no corpo do pedido) e texto de até 60 mil caracteres. */
+export const SCRIPT_PDF_MAX_BYTES = 3 * 1024 * 1024;
+export const SCRIPT_TEXT_MAX = 60_000;
+/** Marca, dentro do stream, o fim com o projeto criado: `\u0000DONE:{"projectId":...}`. */
+export const SCRIPT_DONE_MARK = '\u0000DONE:';
 
 /** Endereço de uma aba de produção dentro do projeto (o contexto sobrevive a recarregar). */
 export function projectHref(path: string, projectId: string, sceneId?: string | null, extra: Record<string, string> = {}) {

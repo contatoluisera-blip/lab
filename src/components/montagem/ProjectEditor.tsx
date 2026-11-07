@@ -13,7 +13,8 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { callTool } from '@/lib/client/api';
 import { setGenHandoff } from '@/lib/client/handoff';
-import { GenJob, STATUS_LABEL } from '@/lib/generation';
+import { STATUS_LABEL } from '@/lib/generation';
+import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
@@ -29,7 +30,6 @@ const newId = () => crypto.randomUUID().slice(0, 8);
 const DIRECTION_IDEAS = ['Ritmo rápido de Reels', 'Clima cinematográfico, com dissolver', 'Gancho forte no 1º segundo', 'Sem texto na tela', 'Chamada final para seguir o perfil'];
 const secs = (frames: number) => (frames / MONTAGEM_FPS).toFixed(1).replace('.', ',');
 
-type Job = GenJob & { sceneId?: string | null };
 
 function StepRow({ done, active, label, children }: { done: boolean; active?: boolean; label: string; children?: React.ReactNode }) {
   return (
@@ -226,6 +226,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         </div>
       </header>
 
+      <Pipeline project={project} jobs={jobs} edl={edl} renders={renders} />
+
       {error && (
         <div className="flex items-start justify-between gap-3 p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-sm text-red-200">
           {error}
@@ -235,24 +237,31 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
       {/* 1. Cenas: o painel de produção */}
       <section aria-label="Cenas" className="space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white">1. Cenas</h2>
-          <button type="button" onClick={addScene} disabled={project.scenes.length >= MAX_SCENES} className={`${linkCls} flex items-center gap-1 disabled:opacity-40`}>
-            <Plus className="w-3 h-3" /> Adicionar cena
-          </button>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">1. Cenas</h2>
+            <button type="button" onClick={addScene} disabled={project.scenes.length >= MAX_SCENES} className={`${linkCls} flex items-center gap-1 disabled:opacity-40`}>
+              <Plus className="w-3 h-3" /> Adicionar cena
+            </button>
+          </div>
+          <BatchGenerate kind="image" project={project} jobs={jobs} onError={setError} />
         </div>
+        {(project.scriptSource || project.styleBible) && (
+          <details className="group rounded-2xl border border-white/[0.07] bg-black/30 p-4 text-xs text-gray-400">
+            <summary className="cursor-pointer text-white font-semibold list-none flex items-center gap-2">
+              <Wand2 className="w-3.5 h-3.5 text-brand-mint" /> Agente de roteiro{project.scriptSource ? `: ${project.scriptSource.name}` : ''}
+              <span className="font-normal text-gray-500 group-open:hidden">· ver bíblia visual e observações</span>
+            </summary>
+            <div className="mt-3 space-y-3 leading-relaxed">
+              {project.scriptNotes && <p><span className="text-gray-200 font-semibold">Observações: </span>{project.scriptNotes}</p>}
+              {project.styleBible && <p><span className="text-gray-200 font-semibold">Bíblia visual (repetida nos prompts para manter personagens e estilo): </span><span className="font-mono text-[11px]">{project.styleBible}</span></p>}
+            </div>
+          </details>
+        )}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {project.scenes.map((scene, i) => {
-            const frames = jobs.filter(j => j.sceneId === scene.id && j.kind === 'image');
-            const clips = jobs.filter(j => j.sceneId === scene.id && j.kind === 'video');
-            const frameDone = frames.filter(j => j.status === 'completed' && j.outputs?.[0]?.path);
-            const clipReady = clips.filter(j => j.status === 'completed' && j.outputs?.[0]?.stored);
-            const chosenFrame = frameDone.find(j => j.id === scene.frameJobId) || frameDone[0];
-            const chosenClip = clipReady.find(j => j.id === scene.clipJobId) || clipReady[0];
+            const { frames, clips, frameDone, clipReady, chosenFrame, chosenClip, framePrompt, motionPrompt } = sceneMedia(scene, jobs);
             const inTimeline = edl.clips.some(c => c.sceneId === scene.id);
-            // Cenas geradas antes de o prompt ser ligado à cena: vale o prompt da própria geração.
-            const framePrompt = scene.framePrompt || chosenFrame?.prompt;
-            const motionPrompt = scene.motionPrompt || chosenClip?.prompt;
             return (
               <article key={scene.id} className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
                 <div className="flex items-start gap-2">
@@ -325,10 +334,13 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         </div>
       </section>
 
-      {/* 2. Montagem */}
+      <Storyboard project={project} jobs={jobs} onError={setError}
+        onApprove={approved => saveProject({ storyboardApprovedAt: approved ? new Date().toISOString() : null })} />
+
+      {/* 3. Montagem */}
       <section aria-label="Montagem" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white">2. Montagem</h2>
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white">3. Montagem</h2>
           <button type="button" onClick={autoEdit} disabled={aiBusy || !clipsDone.length}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-black bg-gradient-to-b from-[#34d399] to-[#10b981] disabled:opacity-50">
             {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? 'Montando…' : 'Montar com IA'}
@@ -447,11 +459,11 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         </div>
       </section>
 
-      {/* 3. Exportar */}
+      {/* 4. Exportar */}
       <section aria-label="Exportar" className="rounded-[28px] border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-5 md:p-6 space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">3. Exportar</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">4. Exportar</h2>
             <p className="text-sm text-gray-400 mt-1">
               {edl.clips.length
                 ? <>Vídeo de <strong className="text-white">{secs(totalFrames)} s</strong> em 1080p · <strong className="text-white">{cost} créditos</strong> · limite do seu plano: {maxFrames / MONTAGEM_FPS} s</>
