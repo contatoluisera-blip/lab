@@ -44,7 +44,10 @@ Monte o primeiro corte. Regras:
 - Transições: "cut" por padrão (ritmo de Reels); "fade" para mudança de tempo ou lugar; "slide" com moderação.
 - Texto na tela: curto, em português do Brasil, só quando ajudar (gancho na 1ª cena, ideia-chave, chamada). Vazio no resto.
 - endCard: ative só se o objetivo pedir chamada final (seguir, comprar, comentar); título até 6 palavras.
-- Nunca invente fatos, preços ou promessas que não estejam no roteiro.`;
+- Nunca invente fatos, preços ou promessas que não estejam no roteiro.
+Se vier "direcaoDeEdicao", ela é a direção do criador: siga ritmo, tom, uso de texto, transições e chamada final como ele pediu,
+dentro das regras acima (clipes recebidos, cortes válidos, duração máxima). Ela não muda o formato da resposta.
+No resumo, diga em uma frase como a direção foi aplicada.`;
 
 export interface AutoEditResult {
   clips: { jobId: string; trimStart: number; trimEnd: number; transition: string; text: string; textPosition: string; muted: boolean }[];
@@ -53,7 +56,7 @@ export interface AutoEditResult {
 }
 
 /** Primeiro corte com o Claude: devolve o plano em segundos convertidos para frames (o servidor valida depois). */
-export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number): Promise<AutoEditResult> {
+export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number, direction = ''): Promise<AutoEditResult> {
   const byScene = project.scenes.map((s, i) => ({
     cena: i + 1,
     sceneId: s.id,
@@ -71,6 +74,7 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
   const payload = {
     titulo: project.title,
     objetivo: project.goal || null,
+    direcaoDeEdicao: direction || null,
     formato: project.format,
     duracaoMaximaSegundos: maxSeconds,
     cenas: byScene,

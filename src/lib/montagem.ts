@@ -19,6 +19,7 @@ export const MIN_CLIP_FRAMES = 15;
 export const MAX_CLIPS = 30;
 export const MAX_SCENES = 20;
 export const TEXT_MAX = 120;
+export const DIRECTION_MAX = 600;
 
 export type MontagemFormat = '9:16' | '4:5' | '16:9';
 export const FORMATS: { id: MontagemFormat; label: string; hint: string; width: number; height: number }[] = [
@@ -62,6 +63,8 @@ export interface VideoProject {
   format: MontagemFormat;
   scenes: ProjectScene[];
   edl: Edl | null;
+  /** Direção geral de edição para o Claude (ritmo, tom, texto na tela...). */
+  editDirection?: string;
   createdAt: string;
   updatedAt: string;
 }

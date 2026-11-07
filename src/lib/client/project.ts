@@ -5,7 +5,7 @@
 // O projeto é lido em tempo real; a cena atual pode ser atualizada direto (regras: só o dono).
 
 import { useCallback, useEffect, useState } from 'react';
-import { doc, onSnapshot, updateDoc } from 'firebase/firestore';
+import { doc, onSnapshot, runTransaction } from 'firebase/firestore';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import type { ProjectScene, VideoProject } from '@/lib/montagem';
@@ -40,11 +40,18 @@ export function useProjectContext(): ProjectContext | null {
   const sceneIndex = project && ids?.sceneId ? project.scenes.findIndex(s => s.id === ids.sceneId) : -1;
   const scene = sceneIndex >= 0 ? project!.scenes[sceneIndex] : null;
 
+  // Lê as cenas na hora de gravar: a resposta da IA pode chegar depois de outra aba mexer no projeto.
+  const projectId = project?.id;
+  const sceneId = scene?.id;
   const updateScene = useCallback(async (patch: Partial<ProjectScene>) => {
-    if (!project || !scene) return;
-    const scenes = project.scenes.map(s => (s.id === scene.id ? { ...s, ...patch } : s));
-    await updateDoc(doc(db, 'video_projects', project.id), { scenes, updatedAt: new Date().toISOString() });
-  }, [project, scene]);
+    if (!projectId || !sceneId) return;
+    const ref = doc(db, 'video_projects', projectId);
+    await runTransaction(db, async tx => {
+      const scenes = ((await tx.get(ref)).data()?.scenes || []) as ProjectScene[];
+      if (!scenes.some(s => s.id === sceneId)) return;
+      tx.update(ref, { scenes: scenes.map(s => (s.id === sceneId ? { ...s, ...patch } : s)), updatedAt: new Date().toISOString() });
+    });
+  }, [projectId, sceneId]);
 
   if (!project) return null;
   const query: Record<string, string> = { projeto: project.id, ...(scene ? { cena: scene.id } : {}) };

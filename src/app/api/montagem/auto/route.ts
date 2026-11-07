@@ -2,7 +2,7 @@ import * as admin from 'firebase-admin';
 import { withTool } from '@/lib/server/tool';
 import { HttpError } from '@/lib/server/auth';
 import { adminDb } from '@/lib/firebase/admin';
-import { MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, sanitizeEdl } from '@/lib/montagem';
+import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
 import { loadOwnedProject, projectClips, projects } from '@/lib/server/montagem/projects';
 import { autoEdit } from '@/lib/server/montagem/claude';
@@ -30,7 +30,8 @@ export const POST = withTool('montagem', async ({ user, body }) => {
   const profile = (await adminDb.collection('users').doc(user.uid).get()).data() || {};
   const plan = profile.plan as string | undefined;
   const maxSeconds = isPaidPlan(plan) ? MONTAGEM_MAX_SECONDS[plan] : 60;
-  const result = await autoEdit(project, clips, maxSeconds);
+  const direction = typeof body?.direction === 'string' ? body.direction.replace(/\s+/g, ' ').trim().slice(0, DIRECTION_MAX) : '';
+  const result = await autoEdit(project, clips, maxSeconds, direction);
   const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
   let edl;
   try {

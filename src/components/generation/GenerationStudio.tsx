@@ -329,6 +329,13 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
       setSelectedId(res.data.id);
       setPositions(prev => ({ ...prev, [res.data.id]: res.data.position }));
       refreshProfile();
+      // Prompt escrito aqui (sem o Gerador de Prompts) também vale como o prompt da cena.
+      if (projectCtx?.scene) {
+        const patch = kind === 'image'
+          ? { framePrompt: prompt.trim(), framePromptId: source?.id || null }
+          : { motionPrompt: prompt.trim(), motionPromptId: source?.id || null };
+        projectCtx.updateScene(patch).catch(err => console.error('[gen] falha ao ligar o prompt à cena:', err));
+      }
     } catch (e: any) {
       if (e.code === 'terms_required') { termsOk.current = false; setShowTerms(true); return; }
       const storageDenied = /storage\/unauthorized|permission/i.test(String(e.code || e.message));

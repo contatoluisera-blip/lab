@@ -16,7 +16,7 @@ import { setGenHandoff } from '@/lib/client/handoff';
 import { GenJob, STATUS_LABEL } from '@/lib/generation';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
-  Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
+  DIRECTION_MAX, Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
   TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, edlDurationFrames, emptyEdl, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 
@@ -26,6 +26,7 @@ const Preview = dynamic(() => import('./Preview'), {
 });
 
 const newId = () => crypto.randomUUID().slice(0, 8);
+const DIRECTION_IDEAS = ['Ritmo rápido de Reels', 'Clima cinematográfico, com dissolver', 'Gancho forte no 1º segundo', 'Sem texto na tela', 'Chamada final para seguir o perfil'];
 const secs = (frames: number) => (frames / MONTAGEM_FPS).toFixed(1).replace('.', ',');
 
 type Job = GenJob & { sceneId?: string | null };
@@ -61,6 +62,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const [error, setError] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState('');
+  const [directionText, setDirection] = useState('');
   const [exporting, setExporting] = useState(false);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedEdl = useRef(false);
@@ -74,7 +76,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         if (!snap.exists() || data?.uid !== user.uid) { setProject(null); return; }
         const p = { id: snap.id, ...data } as VideoProject;
         setProject(p);
-        if (!loadedEdl.current) { loadedEdl.current = true; setEdl(p.edl || emptyEdl(p.format)); }
+        if (!loadedEdl.current) { loadedEdl.current = true; setEdl(p.edl || emptyEdl(p.format)); setDirection(p.editDirection || ''); }
       }, () => setProject(null)),
       onSnapshot(query(collection(db, 'gen_jobs'), where('uid', '==', user.uid), where('projectId', '==', projectId)), snap => {
         setJobs(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<Job, 'id'>) })).sort((a, b) => b.id.localeCompare(a.id)));
@@ -172,7 +174,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     setError('');
     setAiNote('');
     try {
-      const res = await callTool<{ edl: Edl; resumo: string }>('/api/montagem/auto', { projectId: project.id });
+      const direction = directionText.trim().slice(0, DIRECTION_MAX);
+      if (direction !== (project.editDirection || '')) saveProject({ editDirection: direction });
+      const res = await callTool<{ edl: Edl; resumo: string }>('/api/montagem/auto', { projectId: project.id, direction });
       changeEdl(res.data.edl);
       setAiNote(res.data.resumo);
     } catch (e: any) {
@@ -246,6 +250,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             const chosenFrame = frameDone.find(j => j.id === scene.frameJobId) || frameDone[0];
             const chosenClip = clipReady.find(j => j.id === scene.clipJobId) || clipReady[0];
             const inTimeline = edl.clips.some(c => c.sceneId === scene.id);
+            // Cenas geradas antes de o prompt ser ligado à cena: vale o prompt da própria geração.
+            const framePrompt = scene.framePrompt || chosenFrame?.prompt;
+            const motionPrompt = scene.motionPrompt || chosenClip?.prompt;
             return (
               <article key={scene.id} className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
                 <div className="flex items-start gap-2">
@@ -268,14 +275,14 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                 )}
 
                 <div className="divide-y divide-white/[0.05]">
-                  <StepRow done={!!scene.framePrompt} label="Prompt do frame">
-                    <Link href={projectHref('/dashboard/prompt-studio', project.id, scene.id, { mode: 't2i' })} className={linkCls}>{scene.framePrompt ? 'Refazer' : 'Criar'}</Link>
+                  <StepRow done={!!framePrompt} label="Prompt do frame">
+                    <Link href={projectHref('/dashboard/prompt-studio', project.id, scene.id, { mode: 't2i' })} className={linkCls}>{framePrompt ? 'Refazer' : 'Criar'}</Link>
                   </StepRow>
                   <StepRow done={!!chosenFrame} active={frames.some(j => j.active)} label={frames.some(j => j.active) ? `Frame: ${STATUS_LABEL[frames.find(j => j.active)!.status]}` : `Frame${frameDone.length > 1 ? ` (${frameDone.length} versões)` : ''}`}>
                     <Link href={projectHref('/dashboard/imagens', project.id, scene.id)} className={linkCls}><ImageIcon className="w-3 h-3 inline -mt-0.5" /> Gerar</Link>
                   </StepRow>
-                  <StepRow done={!!scene.motionPrompt} label="Prompt do movimento">
-                    <Link href={projectHref('/dashboard/prompt-studio', project.id, scene.id, { mode: 'i2v' })} className={linkCls}>{scene.motionPrompt ? 'Refazer' : 'Criar'}</Link>
+                  <StepRow done={!!motionPrompt} label="Prompt do movimento">
+                    <Link href={projectHref('/dashboard/prompt-studio', project.id, scene.id, { mode: 'i2v' })} className={linkCls}>{motionPrompt ? 'Refazer' : 'Criar'}</Link>
                   </StepRow>
                   <StepRow done={!!chosenClip} active={clips.some(j => j.active)} label={clips.some(j => j.active) ? `Cena: ${STATUS_LABEL[clips.find(j => j.active)!.status]}` : `Cena em vídeo${clipReady.length > 1 ? ` (${clipReady.length} versões)` : ''}`}>
                     {chosenFrame
@@ -326,6 +333,23 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-black bg-gradient-to-b from-[#34d399] to-[#10b981] disabled:opacity-50">
             {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? 'Montando…' : 'Montar com IA'}
           </button>
+        </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-2.5">
+          <label htmlFor="edit-direction" className="flex items-center gap-1.5 text-xs font-semibold text-white">
+            <Wand2 className="w-3.5 h-3.5 text-brand-mint" /> Direção de edição para o Claude <span className="font-normal text-gray-500">(opcional)</span>
+          </label>
+          <textarea id="edit-direction" value={directionText} onChange={e => setDirection(e.target.value)} rows={3} maxLength={DIRECTION_MAX}
+            onBlur={() => directionText.trim() !== (project.editDirection || '') && saveProject({ editDirection: directionText.trim() })}
+            placeholder="Ex.: ritmo rápido de Reels, gancho forte no 1º segundo, cortes secos, texto curto em caixa alta e chamada final para seguir o perfil."
+            className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-gray-200 placeholder:text-gray-600 outline-none focus:border-brand-emerald/40 resize-y" />
+          <div className="flex flex-wrap gap-1.5">
+            {DIRECTION_IDEAS.map(idea => (
+              <button key={idea} type="button" onClick={() => setDirection(d => (d.trim() ? `${d.trim().replace(/[.;,]?$/, ';')} ${idea}` : idea).slice(0, DIRECTION_MAX))}
+                className="px-2.5 py-1 rounded-full border border-white/[0.08] text-[11px] text-gray-400 hover:text-white hover:border-brand-emerald/40">
+                + {idea}
+              </button>
+            ))}
+          </div>
         </div>
         {!clipsDone.length && (
           <p className="text-sm text-gray-500 p-4 rounded-2xl border border-dashed border-white/10">
