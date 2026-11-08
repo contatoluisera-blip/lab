@@ -14,7 +14,7 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { callTool } from '@/lib/client/api';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { STATUS_LABEL } from '@/lib/generation';
-import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
+import { Job, Pipeline, Storyboard, BatchGenerate, MissingPrompts, sceneMedia } from './ProductionPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
@@ -247,7 +247,10 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
               <Plus className="w-3 h-3" /> Adicionar cena
             </button>
           </div>
-          <BatchGenerate kind="image" project={project} jobs={jobs} onError={setError} />
+          <div className="flex flex-wrap items-center gap-2">
+            <MissingPrompts project={project} onError={setError} />
+            <BatchGenerate kind="image" project={project} jobs={jobs} onError={setError} />
+          </div>
         </div>
         {(project.scriptSource || project.styleBible) && (
           <details className="group rounded-2xl border border-white/[0.07] bg-black/30 p-4 text-xs text-gray-400">

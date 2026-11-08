@@ -9,6 +9,7 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { streamTool } from '@/lib/client/api';
 import { SCRIPT_ACCEPT, ScriptFile, readScriptFile } from '@/lib/client/scriptFile';
+import { writeScenePrompts } from '@/lib/client/scriptPrompts';
 import {
   FORMATS, MAX_SCENES, MontagemFormat, ProjectScene, SCRIPT_AGENT_CREDITS, SCRIPT_DONE_MARK, VideoProject, projectHref, scenesFromScript,
 } from '@/lib/montagem';
@@ -80,13 +81,15 @@ export function ProjectList() {
     setProgress('Lendo o roteiro...');
     try {
       const full = await streamTool('/api/montagem/script', { file, description: [goal.trim() && `Objetivo do vídeo: ${goal.trim()}`, description.trim()].filter(Boolean).join('\n'), format: aiFormat, title }, partial => {
-        const done = partial.split('"promptMovimento"').length - 1;
-        if (partial.trim()) setProgress(done ? `Escrevendo os prompts: ${done} cena(s) prontas...` : 'Fatiando o roteiro em cenas...');
+        const found = partial.split('"duracao"').length - 1;
+        if (partial.trim()) setProgress(found ? `Fatiando o roteiro: ${found} cena(s)...` : 'Lendo o roteiro...');
       });
       const mark = full.indexOf(SCRIPT_DONE_MARK);
-      if (mark < 0) throw new Error('A resposta veio incompleta. Seus créditos foram devolvidos se nada foi criado; confira a lista.');
-      const { projectId } = JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length));
+      if (mark < 0) throw new Error('A leitura do roteiro foi interrompida. Tente de novo; se o projeto aparecer na lista, abra e continue por lá.');
+      const { projectId, sceneIds } = JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length)) as { projectId: string; sceneIds: string[] };
       refreshProfile();
+      // Etapa 2: prompts de frame e movimento, de poucas cenas por vez. O que faltar dá para refazer no projeto.
+      await writeScenePrompts(projectId, sceneIds, (done, total) => setProgress(`Escrevendo os prompts: ${done} de ${total} cenas...`));
       router.push(projectHref('/dashboard/montagem', projectId));
     } catch (e: any) {
       setError(e.message || 'Não foi possível ler o roteiro agora.');

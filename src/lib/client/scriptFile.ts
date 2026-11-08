@@ -12,7 +12,10 @@ export type ScriptFile =
 export const SCRIPT_ACCEPT = '.pdf,.docx,.txt,.md,application/pdf,application/vnd.openxmlformats-officedocument.wordprocessingml.document,text/plain,text/markdown';
 
 export async function readScriptFile(file: File): Promise<ScriptFile> {
-  const name = file.name.slice(0, 120);
+  // Arquivos baixados às vezes chegam com o nome codificado (ex.: "p%C3%BAblica").
+  let name = file.name;
+  try { name = decodeURIComponent(name); } catch { /* mantém o nome original */ }
+  name = name.slice(0, 120);
   const ext = name.toLowerCase().split('.').pop();
   if (ext === 'pdf' || file.type === 'application/pdf') {
     if (file.size > SCRIPT_PDF_MAX_BYTES) throw new Error('O PDF passa de 3 MB. Exporte sem imagens ou envie em DOCX.');

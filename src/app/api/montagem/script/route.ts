@@ -4,9 +4,9 @@ import { adminDb } from '@/lib/firebase/admin';
 import { textStreamResponse } from '@/lib/server/stream';
 import { logPlatformAction } from '@/lib/firebase/logAction';
 import { isPaidPlan } from '@/lib/planConfig';
-import { MAX_SCENES, MONTAGEM_MAX_SECONDS, ProjectScene, SCRIPT_AGENT_CREDITS, SCRIPT_DONE_MARK, TEXT_MAX } from '@/lib/montagem';
+import { MAX_SCENES, MONTAGEM_MAX_SECONDS, ProjectScene, SCRIPT_AGENT_CREDITS, SCRIPT_DONE_MARK } from '@/lib/montagem';
 import { projects } from '@/lib/server/montagem/projects';
-import { parseScriptInput, runScriptAgent } from '@/lib/server/montagem/scriptAgent';
+import { parseScriptInput, runScriptOutline } from '@/lib/server/montagem/scriptAgent';
 
 export const dynamic = 'force-dynamic';
 
@@ -14,11 +14,12 @@ const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().sli
 const newSceneId = () => crypto.randomUUID().slice(0, 8);
 
 /**
- * Agente de roteiro: lê o documento, fatia em cenas com os prompts de frame e movimento
- * e cria o Projeto de vídeo. Responde em streaming (o JSON parcial mostra o progresso) e
- * termina com `SCRIPT_DONE_MARK` + `{ projectId }`. Se falhar, os créditos voltam.
+ * Agente de roteiro, etapa 1: lê o documento, fatia em cenas, define a bíblia visual e cria o Projeto de vídeo.
+ * Os prompts de cada cena vêm na etapa 2 (`/api/montagem/script/prompts`), em pedidos curtos.
+ * Responde em streaming (o JSON parcial mostra o progresso) e termina com `SCRIPT_DONE_MARK` + `{ projectId }`.
+ * Se falhar, os créditos voltam.
  */
-export const POST = withTool('montagem', async ({ user, body, refund }) => {
+export const POST = withTool('montagem', async ({ user, body, refund, charge }) => {
   const profile = (await adminDb.collection('users').doc(user.uid).get()).data() || {};
   const plan = profile.plan as string | undefined;
   const maxSeconds = isPaidPlan(plan) ? MONTAGEM_MAX_SECONDS[plan] : 60;
@@ -31,11 +32,11 @@ export const POST = withTool('montagem', async ({ user, body, refund }) => {
       const keepAlive = setInterval(() => { if (!started) write(' '); }, 4000);
       let result;
       try {
-        result = await runScriptAgent(input, text => { started = true; write(text); });
+        result = await runScriptOutline(input, text => { started = true; write(text); });
       } finally {
         clearInterval(keepAlive);
       }
-      const cenas = (result.cenas || []).slice(0, MAX_SCENES).filter(c => clean(c.promptFrame, 10).length);
+      const cenas = (result.cenas || []).slice(0, MAX_SCENES).filter(c => clean(c.texto, 10).length || clean(c.titulo, 10).length);
       if (!cenas.length) {
         throw new HttpError(422, 'no_scenes', clean(result.observacoes, 300) || 'Não encontramos cenas nesse documento.');
       }
@@ -44,10 +45,6 @@ export const POST = withTool('montagem', async ({ user, body, refund }) => {
         title: clean(c.titulo, 60) || `Cena ${i + 1}`,
         text: clean(c.texto, 1200),
         targetSeconds: Math.min(10, Math.max(3, Math.round(Number(c.duracao) || 5))),
-        framePrompt: clean(c.promptFrame, 2500),
-        framePromptId: null,
-        motionPrompt: clean(c.promptMovimento, 2500),
-        motionPromptId: null,
       }));
       const at = new Date().toISOString();
       const ref = await projects().add({
@@ -65,10 +62,12 @@ export const POST = withTool('montagem', async ({ user, body, refund }) => {
         updatedAt: at,
       });
       await logPlatformAction(user.uid, user.email ?? undefined, 'montagem', `Roteiro com IA: ${scenes.length} cenas (${input.file.kind})`);
-      write(SCRIPT_DONE_MARK + JSON.stringify({ projectId: ref.id, scenes: scenes.length, notes: clean(result.observacoes, TEXT_MAX * 5) }));
+      write(SCRIPT_DONE_MARK + JSON.stringify({ projectId: ref.id, sceneIds: scenes.map(sc => sc.id) }));
     },
     async (err) => {
       await refund('provider_failure');
+      // Nada foi criado: o teste grátis não conta como usado.
+      if (charge.trial) await adminDb.collection('users').doc(user.uid).update({ 'trialUsed.montagem': false }).catch(() => {});
       if (err instanceof HttpError) return { error: `${err.message} Seus créditos foram devolvidos.`, code: err.code };
       const e = describeProviderError(err, 'Anthropic');
       return { error: e.message, code: e.code };

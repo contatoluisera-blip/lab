@@ -7,7 +7,7 @@ import { FORMATS, MAX_SCENES, MontagemFormat, SCRIPT_PDF_MAX_BYTES, SCRIPT_TEXT_
 // Agente de roteiro: lê o documento (PDF ou texto), fatia em cenas e escreve, para cada uma,
 // o prompt do frame (texto → imagem) e o do movimento (imagem → vídeo) no padrão da Creator Lab.
 
-const SCHEMA = {
+const OUTLINE_SCHEMA = {
   type: 'object',
   additionalProperties: false,
   required: ['titulo', 'objetivo', 'formato', 'bibliaVisual', 'cenas', 'observacoes'],
@@ -21,17 +21,36 @@ const SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['titulo', 'texto', 'duracao', 'promptFrame', 'promptMovimento'],
+        required: ['titulo', 'texto', 'duracao'],
         properties: {
           titulo: { type: 'string' },
           texto: { type: 'string', description: 'Fala, narração ou ação da cena, em português.' },
           duracao: { type: 'number', description: 'Segundos da cena no vídeo final (3 a 10).' },
+        },
+      },
+    },
+    observacoes: { type: 'string', description: 'Em português: decisões tomadas, cortes de roteiro e pontos de atenção (1 a 3 frases).' },
+  },
+} as const;
+
+const PROMPTS_SCHEMA = {
+  type: 'object',
+  additionalProperties: false,
+  required: ['cenas'],
+  properties: {
+    cenas: {
+      type: 'array',
+      items: {
+        type: 'object',
+        additionalProperties: false,
+        required: ['id', 'promptFrame', 'promptMovimento'],
+        properties: {
+          id: { type: 'string', description: 'Id exato da cena recebida.' },
           promptFrame: { type: 'string', description: 'Prompt texto → imagem, em inglês.' },
           promptMovimento: { type: 'string', description: 'Prompt imagem → vídeo, em inglês.' },
         },
       },
     },
-    observacoes: { type: 'string', description: 'Em português: decisões tomadas, cortes de roteiro e pontos de atenção (1 a 3 frases).' },
   },
 } as const;
 
@@ -40,29 +59,36 @@ const standardStart = PROMPT_STANDARD.indexOf('# MODO IMAGE TO VIDEO');
 const standardEnd = PROMPT_STANDARD.indexOf('# MODO IMAGE TO IMAGE');
 const STANDARD_EXCERPT = standardStart >= 0 && standardEnd > standardStart ? PROMPT_STANDARD.slice(standardStart, standardEnd) : '';
 
-const SYSTEM = `Você é o agente de roteiro da Creator Lab, uma plataforma brasileira de criação de vídeos com IA.
+// O trabalho é dividido em etapas curtas: a função da Netlify é encerrada se uma chamada demora demais.
+// 1) fatiamento: cenas + bíblia visual (saída curta); 2) prompts, de poucas cenas por vez, em paralelo.
+
+const SYSTEM_OUTLINE = `Você é o agente de roteiro da Creator Lab, uma plataforma brasileira de criação de vídeos com IA.
 Você recebe um roteiro (documento) e, às vezes, um descritivo do criador. Fatie o roteiro em cenas prontas para produção.
 Cada cena vira 1 frame (imagem gerada do zero) e depois 1 clipe curto (imagem → vídeo, de 5 a 10 s) a partir desse frame.
 
-Regras das cenas:
+Regras:
 - Uma cena = um plano contínuo que cabe num clipe de 3 a 10 s. Fala longa vira mais de uma cena; linhas curtas no mesmo plano viram uma só.
 - Siga a ordem do roteiro. Não invente acontecimentos, falas, marcas, preços ou promessas.
-- titulo: até 6 palavras, descreve o plano. texto: a fala, narração ou ação da cena em português, fiel ao roteiro (rubricas podem ser resumidas).
+- titulo: até 6 palavras, descreve o plano. texto: a fala, narração ou ação da cena em português, fiel ao roteiro (rubricas podem ser resumidas), incluindo o que se vê.
 - duracao: segundos da cena no vídeo final, de 3 a 10, coerente com o tempo de leitura da fala (cerca de 2,5 palavras por segundo).
 - A soma das durações não passa da duração máxima informada. Se o roteiro não couber, priorize o essencial e explique em observacoes.
 - No máximo ${MAX_SCENES} cenas.
+- bibliaVisual (em inglês): a descrição fixa do vídeo, que será repetida em todos os prompts de imagem: cada personagem (idade aparente, rosto, cabelo, roupa), cenários recorrentes, estilo visual, paleta e luz. Siga o descritivo do criador; o que faltar, decida de forma coerente com o roteiro.
+- Formato: use o informado pelo criador; se vier "auto", deduza (Reels, TikTok e Shorts → 9:16; feed → 4:5; YouTube → 16:9).
+- titulo do projeto até 60 caracteres; objetivo até 160 (o que o vídeo quer causar em quem assiste).
+- Se o documento não for um roteiro nem a descrição de um vídeo, devolva cenas vazias e explique em observacoes.`;
 
-Regras dos prompts (sempre em inglês):
-- bibliaVisual: a descrição fixa do vídeo: cada personagem (idade aparente, rosto, cabelo, roupa), cenários recorrentes, estilo visual, paleta e luz.
-- Os modelos de imagem não lembram de uma geração para outra: repita, literalmente, os trechos da bibliaVisual que aparecem em cada cena dentro do promptFrame dela.
-- promptFrame: texto → imagem no padrão "TEXT TO IMAGE" abaixo, no enquadramento do formato do projeto, mostrando o primeiro instante do plano. Sem letreiros ou texto escrito na imagem, a não ser que o roteiro exija.
-- promptMovimento: imagem → vídeo no padrão "IMAGE TO VIDEO" abaixo. Descreva só o que muda a partir do frame (ação, câmera, ritmo); não redescreva a aparência. Se um personagem em cena fala, coloque a fala em português do Brasil entre aspas e indique "Brazilian Portuguese".
+const SYSTEM_PROMPTS = `Você é o diretor de prompts da Creator Lab. Recebe a bíblia visual de um vídeo e algumas cenas do roteiro
+(com a cena anterior e a seguinte como contexto). Para cada cena recebida, escreva dois prompts em inglês:
+- promptFrame: texto → imagem no padrão "TEXT TO IMAGE" abaixo, no enquadramento do formato do projeto, mostrando o primeiro instante do plano.
+  Os modelos de imagem não lembram de uma geração para outra: repita, literalmente, os trechos da bíblia visual que aparecem na cena.
+  Sem letreiros ou texto escrito na imagem, a não ser que o roteiro exija.
+- promptMovimento: imagem → vídeo no padrão "IMAGE TO VIDEO" abaixo, para a duração da cena. Descreva só o que muda a partir do frame
+  (ação, câmera, ritmo); não redescreva a aparência. Se um personagem em cena fala, coloque a fala em português do Brasil entre aspas
+  e indique "Brazilian Portuguese". Narração em off não entra no prompt.
+Devolva uma entrada por cena recebida, com o id exato. Não invente acontecimentos fora do texto da cena.
 
-Formato: use o informado pelo criador; se vier "auto", deduza (Reels, TikTok e Shorts → 9:16; feed → 4:5; YouTube → 16:9).
-titulo do projeto até 60 caracteres; objetivo até 160 (o que o vídeo quer causar em quem assiste).
-Se o documento não for um roteiro nem a descrição de um vídeo, devolva cenas vazias e explique em observacoes.
-
-O padrão de escrita de prompts da Creator Lab vem a seguir. Use-o só como guia para escrever promptFrame e promptMovimento;
+O padrão de escrita de prompts da Creator Lab vem a seguir. Use-o só como guia de escrita;
 ignore o que ele diz sobre formulário, ficha técnica, campos ou formato de resposta: aqui a resposta é o JSON pedido.
 
 ${STANDARD_EXCERPT}`;
@@ -75,12 +101,12 @@ export interface ScriptInput {
   maxSeconds: number;
 }
 
-export interface ScriptResult {
+export interface ScriptOutline {
   titulo: string;
   objetivo: string;
   formato: MontagemFormat;
   bibliaVisual: string;
-  cenas: { titulo: string; texto: string; duracao: number; promptFrame: string; promptMovimento: string }[];
+  cenas: { titulo: string; texto: string; duracao: number }[];
   observacoes: string;
 }
 
@@ -112,8 +138,26 @@ export function parseScriptInput(body: any, maxSeconds: number): ScriptInput {
   };
 }
 
-/** Roda o agente em streaming: `onText` recebe o JSON parcial (para mostrar o progresso). */
-export async function runScriptAgent(input: ScriptInput, onText: (text: string) => void): Promise<ScriptResult> {
+async function streamJson<T>(params: { system: string; schema: object; content: Anthropic.Beta.BetaContentBlockParam[]; maxTokens: number; effort: 'low' | 'medium' }, onText?: (text: string) => void): Promise<T> {
+  const stream = anthropicClient().beta.messages.stream({
+    model: AI_MODELS.anthropicMain,
+    max_tokens: params.maxTokens,
+    output_config: { effort: params.effort, format: { type: 'json_schema', schema: params.schema as any } },
+    // O sistema é igual em todo uso: em cache, a leitura custa 10% do preço.
+    system: [{ type: 'text', text: params.system, cache_control: { type: 'ephemeral' } }],
+    messages: [{ role: 'user', content: params.content }],
+  });
+  if (onText) stream.on('text', onText);
+  const final = await stream.finalMessage();
+  if (final.stop_reason === 'refusal') throw new HttpError(422, 'refused', 'A IA não pôde trabalhar com esse roteiro. Revise o conteúdo e tente de novo.');
+  if (final.stop_reason === 'max_tokens') throw new HttpError(502, 'truncated', 'A resposta ficou longa demais e foi cortada. Divida o roteiro em partes.');
+  const block = final.content.find(b => b.type === 'text');
+  if (!block || block.type !== 'text') throw new HttpError(502, 'script_failed', 'A IA não respondeu. Tente de novo.');
+  return JSON.parse(block.text) as T;
+}
+
+/** Etapa 1: lê o documento e devolve as cenas e a bíblia visual (sem os prompts). */
+export function runScriptOutline(input: ScriptInput, onText: (text: string) => void) {
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   if (input.file.kind === 'pdf') {
     content.push({ type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: input.file.data }, title: input.file.name });
@@ -131,20 +175,35 @@ export async function runScriptAgent(input: ScriptInput, onText: (text: string) 
       input.description || '(nenhum)',
     ].join('\n'),
   });
+  return streamJson<ScriptOutline>({ system: SYSTEM_OUTLINE, schema: OUTLINE_SCHEMA, content, maxTokens: 8000, effort: 'low' }, onText);
+}
 
-  const stream = anthropicClient().beta.messages.stream({
-    model: AI_MODELS.anthropicMain,
-    max_tokens: 32000,
-    output_config: { effort: 'medium', format: { type: 'json_schema', schema: SCHEMA } },
-    // O sistema (~5 mil tokens) é igual em todo uso: em cache, a leitura custa 10% do preço.
-    system: [{ type: 'text', text: SYSTEM, cache_control: { type: 'ephemeral' } }],
-    messages: [{ role: 'user', content }],
+export interface PromptScene { id: string; title: string; text: string; targetSeconds: number }
+
+/** Etapa 2: prompts de frame e movimento de poucas cenas (com as vizinhas como contexto). */
+export async function writeScenePrompts(project: { title: string; goal: string; format: MontagemFormat; styleBible: string }, all: PromptScene[], ids: string[]) {
+  const pos = (id: string) => all.findIndex(s => s.id === id);
+  const describe = (s: PromptScene | undefined, i: number) => (s ? `Cena ${i + 1} (${s.targetSeconds || 5} s): ${s.title}. ${s.text}` : null);
+  const blocks = ids.map(id => {
+    const i = pos(id);
+    return [
+      `### id: ${id}`,
+      describe(all[i], i),
+      all[i - 1] ? `Antes: ${describe(all[i - 1], i - 1)}` : 'Antes: (início do vídeo)',
+      all[i + 1] ? `Depois: ${describe(all[i + 1], i + 1)}` : 'Depois: (fim do vídeo)',
+    ].join('\n');
   });
-  stream.on('text', onText);
-  const final = await stream.finalMessage();
-  if (final.stop_reason === 'refusal') throw new HttpError(422, 'refused', 'A IA não pôde trabalhar com esse roteiro. Revise o conteúdo e tente de novo.');
-  if (final.stop_reason === 'max_tokens') throw new HttpError(502, 'truncated', 'O roteiro rendeu cenas demais e a resposta foi cortada. Divida o roteiro em partes.');
-  const block = final.content.find(b => b.type === 'text');
-  if (!block || block.type !== 'text') throw new HttpError(502, 'script_failed', 'A IA não devolveu as cenas. Tente de novo.');
-  return JSON.parse(block.text) as ScriptResult;
+  const text = [
+    `Projeto: ${project.title}${project.goal ? ` — objetivo: ${project.goal}` : ''}`,
+    `Formato: ${project.format}`,
+    '',
+    'BÍBLIA VISUAL:',
+    project.styleBible || '(não definida: mantenha personagens e estilo coerentes entre as cenas)',
+    '',
+    'CENAS PARA ESCREVER:',
+    blocks.join('\n\n'),
+  ].join('\n');
+  const out = await streamJson<{ cenas: { id: string; promptFrame: string; promptMovimento: string }[] }>(
+    { system: SYSTEM_PROMPTS, schema: PROMPTS_SCHEMA, content: [{ type: 'text', text }], maxTokens: 8000, effort: 'medium' });
+  return out.cenas || [];
 }

@@ -85,6 +85,8 @@ export const SCRIPT_PDF_MAX_BYTES = 3 * 1024 * 1024;
 export const SCRIPT_TEXT_MAX = 60_000;
 /** Marca, dentro do stream, o fim com o projeto criado: `\u0000DONE:{"projectId":...}`. */
 export const SCRIPT_DONE_MARK = '\u0000DONE:';
+/** Cenas por pedido de prompts (etapa 2): pedidos curtos cabem no limite de tempo da Netlify. */
+export const SCRIPT_PROMPT_BATCH = 2;
 
 /** Endereço de uma aba de produção dentro do projeto (o contexto sobrevive a recarregar). */
 export function projectHref(path: string, projectId: string, sceneId?: string | null, extra: Record<string, string> = {}) {

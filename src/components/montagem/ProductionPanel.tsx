@@ -1,8 +1,9 @@
 'use client';
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { Check, ChevronDown, Film, ImageIcon, Loader2, ShieldCheck } from 'lucide-react';
+import { Check, ChevronDown, Film, ImageIcon, Loader2, ShieldCheck, Wand2 } from 'lucide-react';
 import { callTool } from '@/lib/client/api';
+import { writeScenePrompts } from '@/lib/client/scriptPrompts';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { GenJob, GenModel, modelsFor, normalizeConfig, quote } from '@/lib/generation';
 import { Edl, ProjectScene, RenderJob, VideoProject } from '@/lib/montagem';
@@ -56,6 +57,26 @@ export function Pipeline({ project, jobs, edl, renders }: { project: VideoProjec
         </li>
       ))}
     </ol>
+  );
+}
+
+// ── Prompts que faltam: o agente de roteiro escreve os das cenas sem prompt ──
+export function MissingPrompts({ project, onError }: { project: VideoProject; onError: (message: string) => void }) {
+  const [progress, setProgress] = useState('');
+  const missing = project.scenes.filter(s => !s.framePrompt || !s.motionPrompt).map(s => s.id);
+  if (!project.styleBible || !missing.length) return null;
+  const run = async () => {
+    setProgress('Escrevendo...');
+    const r = await writeScenePrompts(project.id, missing, (done, total) => setProgress(`${done} de ${total} cenas...`));
+    setProgress('');
+    if (r.failed.length) onError(`${r.failed.length} cena(s) ficaram sem prompt${r.lastError ? ` (${r.lastError})` : ''}. Tente de novo.`);
+  };
+  return (
+    <button type="button" onClick={run} disabled={!!progress}
+      className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-brand-mint border border-brand-emerald/40 bg-brand-emerald/10 hover:bg-brand-emerald/20 disabled:opacity-60">
+      {progress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Wand2 className="w-3.5 h-3.5" />}
+      {progress ? `Prompts: ${progress}` : `Escrever prompts que faltam com IA · ${missing.length}`}
+    </button>
   );
 }
 

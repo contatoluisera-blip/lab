@@ -24,7 +24,7 @@ export const POST = withTool('montagem', async ({ user, body }) => {
     const usage = (await tx.get(ref)).data()?.aiUsage || {};
     const count = usage.day === today ? usage.count || 0 : 0;
     if (count >= DAILY_LIMIT) throw new HttpError(429, 'ai_limit', `Você usou as ${DAILY_LIMIT} montagens com IA de hoje neste projeto. Ajuste à mão ou volte amanhã.`);
-    tx.update(ref, { aiUsage: { day: today, count: count + 1 } });
+    tx.update(ref, { 'aiUsage.day': today, 'aiUsage.count': count + 1 });
   });
 
   const profile = (await adminDb.collection('users').doc(user.uid).get()).data() || {};
