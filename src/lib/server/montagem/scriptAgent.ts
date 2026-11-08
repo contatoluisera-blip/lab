@@ -1,11 +1,10 @@
 import Anthropic from '@anthropic-ai/sdk';
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
-import { PROMPT_STANDARD } from '@/lib/server/prompts/standard';
 import { FORMATS, MAX_SCENES, MontagemFormat, SCRIPT_PDF_MAX_BYTES, SCRIPT_TEXT_MAX } from '@/lib/montagem';
 
-// Agente de roteiro: lê o documento (PDF ou texto), fatia em cenas e escreve, para cada uma,
-// o prompt do frame (texto → imagem) e o do movimento (imagem → vídeo) no padrão da Creator Lab.
+// Agente de roteiro: lê o documento (PDF ou texto) e fatia em cenas, com descrição e uma explicação curta.
+// Não escreve prompts: as cenas viram um projeto usado nas abas de Prompts, Imagem e Vídeo.
 
 const OUTLINE_SCHEMA = {
   type: 'object',
@@ -15,16 +14,17 @@ const OUTLINE_SCHEMA = {
     titulo: { type: 'string' },
     objetivo: { type: 'string' },
     formato: { type: 'string', enum: FORMATS.map(f => f.id) },
-    bibliaVisual: { type: 'string', description: 'Em inglês: personagens, cenário, estilo, paleta e luz fixos do vídeo.' },
+    bibliaVisual: { type: 'string', description: 'Em português: personagens, cenário, estilo, paleta e luz fixos do vídeo.' },
     cenas: {
       type: 'array',
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['titulo', 'texto', 'duracao'],
+        required: ['titulo', 'texto', 'explicacao', 'duracao'],
         properties: {
           titulo: { type: 'string' },
-          texto: { type: 'string', description: 'Fala, narração ou ação da cena, em português.' },
+          texto: { type: 'string', description: 'Descrição da cena: o que se vê e a fala ou narração, em português.' },
+          explicacao: { type: 'string', description: 'Uma frase curta: o papel da cena no vídeo.' },
           duracao: { type: 'number', description: 'Segundos da cena no vídeo final (3 a 10).' },
         },
       },
@@ -33,65 +33,23 @@ const OUTLINE_SCHEMA = {
   },
 } as const;
 
-const PROMPTS_SCHEMA = {
-  type: 'object',
-  additionalProperties: false,
-  required: ['cenas'],
-  properties: {
-    cenas: {
-      type: 'array',
-      items: {
-        type: 'object',
-        additionalProperties: false,
-        required: ['id', 'promptFrame', 'promptMovimento'],
-        properties: {
-          id: { type: 'string', description: 'Id exato da cena recebida.' },
-          promptFrame: { type: 'string', description: 'Prompt texto → imagem, em inglês.' },
-          promptMovimento: { type: 'string', description: 'Prompt imagem → vídeo, em inglês.' },
-        },
-      },
-    },
-  },
-} as const;
-
-// Do padrão do Gerador de Prompts, só as seções de escrita: imagem → vídeo e texto → imagem.
-const standardStart = PROMPT_STANDARD.indexOf('# MODO IMAGE TO VIDEO');
-const standardEnd = PROMPT_STANDARD.indexOf('# MODO IMAGE TO IMAGE');
-const STANDARD_EXCERPT = standardStart >= 0 && standardEnd > standardStart ? PROMPT_STANDARD.slice(standardStart, standardEnd) : '';
-
-// O trabalho é dividido em etapas curtas: a função da Netlify é encerrada se uma chamada demora demais.
-// 1) fatiamento: cenas + bíblia visual (saída curta); 2) prompts, de poucas cenas por vez, em paralelo.
-
 const SYSTEM_OUTLINE = `Você é o agente de roteiro da Creator Lab, uma plataforma brasileira de criação de vídeos com IA.
-Você recebe um roteiro (documento) e, às vezes, um descritivo do criador. Fatie o roteiro em cenas prontas para produção.
-Cada cena vira 1 frame (imagem gerada do zero) e depois 1 clipe curto (imagem → vídeo, de 5 a 10 s) a partir desse frame.
+Você recebe um roteiro (documento) e, às vezes, um descritivo do criador. Sua única tarefa é separar o roteiro em cenas.
+Não escreva prompts: depois, cada cena vira 1 frame (imagem) e 1 clipe curto (imagem → vídeo, de 3 a 10 s) nas ferramentas de geração.
 
 Regras:
 - Uma cena = um plano contínuo que cabe num clipe de 3 a 10 s. Fala longa vira mais de uma cena; linhas curtas no mesmo plano viram uma só.
 - Siga a ordem do roteiro. Não invente acontecimentos, falas, marcas, preços ou promessas.
-- titulo: até 6 palavras, descreve o plano. texto: a fala, narração ou ação da cena em português, fiel ao roteiro (rubricas podem ser resumidas), incluindo o que se vê.
+- titulo: até 6 palavras, descreve o plano.
+- texto: a descrição da cena em português, fiel ao roteiro: o que se vê (personagem, ação, lugar, enquadramento se o roteiro disser) e a fala ou narração.
+- explicacao: uma frase curta (até 20 palavras) com o papel da cena no vídeo (ex.: "gancho: provoca curiosidade antes da dica").
 - duracao: segundos da cena no vídeo final, de 3 a 10, coerente com o tempo de leitura da fala (cerca de 2,5 palavras por segundo).
 - A soma das durações não passa da duração máxima informada. Se o roteiro não couber, priorize o essencial e explique em observacoes.
 - No máximo ${MAX_SCENES} cenas.
-- bibliaVisual (em inglês): a descrição fixa do vídeo, que será repetida em todos os prompts de imagem: cada personagem (idade aparente, rosto, cabelo, roupa), cenários recorrentes, estilo visual, paleta e luz. Siga o descritivo do criador; o que faltar, decida de forma coerente com o roteiro.
+- bibliaVisual (em português, até 5 frases): personagens (idade aparente, rosto, cabelo, roupa), cenários recorrentes, estilo, paleta e luz. Ela acompanha cada cena no Gerador de Prompts para manter o vídeo coerente. Siga o descritivo do criador; o que faltar, decida de forma coerente com o roteiro.
 - Formato: use o informado pelo criador; se vier "auto", deduza (Reels, TikTok e Shorts → 9:16; feed → 4:5; YouTube → 16:9).
 - titulo do projeto até 60 caracteres; objetivo até 160 (o que o vídeo quer causar em quem assiste).
 - Se o documento não for um roteiro nem a descrição de um vídeo, devolva cenas vazias e explique em observacoes.`;
-
-const SYSTEM_PROMPTS = `Você é o diretor de prompts da Creator Lab. Recebe a bíblia visual de um vídeo e algumas cenas do roteiro
-(com a cena anterior e a seguinte como contexto). Para cada cena recebida, escreva dois prompts em inglês:
-- promptFrame: texto → imagem no padrão "TEXT TO IMAGE" abaixo, no enquadramento do formato do projeto, mostrando o primeiro instante do plano.
-  Os modelos de imagem não lembram de uma geração para outra: repita, literalmente, os trechos da bíblia visual que aparecem na cena.
-  Sem letreiros ou texto escrito na imagem, a não ser que o roteiro exija.
-- promptMovimento: imagem → vídeo no padrão "IMAGE TO VIDEO" abaixo, para a duração da cena. Descreva só o que muda a partir do frame
-  (ação, câmera, ritmo); não redescreva a aparência. Se um personagem em cena fala, coloque a fala em português do Brasil entre aspas
-  e indique "Brazilian Portuguese". Narração em off não entra no prompt.
-Devolva uma entrada por cena recebida, com o id exato. Não invente acontecimentos fora do texto da cena.
-
-O padrão de escrita de prompts da Creator Lab vem a seguir. Use-o só como guia de escrita;
-ignore o que ele diz sobre formulário, ficha técnica, campos ou formato de resposta: aqui a resposta é o JSON pedido.
-
-${STANDARD_EXCERPT}`;
 
 export interface ScriptInput {
   file: { kind: 'pdf'; name: string; data: string } | { kind: 'text'; name: string; text: string };
@@ -106,7 +64,7 @@ export interface ScriptOutline {
   objetivo: string;
   formato: MontagemFormat;
   bibliaVisual: string;
-  cenas: { titulo: string; texto: string; duracao: number }[];
+  cenas: { titulo: string; texto: string; explicacao: string; duracao: number }[];
   observacoes: string;
 }
 
@@ -156,7 +114,7 @@ async function streamJson<T>(params: { system: string; schema: object; content: 
   return JSON.parse(block.text) as T;
 }
 
-/** Etapa 1: lê o documento e devolve as cenas e a bíblia visual (sem os prompts). */
+/** Lê o documento e devolve as cenas, com descrição e explicação curta, e a bíblia visual. */
 export function runScriptOutline(input: ScriptInput, onText: (text: string) => void) {
   const content: Anthropic.Beta.BetaContentBlockParam[] = [];
   if (input.file.kind === 'pdf') {
@@ -176,34 +134,4 @@ export function runScriptOutline(input: ScriptInput, onText: (text: string) => v
     ].join('\n'),
   });
   return streamJson<ScriptOutline>({ system: SYSTEM_OUTLINE, schema: OUTLINE_SCHEMA, content, maxTokens: 8000, effort: 'low' }, onText);
-}
-
-export interface PromptScene { id: string; title: string; text: string; targetSeconds: number }
-
-/** Etapa 2: prompts de frame e movimento de poucas cenas (com as vizinhas como contexto). */
-export async function writeScenePrompts(project: { title: string; goal: string; format: MontagemFormat; styleBible: string }, all: PromptScene[], ids: string[]) {
-  const pos = (id: string) => all.findIndex(s => s.id === id);
-  const describe = (s: PromptScene | undefined, i: number) => (s ? `Cena ${i + 1} (${s.targetSeconds || 5} s): ${s.title}. ${s.text}` : null);
-  const blocks = ids.map(id => {
-    const i = pos(id);
-    return [
-      `### id: ${id}`,
-      describe(all[i], i),
-      all[i - 1] ? `Antes: ${describe(all[i - 1], i - 1)}` : 'Antes: (início do vídeo)',
-      all[i + 1] ? `Depois: ${describe(all[i + 1], i + 1)}` : 'Depois: (fim do vídeo)',
-    ].join('\n');
-  });
-  const text = [
-    `Projeto: ${project.title}${project.goal ? ` — objetivo: ${project.goal}` : ''}`,
-    `Formato: ${project.format}`,
-    '',
-    'BÍBLIA VISUAL:',
-    project.styleBible || '(não definida: mantenha personagens e estilo coerentes entre as cenas)',
-    '',
-    'CENAS PARA ESCREVER:',
-    blocks.join('\n\n'),
-  ].join('\n');
-  const out = await streamJson<{ cenas: { id: string; promptFrame: string; promptMovimento: string }[] }>(
-    { system: SYSTEM_PROMPTS, schema: PROMPTS_SCHEMA, content: [{ type: 'text', text }], maxTokens: 8000, effort: 'medium' });
-  return out.cenas || [];
 }

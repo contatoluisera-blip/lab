@@ -14,7 +14,7 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { callTool } from '@/lib/client/api';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { STATUS_LABEL } from '@/lib/generation';
-import { Job, Pipeline, Storyboard, BatchGenerate, MissingPrompts, sceneMedia } from './ProductionPanel';
+import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
@@ -248,7 +248,6 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             </button>
           </div>
           <div className="flex flex-wrap items-center gap-2">
-            <MissingPrompts project={project} onError={setError} />
             <BatchGenerate kind="image" project={project} jobs={jobs} onError={setError} />
           </div>
         </div>
@@ -256,11 +255,11 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           <details className="group rounded-2xl border border-white/[0.07] bg-black/30 p-4 text-xs text-gray-400">
             <summary className="cursor-pointer text-white font-semibold list-none flex items-center gap-2">
               <Wand2 className="w-3.5 h-3.5 text-brand-mint" /> Agente de roteiro{project.scriptSource ? `: ${project.scriptSource.name}` : ''}
-              <span className="font-normal text-gray-500 group-open:hidden">· ver bíblia visual e observações</span>
+              <span className="font-normal text-gray-500 group-open:hidden">· ver personagens, estilo e observações</span>
             </summary>
             <div className="mt-3 space-y-3 leading-relaxed">
               {project.scriptNotes && <p><span className="text-gray-200 font-semibold">Observações: </span>{project.scriptNotes}</p>}
-              {project.styleBible && <p><span className="text-gray-200 font-semibold">Bíblia visual (repetida nos prompts para manter personagens e estilo): </span><span className="font-mono text-[11px]">{project.styleBible}</span></p>}
+              {project.styleBible && <p><span className="text-gray-200 font-semibold">Personagens e estilo (vão junto para o Gerador de Prompts): </span>{project.styleBible}</p>}
             </div>
           </details>
         )}
@@ -279,6 +278,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                 <textarea defaultValue={scene.text} rows={3} maxLength={1200} placeholder="Fala ou descrição da cena"
                   onBlur={e => e.target.value !== scene.text && updateScene(scene.id, { text: e.target.value })}
                   aria-label={`Texto da cena ${i + 1}`} className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-gray-200 placeholder:text-gray-600 outline-none focus:border-brand-emerald/40 resize-y" />
+                {scene.brief && <p className="flex items-start gap-1.5 text-[11px] leading-snug text-gray-400"><Wand2 className="w-3 h-3 mt-0.5 shrink-0 text-brand-mint" /> {scene.brief}</p>}
 
                 {(chosenClip || chosenFrame) && (
                   <div className="relative rounded-xl overflow-hidden bg-black aspect-video">

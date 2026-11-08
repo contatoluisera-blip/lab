@@ -44,6 +44,8 @@ export interface ProjectScene {
   title: string;
   /** Fala ou descrição da cena (vem do roteiro). */
   text: string;
+  /** Explicação curta do papel da cena no vídeo (agente de roteiro). */
+  brief?: string;
   targetSeconds: number;
   /** Prompt do frame (Gerar imagem) e do movimento (Gerar vídeo), salvos no Gerador de Prompts. */
   framePromptId?: string | null;
@@ -65,7 +67,7 @@ export interface VideoProject {
   edl: Edl | null;
   /** Direção geral de edição para o Claude (ritmo, tom, texto na tela...). */
   editDirection?: string;
-  /** Personagens, cenário e estilo fixos (em inglês), repetidos nos prompts para manter as cenas coerentes. */
+  /** Personagens, cenário e estilo fixos, levados ao Gerador de Prompts para manter as cenas coerentes. */
   styleBible?: string;
   /** Documento de onde o agente de roteiro tirou as cenas. */
   scriptSource?: { name: string; kind: 'pdf' | 'text' } | null;
@@ -78,15 +80,13 @@ export interface VideoProject {
 }
 
 // ── Agente de roteiro ────────────────────────────────────────────────────────
-/** Lê o documento, fatia em cenas e escreve os prompts de frame e movimento de cada uma. */
-export const SCRIPT_AGENT_CREDITS = 4;
+/** Lê o documento e separa em cenas (sem prompts): custo real de ~R$ 0,30 a 0,70 por roteiro. */
+export const SCRIPT_AGENT_CREDITS = 2;
 /** PDF de até ~3 MB (vai em base64 no corpo do pedido) e texto de até 60 mil caracteres. */
 export const SCRIPT_PDF_MAX_BYTES = 3 * 1024 * 1024;
 export const SCRIPT_TEXT_MAX = 60_000;
 /** Marca, dentro do stream, o fim com o projeto criado: `\u0000DONE:{"projectId":...}`. */
 export const SCRIPT_DONE_MARK = '\u0000DONE:';
-/** Cenas por pedido de prompts (etapa 2): pedidos curtos cabem no limite de tempo da Netlify. */
-export const SCRIPT_PROMPT_BATCH = 2;
 
 /** Endereço de uma aba de produção dentro do projeto (o contexto sobrevive a recarregar). */
 export function projectHref(path: string, projectId: string, sceneId?: string | null, extra: Record<string, string> = {}) {

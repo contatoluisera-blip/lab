@@ -14,9 +14,8 @@ const clean = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().sli
 const newSceneId = () => crypto.randomUUID().slice(0, 8);
 
 /**
- * Agente de roteiro, etapa 1: lê o documento, fatia em cenas, define a bíblia visual e cria o Projeto de vídeo.
- * Os prompts de cada cena vêm na etapa 2 (`/api/montagem/script/prompts`), em pedidos curtos.
- * Responde em streaming (o JSON parcial mostra o progresso) e termina com `SCRIPT_DONE_MARK` + `{ projectId }`.
+ * Agente de roteiro: lê o documento, separa em cenas (descrição e explicação curta) e cria o Projeto de vídeo.
+ * Não escreve prompts: isso fica com o Gerador de Prompts, cena por cena. Responde em streaming (o JSON parcial mostra o progresso) e termina com `SCRIPT_DONE_MARK` + `{ projectId }`.
  * Se falhar, os créditos voltam.
  */
 export const POST = withTool('montagem', async ({ user, body, refund, charge }) => {
@@ -44,6 +43,7 @@ export const POST = withTool('montagem', async ({ user, body, refund, charge }) 
         id: newSceneId(),
         title: clean(c.titulo, 60) || `Cena ${i + 1}`,
         text: clean(c.texto, 1200),
+        brief: clean(c.explicacao, 200),
         targetSeconds: Math.min(10, Math.max(3, Math.round(Number(c.duracao) || 5))),
       }));
       const at = new Date().toISOString();

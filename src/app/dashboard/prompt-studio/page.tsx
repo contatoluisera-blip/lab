@@ -148,7 +148,12 @@ export default function PromptStudioPage() {
     const { project, scene } = projectCtx;
     const aspect = { '9:16': '9:16 (vertical)', '4:5': '4:5 (feed)', '16:9': '16:9 (horizontal)' }[project.format];
     setChoices(prev => (prev.proporcao ? prev : { ...prev, proporcao: aspect }));
-    setDescription(prev => prev || `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`.slice(0, 2000));
+    // A cena leva junto o papel dela no vídeo e os personagens e o estilo do projeto (coerência entre as cenas).
+    setDescription(prev => prev || [
+      `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`,
+      scene.brief ? `Papel da cena: ${scene.brief}` : '',
+      project.styleBible ? `Personagens e estilo do vídeo: ${project.styleBible}` : '',
+    ].filter(Boolean).join('\n').slice(0, 2000));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneKey]);
 

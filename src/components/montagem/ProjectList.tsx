@@ -9,7 +9,6 @@ import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { streamTool } from '@/lib/client/api';
 import { SCRIPT_ACCEPT, ScriptFile, readScriptFile } from '@/lib/client/scriptFile';
-import { writeScenePrompts } from '@/lib/client/scriptPrompts';
 import {
   FORMATS, MAX_SCENES, MontagemFormat, ProjectScene, SCRIPT_AGENT_CREDITS, SCRIPT_DONE_MARK, VideoProject, projectHref, scenesFromScript,
 } from '@/lib/montagem';
@@ -71,7 +70,7 @@ export function ProjectList() {
     try { setFile(await readScriptFile(f)); } catch (e: any) { setFile(null); setError(e.message); }
   };
 
-  /** Agente de roteiro: o Claude lê o documento, fatia em cenas e já escreve os prompts. */
+  /** Agente de roteiro: o Claude lê o documento e separa em cenas (os prompts ficam para o Gerador de Prompts). */
   const createFromScript = async () => {
     if (!file) { setError('Envie o roteiro (PDF, DOCX, TXT ou MD).'); return; }
     const check = canUseTool('montagem', SCRIPT_AGENT_CREDITS);
@@ -86,10 +85,8 @@ export function ProjectList() {
       });
       const mark = full.indexOf(SCRIPT_DONE_MARK);
       if (mark < 0) throw new Error('A leitura do roteiro foi interrompida. Tente de novo; se o projeto aparecer na lista, abra e continue por lá.');
-      const { projectId, sceneIds } = JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length)) as { projectId: string; sceneIds: string[] };
+      const { projectId } = JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length)) as { projectId: string };
       refreshProfile();
-      // Etapa 2: prompts de frame e movimento, de poucas cenas por vez. O que faltar dá para refazer no projeto.
-      await writeScenePrompts(projectId, sceneIds, (done, total) => setProgress(`Escrevendo os prompts: ${done} de ${total} cenas...`));
       router.push(projectHref('/dashboard/montagem', projectId));
     } catch (e: any) {
       setError(e.message || 'Não foi possível ler o roteiro agora.');
@@ -177,14 +174,14 @@ export function ProjectList() {
             </div>
           </div>
           <div className="rounded-xl bg-black/30 border border-white/[0.06] p-3 text-[11px] text-gray-400 leading-relaxed">
-            O agente lê o roteiro, fatia em cenas e escreve, para cada uma, o prompt do frame e o do movimento,
-            com personagens e estilo iguais em todas. Depois é só gerar os frames, aprovar o storyboard, animar e montar.
+            O agente lê o roteiro e separa em cenas, cada uma com a descrição e uma explicação curta do seu papel no vídeo.
+            Depois, cena por cena: prompt no Gerador de Prompts, frame em Gerar imagem, storyboard, animação em Gerar vídeo e montagem.
           </div>
           {error && <p className="text-sm text-red-400">{error}</p>}
           {progress && <p className="flex items-center gap-2 text-xs text-brand-mint"><Loader2 className="w-3.5 h-3.5 animate-spin" /> {progress}</p>}
           <button type="button" onClick={createFromScript} disabled={saving || !file}
             className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-gradient-to-b from-[#34d399] to-[#10b981] text-black text-sm font-bold disabled:opacity-60">
-            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Fatiar roteiro com IA · {SCRIPT_AGENT_CREDITS} créditos
+            {saving ? <Loader2 className="w-4 h-4 animate-spin" /> : <Sparkles className="w-4 h-4" />} Separar em cenas com IA · {SCRIPT_AGENT_CREDITS} créditos
           </button>
           </>) : (<>
           <div className="space-y-1.5">
