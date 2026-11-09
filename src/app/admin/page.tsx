@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, UserPlus, Activity, Database, RefreshCcw, Camera, MessageCircle, Clock, Trash2, Plus, Lock, Gift } from 'lucide-react';
 import { signInWithEmailAndPassword } from 'firebase/auth';
@@ -192,7 +193,7 @@ export default function AdminDashboardPage() {
       {/* Cards */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         <StatCard 
-          title="Leads Pré-lista" 
+          title="Leads" 
           value={stats?.stats?.totalLeads || 0} 
           icon={<UserPlus className="w-5 h-5 text-blue-400" />}
           gradient="from-blue-500/10 to-transparent"
@@ -238,11 +239,14 @@ export default function AdminDashboardPage() {
         <div className="neo-glass-panel rounded-2xl border border-white/5 overflow-hidden flex flex-col">
           <div className="p-5 border-b border-white/5 flex justify-between items-center bg-[#0a0a0a]">
             <h2 className="text-sm font-bold text-white flex items-center gap-2">
-              <Database className="w-4 h-4 text-blue-400" /> Todos os Leads (Pré-lista)
+              <Database className="w-4 h-4 text-blue-400" /> Leads recentes
             </h2>
+            <div className="flex items-center gap-2">
+            <Link href="/admin/leads" className="px-3 py-1 bg-brand-emerald/10 hover:bg-brand-emerald/20 rounded border border-brand-emerald/25 text-xs font-bold text-brand-mint">Ver todos</Link>
             <button onClick={() => setShowAddLead(!showAddLead)} className="px-3 py-1 bg-white/5 hover:bg-white/10 rounded border border-white/10 text-xs font-bold text-white flex items-center gap-1 transition-colors">
               <Plus className="w-3 h-3" /> Adicionar Lead
             </button>
+            </div>
           </div>
 
           {showAddLead && (
@@ -285,7 +289,7 @@ export default function AdminDashboardPage() {
                           </a>
                         )}
                         {lead.whatsapp && (
-                          <a href={`https://wa.me/55${lead.whatsapp.replace(/\D/g, '')}`} target="_blank" rel="noreferrer" className="p-1.5 bg-green-500/10 text-green-500 rounded hover:bg-green-500/20 transition-colors">
+                          <a href={`https://wa.me/${lead.whatsapp.replace(/\D/g, '').replace(/^(?!55\d{10,})/, '55')}`} target="_blank" rel="noreferrer" className="p-1.5 bg-green-500/10 text-green-500 rounded hover:bg-green-500/20 transition-colors">
                             <MessageCircle className="w-3.5 h-3.5" />
                           </a>
                         )}

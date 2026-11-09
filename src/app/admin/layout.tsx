@@ -18,6 +18,7 @@ export default function AdminLayout({ children }: { children: React.ReactNode })
 
   const navItems = [
     { label: 'Visão Geral', href: '/admin', icon: LayoutDashboard },
+    { label: 'Leads', href: '/admin/leads', icon: UserPlus },
     { label: 'Usuários', href: '/admin/usuarios', icon: UserCog },
     { label: 'Hub de Referências', href: '/admin/hub', icon: Film },
     { label: 'Gerações', href: '/admin/geracoes', icon: Sparkles },

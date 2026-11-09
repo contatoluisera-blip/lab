@@ -2,6 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireAdmin } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
+import { listLeads } from '@/lib/server/leads';
 
 export async function POST(request: Request) {
   try {
@@ -12,8 +13,8 @@ export async function POST(request: Request) {
     }
 
     // 1. Total Leads
-    const leadsSnapshot = await adminDb.collection('pre_list').count().get();
-    const totalLeads = leadsSnapshot.data().count;
+    const allLeads = await listLeads();
+    const totalLeads = allLeads.length;
 
     // 2. Fetch all users for accurate breakdown and deduplication
     const allUsersSnapshot = await adminDb.collection('users').orderBy('createdAt', 'desc').get();
@@ -76,15 +77,7 @@ export async function POST(request: Request) {
       proposalsSnapshot.data().count;
 
     // 4. Recent Leads
-    const recentLeadsSnapshot = await adminDb.collection('pre_list')
-      .orderBy('createdAt', 'desc')
-      .limit(50)
-      .get();
-    const recentLeads = recentLeadsSnapshot.docs.map((doc: any) => ({
-      id: doc.id,
-      ...doc.data(),
-      createdAt: doc.data().createdAt?.toDate()?.toISOString() || null
-    }));
+    const recentLeads = allLeads.slice(0, 50).map(({ preListIds: _ignored, ...lead }) => lead);
 
     // 6. Recent Platform Actions (Logs)
     const recentActionsSnapshot = await adminDb.collection('platform_actions')

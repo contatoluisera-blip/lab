@@ -2,7 +2,6 @@
 
 import React, { useState } from 'react';
 import { Button } from '@/components/ui/Button';
-import { GlassCard } from '@/components/ui/GlassCard';
 import { marketingContext, track } from '@/lib/client/tracking';
 import { AlertCircle, ArrowRight, CheckCircle2, Loader2, Mail, Phone, ShieldCheck, Smartphone, User } from 'lucide-react';
 
@@ -14,6 +13,7 @@ export default function PreListaForm() {
   const [consent, setConsent] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [website, setWebsite] = useState(''); // armadilha para robôs: campo invisível
   const [error, setError] = useState('');
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -36,6 +36,8 @@ export default function PreListaForm() {
           email,
           instagram,
           whatsapp,
+          consent,
+          website,
           marketing: marketingContext(),
         }),
       });
@@ -57,9 +59,9 @@ export default function PreListaForm() {
   };
 
   return (
-    <div className="relative">
-      <div className="absolute inset-0 bg-brand-emerald/8 blur-[90px] rounded-[3rem] pointer-events-none" />
-      <GlassCard className="relative p-8 space-y-7 bg-gradient-to-br from-[#0c0c0c] to-[#050505] border-white/10 shadow-[0_20px_60px_rgba(0,0,0,0.6)]">
+    <div id="pre-lista-form" className="relative scroll-mt-28">
+      <div className="absolute -inset-4 bg-brand-emerald/15 blur-[80px] rounded-[40px] pointer-events-none" />
+      <div className="relative rounded-[28px] border border-white/10 bg-gradient-to-b from-white/[0.06] to-white/[0.015] backdrop-blur-xl p-6 md:p-8 space-y-6 shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)]">
         {isSuccess ? (
           <div className="text-center py-10 space-y-6 animate-in fade-in zoom-in duration-500">
             <div className="mx-auto w-16 h-16 bg-brand-emerald/10 border border-brand-emerald/20 rounded-full flex items-center justify-center">
@@ -81,11 +83,12 @@ export default function PreListaForm() {
         ) : (
           <>
             <div className="space-y-1">
-              <h3 className="text-xl font-bold text-white tracking-tight">Garantir meu lugar na pré-lista</h3>
-              <p className="text-xs text-gray-500 font-light">100% gratuito. Sem cartão de crédito. Cancele quando quiser.</p>
+              <h2 className="text-xl font-bold text-white tracking-tight">Garantir meu lugar na pré-lista</h2>
+              <p className="text-xs text-gray-500 font-light">100% gratuito. Sem cartão de crédito.</p>
             </div>
 
             <form onSubmit={handleSubmit} className="space-y-4">
+              <input type="text" name="website" value={website} onChange={e => setWebsite(e.target.value)} tabIndex={-1} autoComplete="off" aria-hidden className="absolute -left-[9999px] w-px h-px opacity-0" />
               {error && (
                 <div className="p-3 rounded-xl bg-red-500/10 border border-red-500/20 flex items-center gap-2 text-red-400 text-xs">
                   <AlertCircle className="w-4 h-4 flex-shrink-0" />
@@ -163,7 +166,7 @@ export default function PreListaForm() {
               <Button
                 type="submit"
                 disabled={isSubmitting || !consent}
-                className={`w-full h-14 text-sm font-bold uppercase tracking-wider text-black mt-1 transition-all ${(!consent || isSubmitting) ? 'opacity-50 cursor-not-allowed shadow-none' : 'shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:brightness-110'}`}
+                className={`w-full h-14 rounded-full text-sm font-bold text-black mt-1 transition-all ${(!consent || isSubmitting) ? 'opacity-50 cursor-not-allowed shadow-none' : 'shadow-[0_0_25px_rgba(16,185,129,0.25)] hover:brightness-110'}`}
               >
                 {isSubmitting ? (
                   <span className="flex items-center justify-center gap-2">
@@ -183,7 +186,7 @@ export default function PreListaForm() {
             </form>
           </>
         )}
-      </GlassCard>
+      </div>
     </div>
   );
 }

@@ -1,358 +1,148 @@
 import React from 'react';
 import Image from 'next/image';
-import { GlassCard } from '@/components/ui/GlassCard';
-import {
-  Sparkles,
-  CheckCircle2,
-  BrainCircuit,
-  TrendingUp,
-  Clapperboard,
-  Calculator,
-  Lightbulb,
-  Clock,
-  ChevronDown,
-  Flame,
-} from 'lucide-react';
+import { CheckCircle2, Flame, PlayCircle, Quote, Rocket } from 'lucide-react';
+import { Eyebrow, ExamplesSection, HeroMosaic, HowItWorksSection, OneAppSection, SectionTitle, ToolsSection } from '@/components/landing/sections';
 import PreListaForm from './PreListaForm';
 import ScrollButton from './ScrollButton';
-import Dots from './Dots';
 
+const BENEFITS = [
+  { tag: 'Desconto de Fundadores', text: 'Acesso com o menor preço que a Creator Lab vai oferecer na história da plataforma.' },
+  { tag: 'Acesso Antecipado', text: 'Você entra antes de todo mundo e já começa a usar as ferramentas enquanto a abertura oficial não acontece.' },
+  { tag: 'Voz Ativa', text: 'Seus feedbacks moldam o roadmap. Você ajuda a construir o app que vai transformar a sua operação.' },
+];
 
-/* --- Divider --------------------------------------------------------------- */
-const Divider = () => (
-  <div className="w-full h-px bg-gradient-to-r from-transparent via-white/10 to-transparent my-20" />
-);
+const MODELS = ['Kling 4.0', 'Google Veo 3.1', 'Seedance 2', 'Nano Banana Pro', 'GPT Image 2', 'Seedream 5', 'Hailuo 2.3', 'Wan 2.7', 'Runway', 'Claude'];
 
-/* ─── Ecosystem card ──────────────────────────────────────────────────────── */
-function EcosystemCard({
-  icon: Icon,
-  title,
-  description,
-}: {
-  icon: React.ElementType;
-  title: string;
-  description: string;
-}) {
-  return (
-    <div className="relative group p-px rounded-2xl bg-gradient-to-br from-white/5 to-transparent hover:from-brand-emerald/20 transition-all duration-500">
-      <div className="rounded-2xl bg-[#070707] p-6 space-y-4 h-full">
-        <div className="w-10 h-10 rounded-xl bg-brand-emerald/10 border border-brand-emerald/15 flex items-center justify-center text-brand-emerald group-hover:bg-brand-emerald/20 group-hover:border-brand-emerald/30 group-hover:shadow-[0_0_20px_rgba(16,185,129,0.15)] transition-all duration-500">
-          <Icon className="w-5 h-5" />
-        </div>
-        <h3 className="text-white font-bold text-base">{title}</h3>
-        <p className="text-gray-500 text-xs leading-relaxed font-light">{description}</p>
-      </div>
-    </div>
-  );
-}
-
-/* ─── Main component ──────────────────────────────────────────────────────── */
+/** Captação de leads: o mesmo visual da página de vendas, com um único objetivo (entrar na pré-lista). */
 export default function PreListaPage() {
   return (
     <div className="min-h-screen bg-transparent overflow-hidden selection:bg-brand-emerald/30">
 
-      {/* -- Ambient glows ------------------------------------------------- */}
+      {/* Brilhos de fundo */}
       <div className="fixed inset-0 pointer-events-none z-0 overflow-hidden">
-        <div className="absolute top-[-15%] left-[-10%] w-[45%] h-[45%] bg-brand-jade/8 blur-[180px] rounded-full" />
-        <div className="absolute top-[40%] right-[-8%] w-[35%] h-[40%] bg-brand-emerald/5 blur-[140px] rounded-full" />
-        <div className="absolute bottom-[-10%] left-[15%] w-[55%] h-[35%] bg-brand-mint/4 blur-[160px] rounded-full" />
+        <div className="absolute top-[-10%] left-[-10%] w-[45%] h-[45%] bg-brand-jade/15 blur-[150px] rounded-full mix-blend-screen" />
+        <div className="absolute top-[25%] right-[-10%] w-[35%] h-[50%] bg-brand-emerald/[0.07] blur-[120px] rounded-full mix-blend-screen" />
+        <div className="absolute bottom-[-10%] left-[20%] w-[50%] h-[40%] bg-brand-mint/5 blur-[150px] rounded-full" />
       </div>
-      <Dots />
 
-      {/* -- Nav ----------------------------------------------------------- */}
-      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-5xl h-16 rounded-2xl neo-glass flex items-center justify-between px-6 md:px-8 border border-white/5">
+      {/* Navegação */}
+      <header className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-[95%] max-w-7xl h-16 rounded-2xl neo-glass flex items-center justify-between px-5 md:px-8 border border-white/5">
         <div className="flex items-center gap-3">
-          <Image src="/logo.png" alt="Creator Lab" width={32} height={32} className="rounded-lg" />
-          <span className="text-white font-bold tracking-tight text-base hidden sm:block">Creator Lab</span>
+          <Image src="/logo.png" alt="Creator Lab Logo" width={32} height={32} className="rounded-lg" />
+          <Image src="/logo-text.png" alt="Creator Lab" width={192} height={40} className="w-32 md:w-44 object-contain" />
         </div>
-        <span className="text-[10px] font-bold uppercase tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1.5 rounded-full flex items-center gap-2">
-          <span className="w-2 h-2 rounded-full bg-brand-emerald animate-pulse inline-block" />
-          Pré-Lista Exclusiva
+        <span className="flex items-center gap-2 px-3 py-1.5 rounded-full border border-brand-emerald/25 bg-brand-emerald/[0.08] text-[10px] font-semibold uppercase tracking-[0.18em] text-brand-mint">
+          <span className="w-1.5 h-1.5 rounded-full bg-brand-emerald animate-pulse" /> Pré-lista
         </span>
       </header>
 
-      <main className="relative z-10">
+      <main className="relative z-10 max-w-6xl mx-auto px-5 md:px-6 pt-28 md:pt-32 pb-24 space-y-28 md:space-y-36">
 
-        {/* ======================================================
-            HERO
-        ====================================================== */}
-        <section className="min-h-screen flex flex-col items-center justify-center text-center px-6 pt-24 pb-16 max-w-4xl mx-auto">
-
-          {/* Eyebrow */}
-          <div className="inline-flex items-center gap-2 px-5 py-2.5 rounded-full neo-glass text-brand-mint text-xs font-semibold mb-8 border border-brand-emerald/10 shadow-[0_0_20px_rgba(16,185,129,0.08)]">
-            <Flame className="w-4 h-4 text-brand-emerald" />
-            <span>Acesso exclusivo para os primeiros inscritos</span>
-          </div>
-
-          {/* Headline */}
-          <h1 className="text-5xl sm:text-6xl md:text-7xl font-extrabold tracking-tight text-white leading-[1.05] mb-8">
-            Você cria pelo celular.<br />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-jade drop-shadow-[0_0_30px_rgba(16,185,129,0.25)]">
-              Chegou a hora de escalar.
-            </span>
-          </h1>
-
-          {/* Sub-headline */}
-          <p className="text-lg md:text-xl text-gray-400 max-w-2xl leading-relaxed font-light mb-10">
-            A <strong className="text-white">Creator Lab</strong> reúne cursos de criação mobile, ferramentas de diagnóstico, orçamento, geração de ideias e um assistente de IA 24h — tudo para você produzir mais, errar menos e cobrar o que o seu trabalho realmente vale.
-          </p>
-
-          {/* CTAs */}
-          <div className="flex flex-col sm:flex-row items-center gap-4">
-            <ScrollButton />
-            <p className="text-xs text-gray-500">Gratuito · Sem compromisso · Vagas limitadas</p>
-          </div>
-
-          {/* Video Embed */}
-          <div className="w-full max-w-4xl mx-auto mt-12 rounded-2xl overflow-hidden border border-white/10 shadow-[0_0_40px_rgba(16,185,129,0.15)] bg-black relative z-20">
-             <div style={{ position: 'relative', paddingBottom: '56.25%' }}>
-                 <iframe 
-                    id="panda-07c0c55c-deb7-40ad-8f99-6859e00c03cf" 
-                    src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=07c0c55c-deb7-40ad-8f99-6859e00c03cf" 
-                    style={{ border: 'none', position: 'absolute', top: 0, left: 0, width: '100%', height: '100%' }} 
-                    allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture" 
-                    allowFullScreen={true}
-                 />
-             </div>
-          </div>
-
-          {/* Scroll cue */}
-          <div className="mt-12 flex flex-col items-center gap-2 opacity-40 animate-bounce">
-            <span className="text-[10px] uppercase tracking-widest text-gray-500">Saiba mais</span>
-            <ChevronDown className="w-4 h-4 text-gray-500" />
-          </div>
-        </section>
-
-        {/* ======================================================
-            PAIN POINT — storytelling
-        ====================================================== */}
-        <section className="max-w-3xl mx-auto px-6 py-16 text-center space-y-8">
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white leading-snug">
-            Criação mobile é poderosa.<br />
-            <span className="text-gray-500 font-light">Mas criar com consistência e lucro é outra história.</span>
-          </h2>
-          <p className="text-gray-400 text-base leading-loose font-light">
-            Seja você iniciando agora ou já atendendo clientes, o desafio é o mesmo: transformar o que sai pelo celular em uma operação que cresce, que cobra bem e que não depende de sorte. Técnica se aprende. Processo, estrutura e as ferramentas certas — é aí que a maioria trava.
-          </p>
-          <div className="p-6 rounded-2xl border border-white/5 bg-white/[0.02] text-left space-y-3">
-            <p className="text-sm text-gray-300 font-medium mb-4 uppercase tracking-widest text-center text-brand-emerald/70">
-              Soa familiar?
+        {/* 1. Herói com o formulário */}
+        <section className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-12 items-center pt-6">
+          <div className="space-y-7 text-center lg:text-left">
+            <Eyebrow><Flame className="w-3.5 h-3.5" /> Acesso exclusivo para os primeiros inscritos</Eyebrow>
+            <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.6rem] xl:text-[4rem] font-extrabold tracking-tight text-white leading-[1.02] text-balance">
+              Você cria pelo celular.{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-neon">Chegou a hora de escalar.</span>
+            </h1>
+            <p className="text-base md:text-lg text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
+              A Creator Lab junta tudo o que você usa para criar e vender: roteiro pronto, prompt com direção de cinema,
+              geração de <strong className="text-white">imagem e vídeo com IA</strong>, orçamento e proposta. E os cursos para dominar a técnica.
             </p>
-            {[
-              'Não sabe por onde começar a se aperfeiçoar tecnicamente — o YouTube tem muita coisa, mas nada estruturado.',
-              'Passa horas pensando num orçamento justo e no final chuta um número.',
-              'Tenta enviar uma proposta pelo WhatsApp e o cliente some.',
-              'Cada projeto começa do zero porque você não tem um processo.',
-              'Aceita qualquer valor porque não sabe como justificar o seu.',
-            ].map((item, i) => (
-              <div key={i} className="flex items-start gap-3 text-sm text-gray-400">
-                <span className="text-red-500/60 mt-0.5 text-lg leading-none">—</span>
-                <span>{item}</span>
-              </div>
-            ))}
+            <ul className="space-y-3 max-w-xl mx-auto lg:mx-0 text-left">
+              {BENEFITS.map(b => (
+                <li key={b.tag} className="flex items-start gap-3">
+                  <CheckCircle2 className="w-5 h-5 text-brand-emerald shrink-0 mt-0.5" />
+                  <span className="text-sm text-gray-400 leading-relaxed"><strong className="text-white font-semibold">{b.tag}.</strong> {b.text}</span>
+                </li>
+              ))}
+            </ul>
           </div>
-          <p className="text-base text-white font-semibold">
-            Isso não é falta de talento. É falta de <span className="text-brand-emerald">formação completa e das ferramentas certas.</span>
-          </p>
+          <PreListaForm />
         </section>
 
-        <Divider />
-
-        {/* ======================================================
-            CREATOR LAB — O QUE É
-        ====================================================== */}
-        <section className="max-w-5xl mx-auto px-6 py-8 text-center space-y-6">
-          <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block mb-4">
-            A Plataforma
-          </span>
-          <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-snug">
-            Creator Lab é o seu laboratório de criação <br className="hidden md:block" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">
-              do primeiro frame até o contrato fechado.
-            </span>
-          </h2>
-          <p className="text-gray-400 text-base font-light max-w-2xl mx-auto leading-relaxed">
-            Um ecossistema completo que combina formação técnica de alto nível com ferramentas inteligentes para que cada hora do seu trabalho valha mais — e você consiga atender mais clientes sem perder qualidade.
-          </p>
-
-          {/* Ecosystem grid */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 mt-12 text-left">
-            <EcosystemCard
-              icon={Clapperboard}
-              title="Cursos de Criação Mobile"
-              description="Do primeiro enquadramento à edição com efeito 3D pelo celular. Aulas práticas de captação, luz, edição no CapCut, BlackMagic e Node Video com Luisera."
-            />
-            <EcosystemCard
-              icon={Sparkles}
-              title="Diagnóstico de Perfil"
-              description="Cole o @ de qualquer cliente e receba uma análise completa de engajamento, consistência e oportunidades — a base para argumentar com dados reais."
-            />
-            <EcosystemCard
-              icon={Calculator}
-              title="Calculadora de Orçamento"
-              description="Defina os parâmetros do projeto e receba um valor claro, justificado e profissional. Fim do achismo, fim do nervoso na hora de passar o preço."
-            />
-            <EcosystemCard
-              icon={Lightbulb}
-              title="Gerador de Ideias"
-              description="IA que sugere ideias de vídeos alinhadas ao perfil do cliente. Cada ideia vem com cena, roteiro, estrutura audiovisual e tempo sugerido."
-            />
-            <EcosystemCard
-              icon={BrainCircuit}
-              title="Assistente de IA 24h"
-              description="Treinado em audiovisual mobile e especialista nas ferramentas que você usa: CapCut, Node Video e lógica de criação pelo celular. Tire dúvidas técnicas, desbloqueie roteiros e evolua mais rápido — disponível a qualquer hora."
-            />
-            <EcosystemCard
-              icon={TrendingUp}
-              title="Gestão de Clientes & Ações"
-              description="Histórico de diagnósticos, propostas criadas, status de entregas e controle de pagamentos. Toda sua operação centralizada em um painel."
-            />
-          </div>
-        </section>
-
-        <Divider />
-
-        {/* ======================================================
-            OUTCOME — O que muda de verdade
-        ====================================================== */}
-        <section className="max-w-4xl mx-auto px-6 py-8 space-y-12">
-          <div className="text-center space-y-4">
-            <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">
-              O que muda quando você tem as ferramentas certas
-            </h2>
-            <p className="text-gray-500 text-sm font-light max-w-xl mx-auto">
-              Não é sobre trabalhar mais. É sobre trabalhar com mais precisão para chegar mais longe.
-            </p>
-          </div>
-          <div className="grid md:grid-cols-3 gap-6">
-            {[
-              {
-                icon: Clock,
-                before: 'Horas criando orçamento, briefing e proposta do zero para cada cliente.',
-                after: 'Minutos. Ferramentas integradas fazem o trabalho pesado por você.',
-                label: 'Velocidade',
-              },
-              {
-                icon: TrendingUp,
-                before: 'Ticket médio estagnado porque você não consegue justificar seu preço.',
-                after: 'Cobranças respaldadas por diagnóstico e complexidade. O cliente entende e paga.',
-                label: 'Ticket Médio',
-              },
-              {
-                icon: Sparkles,
-                before: 'Cada projeto novo é um improviso. Sem processo, sem rastreio, sem histórico.',
-                after: 'Método replicável. Você escala sem precisar reinventar a roda toda vez.',
-                label: 'Escala',
-              },
-            ].map(({ icon: Icon, before, after, label }) => (
-              <GlassCard key={label} className="p-6 space-y-5 border-white/5 hover:border-brand-emerald/10 transition-colors">
-                <div className="flex items-center gap-2">
-                  <div className="w-8 h-8 rounded-lg bg-brand-emerald/10 border border-brand-emerald/15 flex items-center justify-center">
-                    <Icon className="w-4 h-4 text-brand-emerald" />
-                  </div>
-                  <span className="text-xs font-bold text-brand-emerald uppercase tracking-widest">{label}</span>
-                </div>
-                <div className="space-y-3">
-                  <div className="p-3 rounded-xl bg-red-500/5 border border-red-500/10">
-                    <p className="text-[11px] text-gray-500 leading-relaxed">
-                      <span className="text-red-500/70 font-bold uppercase text-[9px] tracking-widest block mb-1">Antes</span>
-                      {before}
-                    </p>
-                  </div>
-                  <div className="p-3 rounded-xl bg-brand-emerald/5 border border-brand-emerald/10">
-                    <p className="text-[11px] text-gray-300 leading-relaxed">
-                      <span className="text-brand-emerald font-bold uppercase text-[9px] tracking-widest block mb-1">Depois</span>
-                      {after}
-                    </p>
-                  </div>
-                </div>
-              </GlassCard>
+        {/* Modelos */}
+        <section aria-label="Modelos de IA disponíveis" className="-mt-12 md:-mt-20">
+          <p className="text-center text-[11px] uppercase tracking-[0.25em] text-gray-600 mb-4">Os modelos de IA que você usa aqui dentro</p>
+          <div className="flex flex-wrap justify-center gap-2.5">
+            {MODELS.map(m => (
+              <span key={m} className="px-4 py-2 rounded-full border border-white/[0.07] bg-white/[0.03] text-sm font-semibold text-gray-300">{m}</span>
             ))}
           </div>
         </section>
 
-        <Divider />
-
-        {/* ======================================================
-            PRÉ-LISTA — Benefícios + Form
-        ====================================================== */}
-        <section id="pre-lista-form" className="max-w-5xl mx-auto px-6 py-8 scroll-mt-24">
-          <div className="grid md:grid-cols-2 gap-12 lg:gap-20 items-start">
-
-            {/* Left: benefits */}
-            <div className="space-y-8">
-              <div className="space-y-3">
-                <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-3 py-1 rounded-full inline-block">
-                  Pré-Lista
-                </span>
-                <h2 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight leading-tight">
-                  Inscreva-se agora.<br />
-                  <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">
-                    Quem chega primeiro,<br />fica melhor.
-                  </span>
-                </h2>
-                <p className="text-gray-400 text-sm leading-relaxed font-light pt-2">
-                  A Creator Lab abre as portas em breve. Os inscritos na pré-lista terão condições que <strong className="text-white">nunca mais serão repetidas</strong> — porque quem acredita no começo merece ser reconhecido.
-                </p>
-              </div>
-
-              <div className="space-y-4">
-                {[
-                  {
-                    tag: 'Desconto de Fundadores',
-                    text: 'Acesso com o menor preço que a Creator Lab vai oferecer na história da plataforma.',
-                  },
-                  {
-                    tag: 'Acesso Antecipado',
-                    text: 'Você entra antes de todo mundo — e já começa a usar as ferramentas enquanto a abertura oficial não acontece.',
-                  },
-                  {
-                    tag: 'Voz Ativa',
-                    text: 'Feedbacks seus moldam o roadmap. Você ajuda a construir o app que vai transformar a sua operação.',
-                  },
-                ].map(({ tag, text }) => (
-                  <div key={tag} className="flex items-start gap-4">
-                    <CheckCircle2 className="w-5 h-5 text-brand-emerald flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="text-sm font-semibold text-white">{tag}</p>
-                      <p className="text-xs text-gray-500 font-light leading-relaxed mt-0.5">{text}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-
-              {/* Luisera quote */}
-              <div className="p-5 rounded-2xl bg-brand-emerald/5 border border-brand-emerald/10 space-y-3">
-                <p className="text-sm text-brand-mint font-semibold italic leading-relaxed">
-                  "Criar pelo celular é acessível. Criar bem, de forma consistente e lucrativa — isso exige método. A Creator Lab é esse método."
-                </p>
-                <p className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">— Luisera, criador mobile e idealizador</p>
+        {/* 2. Vídeo */}
+        <section className="space-y-8">
+          <SectionTitle eyebrow={<><PlayCircle className="w-3.5 h-3.5" /> Assista</>} title="Veja o que vem" accent="por aí" />
+          <div className="relative max-w-4xl mx-auto group">
+            <div className="absolute -inset-4 bg-brand-emerald/15 blur-[80px] rounded-[40px] group-hover:bg-brand-emerald/25 transition-all duration-700 pointer-events-none" />
+            <div className="relative rounded-[28px] p-2 border border-white/10 bg-white/[0.04] backdrop-blur">
+              <div className="rounded-[22px] overflow-hidden bg-[#050505] aspect-video">
+                <iframe
+                  id="panda-07c0c55c-deb7-40ad-8f99-6859e00c03cf"
+                  src="https://player-vz-be549932-da9.tv.pandavideo.com.br/embed/?v=07c0c55c-deb7-40ad-8f99-6859e00c03cf"
+                  style={{ border: 'none' }}
+                  className="w-full h-full"
+                  allow="accelerometer;gyroscope;autoplay;encrypted-media;picture-in-picture"
+                  allowFullScreen
+                />
               </div>
             </div>
-
-            {/* Right: Form */}
-            <PreListaForm />
           </div>
         </section>
 
-        {/* ======================================================
-            FOOTER MINIMAL
-        ====================================================== */}
-        <footer className="border-t border-white/5 py-12 mt-24 text-center relative z-10">
-          <p className="text-gray-700 text-xs">
-            © 2026 Creator Lab · Desenvolvido por Luisera para criadores mobile que levam a criação a sério.
-          </p>
-        </footer>
+        <OneAppSection />
+        <HowItWorksSection />
+
+        {/* A plataforma por dentro */}
+        <section className="grid grid-cols-1 lg:grid-cols-2 gap-10 items-center">
+          <div className="space-y-6 text-center lg:text-left">
+            <Eyebrow><Rocket className="w-3.5 h-3.5" /> Por que entrar agora</Eyebrow>
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.08] text-balance">
+              Quem chega primeiro,{' '}
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">fica melhor.</span>
+            </h2>
+            <p className="text-gray-400 leading-relaxed">
+              Os inscritos na pré-lista terão condições que <strong className="text-white">nunca mais serão repetidas</strong>, porque quem acredita no começo merece ser reconhecido.
+            </p>
+            <figure className="p-5 rounded-[22px] border border-brand-emerald/20 bg-brand-emerald/[0.06] space-y-3 text-left">
+              <Quote className="w-5 h-5 text-brand-mint" aria-hidden />
+              <blockquote className="text-sm text-brand-mint font-semibold leading-relaxed">
+                Criar pelo celular é acessível. Criar bem, de forma consistente e lucrativa, exige método. A Creator Lab é esse método.
+              </blockquote>
+              <figcaption className="text-[10px] text-gray-500 uppercase tracking-widest font-bold">Luisera, criador mobile e idealizador</figcaption>
+            </figure>
+            <ScrollButton className="w-full sm:w-auto" />
+          </div>
+          <HeroMosaic />
+        </section>
+
+        <ExamplesSection />
+        <ToolsSection />
+
+        {/* Chamada final */}
+        <section className="relative overflow-hidden rounded-[36px] border border-brand-emerald/30 p-8 md:p-14 text-center bg-[linear-gradient(140deg,#10b981_0%,#059669_34%,#065f46_72%,#043b2c_100%)] shadow-[0_40px_120px_-40px_rgba(16,185,129,0.7)]">
+          <div className="absolute -top-24 -right-24 w-80 h-80 rounded-full bg-brand-mint/25 blur-3xl pointer-events-none" />
+          <div className="absolute -bottom-32 -left-20 w-80 h-80 rounded-full bg-black/30 blur-3xl pointer-events-none" />
+          <div className="relative space-y-6 max-w-2xl mx-auto">
+            <h2 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.05] text-balance">Garanta o seu lugar na pré-lista.</h2>
+            <p className="text-brand-mint/90 text-lg">Gratuito, sem cartão de crédito e sem compromisso.</p>
+            <ScrollButton label="Entrar na pré-lista" />
+          </div>
+        </section>
       </main>
 
-      {/* Float-dot keyframe injected globally */}
-      <style>{`
-        @keyframes float-dot {
-          0%, 100% { transform: translateY(0px) translateX(0px); opacity: 0.3; }
-          33% { transform: translateY(-12px) translateX(6px); opacity: 0.6; }
-          66% { transform: translateY(6px) translateX(-8px); opacity: 0.2; }
-        }
-      `}</style>
+      {/* Rodapé */}
+      <footer className="border-t border-white/5 py-12 bg-[#050505] relative z-10">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-600">
+          <p>© 2026 Creator Lab. Criação mobile e IA num app só.</p>
+          <nav className="flex flex-wrap gap-5">
+            <a href="/termos-de-uso" className="hover:text-brand-mint">Termos de uso</a>
+            <a href="/politica-de-privacidade" className="hover:text-brand-mint">Privacidade</a>
+          </nav>
+        </div>
+      </footer>
     </div>
   );
 }

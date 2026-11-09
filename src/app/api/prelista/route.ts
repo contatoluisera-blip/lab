@@ -2,63 +2,61 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { Resend } from 'resend';
 import { PreListaWelcome } from '@/emails/PreListaWelcome';
-import { upsertLead } from '@/lib/server/leads';
+import { normalizeEmail, upsertLead } from '@/lib/server/leads';
 
-const resend = new Resend(process.env.RESEND_API_KEY);
+const text = (v: unknown, max: number) => (typeof v === 'string' ? v.trim().slice(0, max) : '');
 
+/** Boas-vindas da pré-lista. Uma falha aqui não desfaz a inscrição: o lead já está salvo. */
+async function sendWelcome(email: string, name: string, leadId: string) {
+  let status: 'sent' | 'failed' | 'skipped' = 'skipped';
+  try {
+    if (process.env.RESEND_API_KEY) {
+      const { error } = await new Resend(process.env.RESEND_API_KEY).emails.send({
+        from: 'Creator Lab <contato@luisera.com.br>',
+        to: email,
+        subject: 'O seu lugar está garantido 🧪',
+        react: PreListaWelcome({ firstName: name.split(' ')[0] }) as React.ReactElement,
+      });
+      if (error) throw new Error(error.message);
+      status = 'sent';
+    }
+  } catch (e) {
+    status = 'failed';
+    console.error('[prelista] falha no e-mail de boas-vindas:', e);
+  }
+  await adminDb.collection('leads').doc(leadId).set({ welcomeEmail: status }, { merge: true })
+    .catch((e: unknown) => console.error('[prelista] falha ao registrar o envio:', e));
+}
+
+/** Inscrição na pré-lista (/lista). O lead é salvo antes de tudo; só responde sucesso se foi gravado. */
 export async function POST(req: Request) {
   try {
-    const body = await req.json();
-    const { name, email, instagram, whatsapp, marketing } = body;
+    const body = await req.json().catch(() => ({}));
+    // Campo invisível preenchido: robô. Responde como se tivesse dado certo e não grava.
+    if (body.website) return NextResponse.json({ success: true });
 
-    if (!name || !email) {
-      return NextResponse.json(
-        { error: 'Nome e E-mail são obrigatórios' },
-        { status: 400 }
-      );
-    }
+    const name = text(body.name, 120);
+    const email = normalizeEmail(body.email);
+    if (!name || !email) return NextResponse.json({ error: 'Preencha seu nome e um e-mail válido.' }, { status: 400 });
+    if (body.consent !== true) return NextResponse.json({ error: 'Marque o aceite para entrar na pré-lista.' }, { status: 400 });
 
-    // 1. Salvar no Firestore de forma segura pelo backend
-    if (adminDb) {
-      await adminDb.collection('pre_list').add({
-        name,
-        email,
-        instagram: instagram || '',
-        whatsapp: whatsapp || '',
-        status: 'registered',
-        attribution: marketing?.attribution ?? null,
-        createdAt: new Date(),
-      });
-      // Registro central de leads (sem duplicar e-mail) + segmento do Resend.
-      await upsertLead({ email, name, instagram, whatsapp, source: 'pre_lista', attribution: marketing?.attribution, consent: marketing?.consent })
-        .catch(e => console.error('[prelista] falha ao registrar lead:', e));
-    } else {
-      console.warn('adminDb not initialized, skipping Firestore save');
-      // Não retornar erro aqui, o email é mais importante, mas idealmente ambos funcionam
-    }
-
-    // Extrair o primeiro nome
-    const firstName = name.split(' ')[0];
-
-    // 2. Enviar o email de boas vindas
-    const { data, error } = await resend.emails.send({
-      from: 'Creator Lab <contato@luisera.com.br>',
-      to: email,
-      subject: 'O seu lugar está garantido 🧪',
-      react: PreListaWelcome({ firstName }) as React.ReactElement,
+    const saved = await upsertLead({
+      email, name,
+      instagram: text(body.instagram, 60),
+      whatsapp: text(body.whatsapp, 30),
+      source: 'pre_lista',
+      attribution: body.marketing?.attribution,
+      consent: body.marketing?.consent,
+      marketingConsent: true,
     });
+    if (!saved.ok) return NextResponse.json({ error: 'Preencha seu nome e um e-mail válido.' }, { status: 400 });
 
-    if (error) {
-      console.error('Resend Error:', error);
-      return NextResponse.json({ error: error.message }, { status: 500 });
-    }
+    // Quem já estava na lista não recebe as boas-vindas de novo.
+    if (saved.isNew) await sendWelcome(email, name, saved.id);
 
-    return NextResponse.json({ success: true, id: data?.id });
-  } catch (error: any) {
-    console.error('Pre-lista Registration Error:', error);
-    return NextResponse.json(
-      { error: 'Erro interno ao processar a inscrição' },
-      { status: 500 }
-    );
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error('[prelista] erro ao registrar:', error);
+    return NextResponse.json({ error: 'Não foi possível registrar agora. Tente de novo em instantes.' }, { status: 500 });
   }
 }
