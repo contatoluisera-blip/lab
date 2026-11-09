@@ -4,7 +4,7 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/Button';
 import { Check, HelpCircle, TrendingUp, GraduationCap, ArrowRight, Zap, CheckCircle2, Star, PlayCircle, Rocket } from 'lucide-react';
 import PricingSection from '@/app/PricingSection';
-import { ExamplesSection, Eyebrow, HeroMosaic, HowItWorksSection, OneAppSection, SectionTitle, ToolsSection } from '@/components/landing/sections';
+import { ExamplesSection, Eyebrow, HeroHeadline, HeroMosaic, HowItWorksSection, OneAppSection, SectionTitle, ToolsSection } from '@/components/landing/sections';
 
 const feedbacks = [
   "https://firebasestorage.googleapis.com/v0/b/luisera-lab.firebasestorage.app/o/feedbacks%20prints%2Fprint1.jpeg?alt=media&token=84a37184-0121-45af-93ca-a017124e91e2",
@@ -89,10 +89,7 @@ export default function LandingPage() {
         <section className="grid grid-cols-1 lg:grid-cols-[1.2fr_1fr] gap-10 lg:gap-4 items-center pt-6">
           <div className="space-y-7 text-center lg:text-left">
             <Eyebrow><Zap className="w-3.5 h-3.5" /> Criação mobile e IA num app só</Eyebrow>
-            <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.6rem] xl:text-[4rem] font-extrabold tracking-tight text-white leading-[1.02] text-balance">
-              Do roteiro à cena pronta.{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-neon">Tudo pelo celular, em minutos.</span>
-            </h1>
+            <HeroHeadline />
             <p className="text-base md:text-lg text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
               A Creator Lab junta tudo o que você usa para criar e vender: roteiro pronto, prompt com direção de cinema,
               geração de <strong className="text-white">imagem e vídeo com IA</strong>, orçamento e proposta. E os cursos para dominar a técnica.

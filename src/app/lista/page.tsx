@@ -1,7 +1,7 @@
 import React from 'react';
 import Image from 'next/image';
 import { CheckCircle2, Flame, PlayCircle, Quote, Rocket } from 'lucide-react';
-import { Eyebrow, ExamplesSection, HeroMosaic, HowItWorksSection, OneAppSection, SectionTitle, ToolsSection } from '@/components/landing/sections';
+import { Eyebrow, ExamplesSection, HeroHeadline, HeroMosaic, HowItWorksSection, OneAppSection, SectionTitle, ToolsSection } from '@/components/landing/sections';
 import PreListaForm from './PreListaForm';
 import ScrollButton from './ScrollButton';
 
@@ -42,10 +42,7 @@ export default function PreListaPage() {
         <section className="grid grid-cols-1 lg:grid-cols-[1.15fr_1fr] gap-10 lg:gap-12 items-center pt-6">
           <div className="space-y-7 text-center lg:text-left">
             <Eyebrow><Flame className="w-3.5 h-3.5" /> Acesso exclusivo para os primeiros inscritos</Eyebrow>
-            <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.6rem] xl:text-[4rem] font-extrabold tracking-tight text-white leading-[1.02] text-balance">
-              Você cria pelo celular.{' '}
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-neon">Chegou a hora de escalar.</span>
-            </h1>
+            <HeroHeadline />
             <p className="text-base md:text-lg text-gray-400 leading-relaxed max-w-xl mx-auto lg:mx-0">
               A Creator Lab junta tudo o que você usa para criar e vender: roteiro pronto, prompt com direção de cinema,
               geração de <strong className="text-white">imagem e vídeo com IA</strong>, orçamento e proposta. E os cursos para dominar a técnica.

@@ -82,6 +82,16 @@ export function SectionTitle({ eyebrow, title, accent, sub }: { eyebrow: React.R
   );
 }
 
+/** Headline principal: a mesma na página de vendas e na captação de leads. */
+export function HeroHeadline() {
+  return (
+    <h1 className="text-[2.5rem] sm:text-6xl lg:text-[3.6rem] xl:text-[4rem] font-extrabold tracking-tight text-white leading-[1.02] text-balance">
+      Do roteiro à cena pronta.{' '}
+      <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint via-brand-emerald to-brand-neon">Tudo pelo celular, em minutos.</span>
+    </h1>
+  );
+}
+
 /** Mosaico do app flutuando no herói (ilustração da interface, com dados de exemplo). */
 export function HeroMosaic() {
   const glass = 'rounded-3xl border border-white/15 bg-white/[0.06] backdrop-blur-xl shadow-[0_30px_60px_-20px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.12)]';
