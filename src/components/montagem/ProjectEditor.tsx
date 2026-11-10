@@ -310,7 +310,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         )}
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
           {project.scenes.map((scene, i) => {
-            const { frames, clips, frameDone, clipReady, chosenFrame, chosenClip, framePrompt, motionPrompt } = sceneMedia(scene, jobs);
+            const { frames, clips, frameDone, clipReady, chosenFrame, chosenClip, framePrompt, motionPrompt, clipError } = sceneMedia(scene, jobs);
             const inTimeline = edl.clips.some(c => c.sceneId === scene.id);
             return (
               <article key={scene.id} className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
@@ -350,6 +350,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                       : <Link href={projectHref('/dashboard/videos', project.id, scene.id)} className={linkCls}><Film className="w-3 h-3 inline -mt-0.5" /> Gerar</Link>}
                   </StepRow>
                 </div>
+                {clipError && !clips.some(j => j.active) && (
+                  <p className="text-[11px] leading-snug text-red-300">Última animação falhou: {clipError}</p>
+                )}
 
                 {frameDone.length > 1 && (
                   <div className="flex gap-1.5 overflow-x-auto" aria-label="Versões do frame">

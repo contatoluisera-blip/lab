@@ -16,6 +16,7 @@ import { setGenHandoff, takeGenHandoff } from '@/lib/client/handoff';
 import { useProjectContext, withProject } from '@/lib/client/project';
 import { ProjectBar } from '@/components/montagem/ProjectBar';
 import { ensurePromptFits } from '@/lib/client/promptFit';
+import { compactStoredImage } from '@/lib/client/imageInput';
 import {
   GEN_LIMITS, GEN_MODES, GEN_TERMS_VERSION, GenConfig, GenJob, GenKind, GenMode, STATUS_LABEL,
   getModel, modelsFor, normalizeConfig, quote,
@@ -314,7 +315,8 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
       for (let i = 0; i < filled.length; i++) {
         const s = filled[i];
         if (!s) continue;
-        if (s.path) { images.push(s.path); continue; }
+        // Resultado guardado (ex.: frame do projeto): vai uma cópia reduzida, porque PNGs de 8 MB são recusados.
+        if (s.path) { images.push(s.preview ? await compactStoredImage(user.uid, s.preview, `${stamp}-${i}`) : s.path); continue; }
         const path = `gen-inputs/${user.uid}/${stamp}-${i}.jpg`;
         await uploadBytes(storageRef(storage, path), dataUrlToBlob(s.dataUrl!), { contentType: 'image/jpeg' });
         images.push(path);
