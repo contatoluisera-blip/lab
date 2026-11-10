@@ -1,7 +1,7 @@
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
 import Anthropic from '@anthropic-ai/sdk';
-import { MONTAGEM_FPS, TEXT_MAX, VideoProject, isUploadId } from '@/lib/montagem';
+import { MONTAGEM_FPS, ProjectAsset, TEXT_MAX, VideoProject, assetLetterings, isUploadId } from '@/lib/montagem';
 import { BRAND_FONTS, BrandKit, LETTERING_ROLES } from '@/lib/brand';
 import type { ProjectClip } from './projects';
 
@@ -58,8 +58,9 @@ Monte o primeiro corte. Regras:
 Se vier "direcaoDeEdicao", ela é a direção do criador: siga ritmo, tom, uso de texto, transições e chamada final como ele pediu,
 dentro das regras acima (clipes recebidos, cortes válidos, duração máxima). Ela não muda o formato da resposta.
 No resumo, diga em uma frase como a direção foi aplicada.
-Se vier "idVisual", ela é a identidade do vídeo. Você recebe a imagem de cada lettering, identificada pelo id:
-- Use apenas os letterings recebidos, pelo id exato. Sem idVisual ou sem lettering adequado, deixe letteringId vazio.
+Se vier "idVisual", ela é a identidade do vídeo. "artesDoVideo" são letterings e logos enviados para este vídeo específico
+(valem como letterings, e têm prioridade sobre os da idVisual quando disserem a mesma coisa). Você recebe a imagem de cada um, identificada pelo id:
+- Use apenas os letterings recebidos (idVisual ou artesDoVideo), pelo id exato. Sem lettering adequado, deixe letteringId vazio.
 - O lettering é uma arte pronta: as palavras dele não mudam. Só use onde o que ele diz combina com a cena; nunca force.
 - Prefira o lettering ao texto comum quando os dois disserem a mesma coisa, e não repita a frase em "texto".
 - Respeite a função de cada um: gancho no início, título na ideia central, chamada no fim. O logo pode ir na chamada final (endCard.letteringId).
@@ -73,7 +74,9 @@ export interface AutoEditResult {
 }
 
 /** Primeiro corte com o Claude: devolve o plano em segundos convertidos para frames (o servidor valida depois). */
-export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number, direction = '', brand: BrandKit | null = null): Promise<AutoEditResult> {
+export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number, direction = '', brand: BrandKit | null = null, assets: ProjectAsset[] = []): Promise<AutoEditResult> {
+  // Até 20 artes do vídeo vão como imagem (cada imagem soma tempo, e a Netlify corta em ~26 s).
+  const artes = assetLetterings(assets).slice(0, 20);
   const byScene = project.scenes.map((s, i) => ({
     cena: i + 1,
     sceneId: s.id,
@@ -106,11 +109,12 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
       fonteDoTexto: BRAND_FONTS.find(f => f.id === brand.textStyle.fontId)?.label,
       letterings: brand.letterings.map(l => ({ id: l.id, nome: l.name, funcao: LETTERING_ROLES.find(r => r.id === l.role)?.label, texto: l.text || null, proporcao: Math.round((l.width / l.height) * 100) / 100 })),
     } : null,
+    artesDoVideo: artes.length ? artes.map(l => ({ id: l.id, nome: l.name, funcao: LETTERING_ROLES.find(r => r.id === l.role)?.label, texto: l.text || null, proporcao: Math.round((l.width / l.height) * 100) / 100 })) : null,
   };
 
   // Cada lettering vai como imagem, precedido do id: o Claude escolhe olhando a arte, não só o nome.
   const content: Anthropic.ContentBlockParam[] = [];
-  for (const l of brand?.letterings || []) {
+  for (const l of [...(brand?.letterings || []), ...artes]) {
     content.push({ type: 'text', text: `Lettering ${l.id}:` });
     content.push({ type: 'image', source: { type: 'url', url: l.url } });
   }

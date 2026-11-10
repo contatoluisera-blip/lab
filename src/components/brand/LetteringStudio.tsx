@@ -8,6 +8,7 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { callTool } from '@/lib/client/api';
 import { prepareLettering } from '@/lib/client/lettering';
 import { BRAND_LIMITS, BrandKit, LETTERING_ROLES, LetteringRole, buildLetteringPrompt } from '@/lib/brand';
+import { guessRole } from '@/lib/montagem';
 import { GEN_TERMS_VERSION, STATUS_LABEL, getModel, normalizeConfig, quote } from '@/lib/generation';
 import { TermsModal } from '@/components/generation/TermsModal';
 import { CHECKER } from './BrandKitEditor';
@@ -29,6 +30,8 @@ export interface PendingLettering {
   /** Original, para recortar o fundo quando o arquivo enviado não tem transparência. */
   original: Blob | string;
   text: string;
+  /** Nome sugerido (do arquivo enviado). */
+  name?: string;
 }
 
 export function LetteringGenerator({ kit, disabled, onReady, onError }: { kit: BrandKit; disabled: boolean; onReady: (p: PendingLettering) => void; onError: (m: string) => void }) {
@@ -139,8 +142,8 @@ export function LetteringReview({ pending, busy, onRemoveBackground, onApprove, 
   onApprove: (meta: { name: string; role: LetteringRole; text: string }) => void;
   onDiscard: () => void;
 }) {
-  const [name, setName] = useState(pending.text || '');
-  const [role, setRole] = useState<LetteringRole>('titulo');
+  const [name, setName] = useState(pending.name || pending.text || '');
+  const [role, setRole] = useState<LetteringRole>(pending.name ? guessRole(pending.name) : 'titulo');
   const [text, setText] = useState(pending.text);
   return (
     <div className="rounded-xl border border-amber-400/30 bg-amber-400/[0.04] p-4 space-y-3">

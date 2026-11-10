@@ -42,7 +42,8 @@ export interface BrandKitEditorProps {
   onChange: (patch: Partial<BrandKit>, save?: boolean) => void;
   onCommit: () => void;
   onUploadRef: (file: File) => void;
-  onUploadLettering: (file: File) => void;
+  /** Vários arquivos de uma vez: os transparentes entram direto; os com fundo passam pela revisão. */
+  onUploadLettering: (files: File[]) => void;
   /** Gerador de lettering e revisão, que falam com o servidor. */
   children?: React.ReactNode;
 }
@@ -133,13 +134,13 @@ export function BrandKitEditor({ kit, busy, onBack, onDelete, onChange, onCommit
 
       <section className={card} aria-label="Letterings">
         <div className="flex flex-wrap items-start justify-between gap-3">
-          <SectionHead title="Letterings" hint="PNG com fundo transparente. A arte entra por cima do vídeo na edição com Claude, sem passar pelo modelo de vídeo, então as letras não deformam." />
+          <SectionHead title="Letterings" hint="Envie vários PNG de uma vez (fundo transparente entra direto; com fundo, você revisa o recorte). O nome do arquivo vira o nome, e palavras como logo, cta ou gancho definem a função." />
           <button type="button" onClick={() => letteringInput.current?.click()} disabled={kit.letterings.length >= BRAND_LIMITS.letterings}
             className="flex items-center gap-1.5 px-3.5 py-2 rounded-full text-xs font-semibold text-brand-mint bg-brand-emerald/10 border border-brand-emerald/25 disabled:opacity-40">
-            <Upload className="w-3.5 h-3.5" /> Enviar lettering
+            <Upload className="w-3.5 h-3.5" /> Enviar letterings
           </button>
         </div>
-        <input ref={letteringInput} type="file" accept="image/png,image/jpeg,image/webp" className="hidden" onChange={e => { const f = e.target.files?.[0]; e.target.value = ''; if (f) onUploadLettering(f); }} />
+        <input ref={letteringInput} type="file" accept="image/png,image/jpeg,image/webp" multiple className="hidden" onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) onUploadLettering(files); }} />
         {kit.letterings.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
             {kit.letterings.map(l => (

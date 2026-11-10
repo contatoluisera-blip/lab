@@ -14,8 +14,11 @@ export interface PreparedImage {
 }
 
 async function loadBitmap(source: Blob | string): Promise<HTMLImageElement> {
-  const url = typeof source === 'string' ? source : URL.createObjectURL(source);
+  const remote = typeof source === 'string' && /^https?:/.test(source);
+  // Arquivo já no Storage: lido com CORS (e um parâmetro extra, para não pegar do cache sem CORS) para o canvas poder ler os pixels.
+  const url = typeof source === 'string' ? (remote ? `${source}${source.includes('?') ? '&' : '?'}cors=1` : source) : URL.createObjectURL(source);
   const img = new Image();
+  if (remote) img.crossOrigin = 'anonymous';
   try {
     await new Promise<void>((resolve, reject) => {
       img.onload = () => resolve();

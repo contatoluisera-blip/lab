@@ -1,7 +1,8 @@
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
 import { HttpError } from '@/lib/server/auth';
-import { AllowedClip, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
+import { ASSET_ID_PREFIX, ASSET_LIMITS, AllowedClip, ProjectAsset, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
+import { LETTERING_ROLES } from '@/lib/brand';
 import type { StoredJob } from '@/lib/server/generation/queue';
 
 export const projects = () => adminDb.collection('video_projects') as admin.firestore.CollectionReference;
@@ -74,4 +75,28 @@ export function uploadClips(uid: string, project: VideoProject): ProjectClip[] {
 /** Tudo que pode entrar na montagem: cenas geradas do projeto e vídeos enviados. */
 export async function allProjectClips(uid: string, project: VideoProject): Promise<ProjectClip[]> {
   return [...await projectClips(uid, project.id), ...uploadClips(uid, project)];
+}
+
+/**
+ * Artes do vídeo (letterings, logos, marca d'água, vinheta) guardadas no projeto pelo navegador:
+ * só valem arquivos na pasta da própria pessoa, com links do nosso Storage para o próprio arquivo.
+ */
+export function projectAssets(uid: string, project: VideoProject): ProjectAsset[] {
+  const folder = uploadFolder(uid);
+  return (project.assets || [])
+    .filter(a => typeof a?.id === 'string' && a.id.startsWith(ASSET_ID_PREFIX) && (a.type === 'image' || a.type === 'video')
+      && typeof a.path === 'string' && a.path.startsWith(folder) && !a.path.includes('..')
+      && typeof a.url === 'string' && a.url.startsWith('https://firebasestorage.googleapis.com/') && a.url.includes(encodeURIComponent(a.path)))
+    .slice(0, ASSET_LIMITS.perProject)
+    .map(a => ({
+      id: a.id, type: a.type, path: a.path, url: a.url,
+      name: String(a.name || 'Arte').slice(0, 60),
+      role: LETTERING_ROLES.some(r => r.id === a.role) ? a.role : 'titulo',
+      text: typeof a.text === 'string' ? a.text.slice(0, 120) : '',
+      width: Math.max(1, Number(a.width) || 1),
+      height: Math.max(1, Number(a.height) || 1),
+      seconds: a.type === 'video' ? Math.min(ASSET_LIMITS.videoMaxSeconds, Math.max(0.5, Number(a.seconds) || 3)) : undefined,
+      transparent: a.transparent !== false,
+      createdAt: String(a.createdAt || ''),
+    }));
 }

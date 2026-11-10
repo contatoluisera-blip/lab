@@ -8,6 +8,7 @@ import { useAuth } from '@/context/AuthContext';
 import { callTool } from '@/lib/client/api';
 import { prepareColorRef, prepareLettering } from '@/lib/client/lettering';
 import { BRAND_LIMITS, BrandKit, DEFAULT_TEXT_STYLE, LetteringRole } from '@/lib/brand';
+import { guessRole } from '@/lib/montagem';
 import { BrandKitEditor } from './BrandKitEditor';
 import { LetteringGenerator, LetteringReview, PendingLettering } from './LetteringStudio';
 
@@ -23,6 +24,8 @@ export function BrandLibrary() {
   const [busy, setBusy] = useState('');
   const [error, setError] = useState('');
   const [pending, setPending] = useState<PendingLettering | null>(null);
+  /** Arquivos com fundo, esperando revisão (um por vez). */
+  const [reviewQueue, setReviewQueue] = useState<PendingLettering[]>([]);
 
   // Sempre a versão mais nova, e uma gravação por vez: duas mudanças rápidas não se atropelam.
   const latest = useRef<BrandKit | null>(null);
@@ -39,6 +42,7 @@ export function BrandLibrary() {
     latest.current = kit;
     setActive(kit);
     setPending(null);
+    setReviewQueue([]);
     setError('');
   };
 
@@ -119,17 +123,37 @@ export function BrandLibrary() {
     }
   };
 
-  const reviewFile = async (file: File) => {
-    setBusy('Lendo o arquivo');
+  /** Envio em lote: PNG transparente entra direto (nome e função pelo nome do arquivo); com fundo, vai para a revisão. */
+  const reviewFile = async (files: File[]) => {
+    if (!latest.current) return;
+    const room = BRAND_LIMITS.letterings - latest.current.letterings.length;
+    if (files.length > room) { setError(`Esta ID Visual aceita até ${BRAND_LIMITS.letterings} letterings. Dá para enviar mais ${room}.`); return; }
     setError('');
-    try {
-      const prepared = await prepareLettering(file, { removeBackground: false });
-      setPending({ ...prepared, original: file, text: '' });
-    } catch (e: any) {
-      setError(e.message || 'Não foi possível ler esse arquivo.');
-    } finally {
-      setBusy('');
+    const toReview: PendingLettering[] = [];
+    for (let i = 0; i < files.length; i++) {
+      const file = files[i];
+      setBusy(`Enviando ${i + 1} de ${files.length}`);
+      try {
+        const prepared = await prepareLettering(file, { removeBackground: false });
+        const name = file.name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim().slice(0, BRAND_LIMITS.letteringName) || 'Lettering';
+        if (!prepared.transparent) { toReview.push({ ...prepared, original: file, text: '', name }); continue; }
+        const asset = await upload(prepared.blob, 'png');
+        change({ letterings: [...(latest.current?.letterings || []), { id: newId(), ...asset, name, role: guessRole(file.name), text: '', width: prepared.width, height: prepared.height }] });
+      } catch (e: any) {
+        setError(`"${file.name}": ${e.message || 'não foi possível ler esse arquivo.'}`);
+      }
     }
+    setBusy('');
+    if (toReview.length) {
+      setPending(p => p || toReview[0]);
+      setReviewQueue(q => [...q, ...(pending ? toReview : toReview.slice(1))]);
+    }
+  };
+
+  /** Próximo da fila de revisão (ou nenhum). */
+  const nextPending = () => {
+    setPending(reviewQueue[0] || null);
+    setReviewQueue(q => q.slice(1));
   };
 
   const removeBackground = async () => {
@@ -152,7 +176,7 @@ export function BrandLibrary() {
     try {
       const asset = await upload(pending.blob, 'png');
       change({ letterings: [...(latest.current?.letterings || []), { id: newId(), ...asset, ...meta, width: pending.width, height: pending.height }] });
-      setPending(null);
+      nextPending();
     } catch (e: any) {
       setError(e.message || 'Não foi possível salvar o lettering.');
     } finally {
@@ -175,7 +199,7 @@ export function BrandLibrary() {
         {errorBox}
         <BrandKitEditor kit={active} busy={busy} onBack={() => open(null)} onDelete={deleteKit} onChange={change} onCommit={persist} onUploadRef={uploadRef} onUploadLettering={reviewFile}>
           {pending
-            ? <LetteringReview pending={pending} busy={!!busy} onRemoveBackground={removeBackground} onApprove={approve} onDiscard={() => setPending(null)} />
+            ? <LetteringReview key={pending.previewUrl} pending={pending} busy={!!busy} onRemoveBackground={removeBackground} onApprove={approve} onDiscard={nextPending} />
             : <LetteringGenerator kit={active} disabled={!!busy} onReady={setPending} onError={setError} />}
         </BrandKitEditor>
       </div>

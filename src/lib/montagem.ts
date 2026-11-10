@@ -11,7 +11,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { PlanId } from './planConfig';
-import { BrandKit, EdlStyle, edlStyleFor } from './brand';
+import { BrandKit, BrandLettering, EdlStyle, LetteringRole, edlStyleFor } from './brand';
 
 export const MONTAGEM_FPS = 30;
 export const TRANSITION_FRAMES = 12;
@@ -78,6 +78,63 @@ export interface ProjectUpload {
   createdAt: string;
 }
 
+/**
+ * Arte do próprio vídeo, enviada no projeto (sem passar pela biblioteca de ID Visual):
+ * imagem (lettering, logo) ou vídeo (marca d'água animada, vinheta final). Id começa com "pa_".
+ */
+export interface ProjectAsset {
+  id: string;
+  type: 'image' | 'video';
+  name: string;
+  /** Função do lettering (imagens). */
+  role: LetteringRole;
+  /** O que a arte escreve, se a pessoa informar (ajuda o Claude). */
+  text?: string;
+  path: string;
+  url: string;
+  width: number;
+  height: number;
+  /** Duração (vídeos). */
+  seconds?: number;
+  /** Imagem com fundo transparente; sem isso, aparece um retângulo no vídeo. */
+  transparent?: boolean;
+  createdAt: string;
+}
+
+export const ASSET_ID_PREFIX = 'pa_';
+export const ASSET_LIMITS = {
+  perProject: 30,
+  imageMaxBytes: 10 * 1024 * 1024,
+  videoMaxBytes: 100 * 1024 * 1024,
+  videoMaxSeconds: 30,
+  accept: 'image/png,image/jpeg,image/webp,video/mp4,video/quicktime,video/webm,.png,.jpg,.jpeg,.webp,.mp4,.mov,.webm',
+};
+
+/** Função provável pelo nome do arquivo (logo-preto.png → logo; cta-final.png → chamada). */
+export function guessRole(fileName: string): LetteringRole {
+  const n = fileName.toLowerCase();
+  if (/logo|marca|assinatura/.test(n)) return 'logo';
+  if (/cta|chamada|link|compre|siga|inscreva/.test(n)) return 'chamada';
+  if (/gancho|hook|abertura|intro/.test(n)) return 'gancho';
+  if (/titulo|título|title/.test(n)) return 'titulo';
+  return 'titulo';
+}
+
+/** Imagens do projeto no formato dos letterings da ID Visual (mesmo uso na linha do tempo e no Claude). */
+export function assetLetterings(assets: ProjectAsset[] | undefined): BrandLettering[] {
+  return (assets || []).filter(a => a.type === 'image').map(a => ({
+    id: a.id, name: a.name, role: a.role, path: a.path, url: a.url, width: a.width, height: a.height, text: a.text,
+  }));
+}
+
+export type WatermarkCorner = 'tl' | 'tr' | 'bl' | 'br';
+export const WATERMARK_CORNERS: { id: WatermarkCorner; label: string }[] = [
+  { id: 'tr', label: 'Canto superior direito' },
+  { id: 'tl', label: 'Canto superior esquerdo' },
+  { id: 'br', label: 'Canto inferior direito' },
+  { id: 'bl', label: 'Canto inferior esquerdo' },
+];
+
 export const UPLOAD_ID_PREFIX = 'up_';
 export const UPLOAD_LIMITS = {
   maxBytes: 200 * 1024 * 1024,
@@ -96,6 +153,8 @@ export interface VideoProject {
   kind?: 'full' | 'edit';
   /** Vídeos enviados para este projeto. */
   uploads?: ProjectUpload[];
+  /** Letterings, logos e vídeos auxiliares (marca d'água, vinheta) deste vídeo. */
+  assets?: ProjectAsset[];
   title: string;
   goal: string;
   format: MontagemFormat;
@@ -214,6 +273,10 @@ export interface Edl {
   endCard: { enabled: boolean; title: string; subtitle: string; letteringId?: string | null };
   /** Fonte e cores da ID Visual. Sem ela, vale o visual padrão. */
   style?: EdlStyle | null;
+  /** Marca d'água (imagem ou vídeo do projeto) por cima das cenas. */
+  watermark?: { assetId: string; type: 'image' | 'video'; frames: number; corner: WatermarkCorner; size: LetteringSize; opacity: number } | null;
+  /** Vinheta final animada (vídeo do projeto), depois da chamada final, com o áudio dela. */
+  outro?: { assetId: string; frames: number; muted: boolean } | null;
 }
 
 export function emptyEdl(format: MontagemFormat): Edl {
@@ -237,10 +300,17 @@ export function transitionFramesAt(edl: Edl, i: number) {
   return Math.min(TRANSITION_FRAMES, Math.floor(clipFrames(c) / 2), Math.floor(clipFrames(edl.clips[i - 1]) / 2));
 }
 
-export function edlDurationFrames(edl: Edl) {
+/** Frames só das cenas (com as transições): é onde a marca d'água aparece. */
+export function edlClipsFrames(edl: Edl) {
   let total = 0;
   edl.clips.forEach((c, i) => { total += clipFrames(c) - transitionFramesAt(edl, i); });
+  return total;
+}
+
+export function edlDurationFrames(edl: Edl) {
+  let total = edlClipsFrames(edl);
   if (edl.endCard.enabled) total += END_CARD_FRAMES;
+  if (edl.outro?.frames) total += edl.outro.frames;
   return Math.max(1, total);
 }
 
@@ -264,8 +334,8 @@ const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/[\p{Extend
  * cortes ficam dentro da duração do arquivo. Letterings e estilo vêm só da ID Visual do projeto.
  * Lança Error com mensagem em português.
  */
-export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null): Edl {
-  const validLettering = (v: unknown) => (typeof v === 'string' && brand?.letterings.some(l => l.id === v) ? v : null);
+export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = []): Edl {
+  const validLettering = (v: unknown) => (typeof v === 'string' && (brand?.letterings.some(l => l.id === v) || assets.some(a => a.type === 'image' && a.id === v)) ? v : null);
   const list: any[] = Array.isArray(raw?.clips) ? raw.clips : [];
   if (!list.length) throw new Error('Coloque pelo menos uma cena na linha do tempo.');
   if (list.length > MAX_CLIPS) throw new Error(`A montagem aceita até ${MAX_CLIPS} clipes.`);
@@ -295,7 +365,20 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
     subtitle: cleanText(raw?.endCard?.subtitle),
     letteringId: validLettering(raw?.endCard?.letteringId),
   };
-  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null };
+  const mark = assets.find(a => a.id === raw?.watermark?.assetId);
+  const watermark = mark ? {
+    assetId: mark.id,
+    type: mark.type,
+    // Vídeo da marca d'água repete em loop com a duração do arquivo.
+    frames: mark.type === 'video' ? sourceFramesFor(Math.min(ASSET_LIMITS.videoMaxSeconds, mark.seconds || 3)) : 0,
+    corner: WATERMARK_CORNERS.some(c => c.id === raw.watermark.corner) ? raw.watermark.corner : 'tr',
+    size: LETTERING_SIZES.some(s => s.id === raw.watermark.size) ? raw.watermark.size : 's',
+    opacity: Math.min(1, Math.max(0.15, Number(raw.watermark.opacity) || 0.8)),
+  } : null;
+  // A duração da vinheta vem do arquivo (servidor), não do que o navegador mandou.
+  const outroAsset = assets.find(a => a.id === raw?.outro?.assetId && a.type === 'video');
+  const outro = outroAsset ? { assetId: outroAsset.id, frames: sourceFramesFor(Math.min(ASSET_LIMITS.videoMaxSeconds, outroAsset.seconds || 3)), muted: raw.outro.muted === true } : null;
+  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null, watermark, outro };
   const frames = edlDurationFrames(edl);
   if (frames > maxFrames) {
     throw new Error(`O vídeo tem ${Math.ceil(frames / MONTAGEM_FPS)} s e o seu plano permite até ${Math.floor(maxFrames / MONTAGEM_FPS)} s. Corte algumas cenas.`);
@@ -305,9 +388,10 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
 
 /** Textos do plano, para passar pela moderação. */
 /** Letterings usados no plano: id → caminho no Storage, para o render assinar. */
-export function edlLetteringPaths(edl: Edl, brand: BrandKit | null) {
-  const used = new Set([...edl.clips.map(c => c.letteringId), edl.endCard.letteringId].filter(Boolean));
-  return Object.fromEntries((brand?.letterings || []).filter(l => used.has(l.id)).map(l => [letteringSourceKey(l.id), l.path]));
+export function edlLetteringPaths(edl: Edl, brand: BrandKit | null, assets: ProjectAsset[] = []) {
+  const used = new Set([...edl.clips.map(c => c.letteringId), edl.endCard.letteringId, edl.watermark?.assetId, edl.outro?.assetId].filter(Boolean));
+  const files = [...(brand?.letterings || []), ...assets];
+  return Object.fromEntries(files.filter(l => used.has(l.id)).map(l => [letteringSourceKey(l.id), l.path]));
 }
 
 export const edlTexts = (edl: Edl) => [...edl.clips.map(c => c.text), edl.endCard.title, edl.endCard.subtitle].filter(Boolean).join('\n');

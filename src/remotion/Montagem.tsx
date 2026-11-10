@@ -1,9 +1,9 @@
 import React from 'react';
-import { AbsoluteFill, Img, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, Loop, OffthreadVideo, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { TransitionSeries, linearTiming } from '@remotion/transitions';
 import { fade } from '@remotion/transitions/fade';
 import { slide } from '@remotion/transitions/slide';
-import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, letteringPlace, letteringSourceKey, transitionFramesAt } from '../lib/montagem';
+import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, transitionFramesAt } from '../lib/montagem';
 import type { EdlStyle } from '../lib/brand';
 import { FONTS } from './fonts';
 
@@ -100,6 +100,40 @@ function EndCard({ title, subtitle, letteringSrc, style }: { title: string; subt
   );
 }
 
+const WATERMARK_WIDTH: Record<LetteringSize, number> = { s: 0.16, m: 0.24, l: 0.34 };
+
+/** Marca d'água no canto, durante as cenas: imagem ou vídeo em loop (com transparência, se o arquivo tiver). */
+function Watermark({ mark, src }: { mark: NonNullable<Edl['watermark']>; src: string }) {
+  const { width } = useVideoConfig();
+  const margin = width * 0.05;
+  const box: React.CSSProperties = {
+    position: 'absolute', width: width * WATERMARK_WIDTH[mark.size], opacity: mark.opacity,
+    [mark.corner[0] === 't' ? 'top' : 'bottom']: margin, [mark.corner[1] === 'l' ? 'left' : 'right']: margin,
+  };
+  return (
+    <AbsoluteFill style={{ pointerEvents: 'none' }}>
+      {mark.type === 'video' && mark.frames > 0 ? (
+        <Loop durationInFrames={mark.frames}>
+          <AbsoluteFill>
+            <OffthreadVideo src={src} muted transparent style={{ ...box, height: 'auto', objectFit: 'contain' }} />
+          </AbsoluteFill>
+        </Loop>
+      ) : (
+        <Img src={src} style={{ ...box, height: 'auto', objectFit: 'contain' }} />
+      )}
+    </AbsoluteFill>
+  );
+}
+
+/** Vinheta final: o vídeo inteiro, enquadrado sem cortar, com o áudio dele. */
+function Outro({ src, muted, background }: { src: string; muted: boolean; background: string }) {
+  return (
+    <AbsoluteFill style={{ backgroundColor: background }}>
+      <OffthreadVideo src={src} muted={muted} style={{ width: '100%', height: '100%', objectFit: 'contain' }} />
+    </AbsoluteFill>
+  );
+}
+
 export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
   const items: React.ReactNode[] = [];
   edl.clips.forEach((clip, i) => {
@@ -126,9 +160,24 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
       </TransitionSeries.Sequence>
     );
   }
+  const outroSrc = edl.outro ? sources[letteringSourceKey(edl.outro.assetId)] : undefined;
+  if (edl.outro && outroSrc) {
+    items.push(
+      <TransitionSeries.Sequence key="outro" durationInFrames={edl.outro.frames}>
+        <Outro src={outroSrc} muted={edl.outro.muted} background={edl.style?.background || '#000'} />
+      </TransitionSeries.Sequence>
+    );
+  }
+  const markSrc = edl.watermark ? sources[letteringSourceKey(edl.watermark.assetId)] : undefined;
+  const clipsFrames = edlClipsFrames(edl);
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       <TransitionSeries>{items}</TransitionSeries>
+      {edl.watermark && markSrc && clipsFrames > 0 ? (
+        <Sequence durationInFrames={clipsFrames}>
+          <Watermark mark={edl.watermark} src={markSrc} />
+        </Sequence>
+      ) : null}
     </AbsoluteFill>
   );
 };

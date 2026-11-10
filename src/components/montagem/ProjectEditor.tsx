@@ -16,10 +16,11 @@ import { setGenHandoff } from '@/lib/client/handoff';
 import { STATUS_LABEL } from '@/lib/generation';
 import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
 import { UploadsPanel } from './UploadsPanel';
+import { AssetsPanel } from './AssetsPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
-  ProjectUpload, TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
+  ProjectUpload, TRANSITIONS, assetLetterings, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
 
@@ -126,8 +127,10 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const sources = useMemo(() => ({
     ...Object.fromEntries(clipsDone.map(j => [j.id, j.outputs[0].url])),
     ...Object.fromEntries(uploads.map(u => [u.id, u.url])),
+    // Artes do vídeo (letterings, logos, marca d'água, vinheta) usam a mesma chave dos letterings.
+    ...Object.fromEntries((project?.assets || []).map(a => [letteringSourceKey(a.id), a.url])),
     ...Object.fromEntries((brand?.letterings || []).map(l => [letteringSourceKey(l.id), l.url])),
-  }), [clipsDone, uploads, brand]);
+  }), [clipsDone, uploads, brand, project?.assets]);
   const previewEdl = useMemo(() => (edl ? { ...edl, style: brand ? edlStyleFor(brand) : null } : null), [edl, brand]);
 
   if (project === undefined || !edl) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand-mint" /></div>;
@@ -145,7 +148,14 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const totalFrames = edl.clips.length ? edlDurationFrames(edl) : 0;
   const cost = montagemCost(totalFrames);
   const missing = edl.clips.filter(c => !sources[c.jobId]).length;
-  const letterings = brand?.letterings || [];
+  const projectArt = assetLetterings(project.assets);
+  const letterings = [...projectArt, ...(brand?.letterings || [])];
+  const letteringOptions = (
+    <>
+      {projectArt.length > 0 && <optgroup label="Artes do vídeo">{projectArt.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup>}
+      {brand?.letterings.length ? <optgroup label={`ID Visual: ${brand.name}`}>{brand.letterings.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}</optgroup> : null}
+    </>
+  );
   const pickBrand = (id: string) => saveProject({ brandKitId: id || null });
 
   // ── Escrita ────────────────────────────────────────────────────────────────
@@ -214,7 +224,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       const direction = directionText.trim().slice(0, DIRECTION_MAX);
       if (direction !== (project.editDirection || '')) saveProject({ editDirection: direction });
       const res = await callTool<{ edl: Edl; resumo: string }>('/api/montagem/auto', { projectId: project.id, direction });
-      changeEdl(res.data.edl);
+      // A marca d'água e a vinheta são escolhas da pessoa: a montagem com IA não mexe nelas.
+      changeEdl({ ...res.data.edl, watermark: edl.watermark || null, outro: edl.outro || null });
       setAiNote(res.data.resumo);
     } catch (e: any) {
       setError(e.message || 'Não foi possível montar com IA agora.');
@@ -425,6 +436,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             </div>
           )}
         </div>
+        <AssetsPanel project={project} edl={edl} onEdl={changeEdl} onError={setError} />
         <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-2.5">
           <label htmlFor="edit-direction" className="flex items-center gap-1.5 text-xs font-semibold text-white">
             <Wand2 className="w-3.5 h-3.5 text-brand-mint" /> Direção de edição para o Claude <span className="font-normal text-gray-500">(opcional)</span>
@@ -506,7 +518,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                     <select value={letterings.some(l => l.id === c.letteringId) ? c.letteringId! : ''} onChange={e => patchClip(c.id, { letteringId: e.target.value || null })} aria-label="Lettering do clipe"
                       className="sm:col-span-6 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white">
                       <option value="">Sem lettering</option>
-                      {letterings.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      {letteringOptions}
                     </select>
                     <select value={c.letteringPosition || 'top'} disabled={!c.letteringId} onChange={e => patchClip(c.id, { letteringPosition: e.target.value as TextPosition })} aria-label="Posição do lettering"
                       className="sm:col-span-3 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-40">
@@ -537,7 +549,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                       <select value={letterings.some(l => l.id === edl.endCard.letteringId) ? edl.endCard.letteringId! : ''} onChange={e => changeEdl({ ...edl, endCard: { ...edl.endCard, letteringId: e.target.value || null } })} aria-label="Lettering da chamada final"
                         className="sm:col-span-2 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white">
                         <option value="">Sem lettering na chamada final</option>
-                        {letterings.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                        {letteringOptions}
                       </select>
                     )}
                   </div>

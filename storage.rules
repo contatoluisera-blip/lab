@@ -16,13 +16,13 @@ service firebase.storage {
       allow update, delete: if false;
     }
 
-    // Vídeos enviados para a Montagem (takes gravados ou prontos) e as miniaturas deles:
-    // cada pessoa só envia, lê e apaga na própria pasta; vídeo MP4/MOV/WEBM até 200 MB, miniatura JPEG até 1 MB.
+    // Arquivos da Montagem: takes (vídeos), miniaturas e artes do vídeo (letterings, logos, marca d'água, vinheta).
+    // Cada pessoa só envia, lê e apaga na própria pasta; vídeo MP4/MOV/WEBM até 200 MB, imagem PNG/JPG/WEBP até 10 MB.
     match /montagem-uploads/{userId}/{fileName} {
       allow read, delete: if request.auth != null && request.auth.uid == userId;
       allow create: if request.auth != null && request.auth.uid == userId
         && ((request.resource.contentType.matches('video/(mp4|quicktime|webm)') && request.resource.size <= 200 * 1024 * 1024)
-          || (request.resource.contentType == 'image/jpeg' && request.resource.size <= 1024 * 1024));
+          || (request.resource.contentType.matches('image/(jpeg|png|webp)') && request.resource.size <= 10 * 1024 * 1024));
       allow update: if false;
     }
 
