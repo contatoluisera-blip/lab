@@ -48,7 +48,9 @@ export const POST = withTool('montagem', async ({ user, body }) => {
         const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
         let edl;
         try {
-          edl = sanitizeEdl({ clips: run.result.clips.map((c, i) => ({ ...c, id: `ai${i}` })), endCard: run.result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS, brand, assets);
+          // Ids novos a cada montagem: a locução de uma montagem antiga não cai no clipe errado.
+          const stamp = Date.now().toString(36).slice(-5);
+          edl = sanitizeEdl({ clips: run.result.clips.map((c, i) => ({ ...c, id: `ai${stamp}${i}` })), endCard: run.result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS, brand, assets);
         } catch (e: any) {
           throw new HttpError(502, 'auto_edit_invalid', `A montagem com IA saiu fora das regras (${e.message}). Tente de novo.`);
         }

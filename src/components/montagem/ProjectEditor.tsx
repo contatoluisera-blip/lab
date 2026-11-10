@@ -19,10 +19,12 @@ import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './Producti
 import { UploadsPanel } from './UploadsPanel';
 import { AssetsPanel } from './AssetsPanel';
 import { MusicPanel } from './MusicPanel';
+import { VoicePanel } from './VoicePanel';
+import { voiceSourceKey } from '@/lib/voice';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
-  ProjectUpload, SCRIPT_DONE_MARK, TRANSITIONS, CLIP_MOTIONS, ClipMotion, TEXT_ANIMS, TextAnim, assetLetterings, musicSourceKey, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
+  ProjectUpload, SCRIPT_DONE_MARK, TRANSITIONS, CLIP_MOTIONS, ClipMotion, TEXT_ANIMS, TextAnim, assetLetterings, musicSourceKey, voiceTrackFor, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
 
@@ -132,11 +134,18 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     ...Object.fromEntries(uploads.map(u => [u.id, u.url])),
     // Artes do vídeo (letterings, logos, marca d'água, vinheta) usam a mesma chave dos letterings.
     ...Object.fromEntries((project?.assets || []).map(a => [letteringSourceKey(a.id), a.url])),
+    // Locução: um áudio por clipe.
+    ...Object.fromEntries((project?.voice?.segments || []).filter(s => s.audio?.url).map(s => [voiceSourceKey(s.clipId), s.audio!.url])),
     // Trilhas geradas no projeto: cada versão tem a própria chave.
     ...Object.fromEntries(jobs.filter(j => j.kind === 'audio' && j.status === 'completed').flatMap(j => j.outputs.map((o, i) => [musicSourceKey(j.id, i), o.url]))),
     ...Object.fromEntries((brand?.letterings || []).map(l => [letteringSourceKey(l.id), l.url])),
-  }), [clipsDone, uploads, brand, project?.assets, jobs]);
-  const previewEdl = useMemo(() => (edl ? { ...edl, style: brand ? edlStyleFor(brand) : null } : null), [edl, brand]);
+  }), [clipsDone, uploads, brand, project?.assets, project?.voice, jobs]);
+  // Prévia igual ao render: estilo da ID Visual e faixa de voz montada da locução do projeto.
+  const previewEdl = useMemo(() => (edl ? {
+    ...edl,
+    style: brand ? edlStyleFor(brand) : null,
+    voice: edl.voice ? { ...edl.voice, track: voiceTrackFor(edl, project?.voice) } : null,
+  } : null), [edl, brand, project?.voice]);
 
   if (project === undefined || !edl) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand-mint" /></div>;
   if (project === null) {
@@ -266,7 +275,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       if (mark < 0) throw new Error('A montagem foi interrompida. Tente de novo.');
       const res = { data: JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length)) as { edl: Edl; resumo: string } };
       // Marca d'água, vinheta e trilha são escolhas da pessoa: a montagem com IA não mexe nelas.
-      changeEdl({ ...res.data.edl, watermark: edl.watermark || null, outro: edl.outro || null, music: edl.music || null });
+      changeEdl({ ...res.data.edl, watermark: edl.watermark || null, outro: edl.outro || null, music: edl.music || null, voice: edl.voice || null });
       setAiNote(res.data.resumo);
     } catch (e: any) {
       setError(e.message || 'Não foi possível montar com IA agora.');
@@ -479,6 +488,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           )}
         </div>
         <AssetsPanel project={project} edl={edl} onEdl={changeEdl} onError={setError} />
+        <VoicePanel project={project} edl={edl} label={clipLabel} onEdl={changeEdl} onError={setError}
+          flushEdl={() => { if (saveTimer.current) clearTimeout(saveTimer.current); return saveProject({ edl }); }} />
         <MusicPanel project={project} jobs={jobs} edl={edl} totalFrames={totalFrames || 30 * MONTAGEM_FPS} onEdl={changeEdl} onError={setError} />
         <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-2.5">
           <label htmlFor="edit-direction" className="flex items-center gap-1.5 text-xs font-semibold text-white">

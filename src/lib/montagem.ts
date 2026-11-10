@@ -12,6 +12,7 @@
 
 import type { PlanId } from './planConfig';
 import { BrandKit, BrandLettering, EdlStyle, LetteringRole, edlStyleFor } from './brand';
+import { ProjectVoice, VoiceWord, segmentReady } from './voice';
 
 export const MONTAGEM_FPS = 30;
 export const TRANSITION_FRAMES = 12;
@@ -155,6 +156,8 @@ export interface VideoProject {
   uploads?: ProjectUpload[];
   /** Letterings, logos e vídeos auxiliares (marca d'água, vinheta) deste vídeo. */
   assets?: ProjectAsset[];
+  /** Locução: voz escolhida e o texto falado de cada clipe (o áudio é gerado no servidor). */
+  voice?: ProjectVoice | null;
   /** Folha de quadros de cada clipe (id da geração ou do vídeo enviado): o Claude vê o clipe por ela. */
   clipSheets?: Record<string, { path: string; url: string }>;
   title: string;
@@ -309,6 +312,39 @@ export interface Edl {
   outro?: { assetId: string; frames: number; muted: boolean } | null;
   /** Trilha (faixa de uma geração de áudio do projeto): toca em loop sob o vídeo todo, com fade no fim. */
   music?: { jobId: string; index: number; volume: number } | null;
+  /**
+   * Locução: cada trecho toca no início do seu clipe. `track` é montada a partir da locução do projeto
+   * (no servidor, para o render; no navegador, para a prévia), nunca escrita à mão.
+   */
+  voice?: {
+    volume: number;
+    /** Legendas palavra por palavra durante a fala. */
+    captions: boolean;
+    /** Volume da trilha enquanto alguém fala (0,1 a 1). */
+    duck: number;
+    track?: { clipId: string; frames: number; words: VoiceWord[] }[];
+  } | null;
+}
+
+/** Quadro em que cada clipe começa no vídeo final (já descontadas as transições). */
+export function clipStartFrames(edl: Edl) {
+  const starts: number[] = [];
+  let t = 0;
+  edl.clips.forEach((c, i) => {
+    t -= transitionFramesAt(edl, i);
+    starts.push(t);
+    t += clipFrames(c);
+  });
+  return starts;
+}
+
+/** Faixa de voz do plano: trechos prontos da locução, só dos clipes que estão na linha do tempo. */
+export function voiceTrackFor(edl: Pick<Edl, 'clips'>, voice: ProjectVoice | null | undefined) {
+  if (!voice) return [];
+  const ids = new Set(edl.clips.map(c => c.id));
+  return voice.segments
+    .filter(seg => ids.has(seg.clipId) && seg.text.trim() && segmentReady(seg, voice))
+    .map(seg => ({ clipId: seg.clipId, frames: Math.max(1, Math.ceil(seg.audio!.seconds * MONTAGEM_FPS)), words: seg.audio!.words.slice(0, 200) }));
 }
 
 /** Chave da trilha em `sources` e em `sourcePaths`. */
@@ -371,7 +407,7 @@ const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/[\p{Extend
  * cortes ficam dentro da duração do arquivo. Letterings e estilo vêm só da ID Visual do projeto.
  * Lança Error com mensagem em português.
  */
-export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = [], music: Record<string, { path: string }> = {}): Edl {
+export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = [], music: Record<string, { path: string }> = {}, voice: ProjectVoice | null = null): Edl {
   const validLettering = (v: unknown) => (typeof v === 'string' && (brand?.letterings.some(l => l.id === v) || assets.some(a => a.type === 'image' && a.id === v)) ? v : null);
   const list: any[] = Array.isArray(raw?.clips) ? raw.clips : [];
   if (!list.length) throw new Error('Coloque pelo menos uma cena na linha do tempo.');
@@ -422,7 +458,15 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
     jobId: String(raw.music.jobId), index: Math.round(Number(raw.music.index) || 0),
     volume: Math.min(1, Math.max(0.05, Number(raw.music.volume) || MUSIC_DEFAULT_VOLUME)),
   } : null;
-  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null, watermark, outro, music: track };
+  // A faixa de voz vem da locução do projeto (servidor), não do que o navegador mandou.
+  const voiceTrack = raw?.voice ? voiceTrackFor({ clips }, voice) : [];
+  const voiceCfg = voiceTrack.length ? {
+    volume: Math.min(1.5, Math.max(0.2, Number(raw.voice.volume) || 1)),
+    captions: raw.voice.captions !== false,
+    duck: Math.min(1, Math.max(0.1, Number(raw.voice.duck) || 0.3)),
+    track: voiceTrack,
+  } : null;
+  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null, watermark, outro, music: track, voice: voiceCfg };
   const frames = edlDurationFrames(edl);
   if (frames > maxFrames) {
     throw new Error(`O vídeo tem ${Math.ceil(frames / MONTAGEM_FPS)} s e o seu plano permite até ${Math.floor(maxFrames / MONTAGEM_FPS)} s. Corte algumas cenas.`);
@@ -436,6 +480,13 @@ export function edlLetteringPaths(edl: Edl, brand: BrandKit | null, assets: Proj
   const used = new Set([...edl.clips.map(c => c.letteringId), edl.endCard.letteringId, edl.watermark?.assetId, edl.outro?.assetId].filter(Boolean));
   const files = [...(brand?.letterings || []), ...assets];
   return Object.fromEntries(files.filter(l => used.has(l.id)).map(l => [letteringSourceKey(l.id), l.path]));
+}
+
+/** Áudios da locução usados no plano: chave → caminho no Storage, para o render assinar. */
+export function edlVoicePaths(edl: Edl, voice: ProjectVoice | null) {
+  if (!edl.voice?.track?.length || !voice) return {};
+  const used = new Set(edl.voice.track.map(t => t.clipId));
+  return Object.fromEntries(voice.segments.filter(s => used.has(s.clipId) && s.audio?.path).map(s => [`voice:${s.clipId}`, s.audio!.path]));
 }
 
 export const edlTexts = (edl: Edl) => [...edl.clips.map(c => c.text), edl.endCard.title, edl.endCard.subtitle].filter(Boolean).join('\n');

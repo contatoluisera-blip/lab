@@ -7,7 +7,8 @@ import { wipe } from '@remotion/transitions/wipe';
 import { pushCut } from '@remotion/transitions/push-cut';
 import { flip } from '@remotion/transitions/flip';
 import { iris } from '@remotion/transitions/iris';
-import { ClipMotion, END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextAnim, TextPosition, TransitionKind, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
+import { ClipMotion, END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextAnim, TextPosition, TransitionKind, clipFrames, clipStartFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
+import { VOICE_LEAD_FRAMES, VoiceWord, voiceSourceKey } from '../lib/voice';
 import type { EdlStyle } from '../lib/brand';
 import { FONTS } from './fonts';
 
@@ -103,7 +104,7 @@ function motionTransform(motion: ClipMotion | undefined, frame: number, frames: 
   }
 }
 
-function Clip({ clip, src, letteringSrc, style }: { clip: EdlClip; src?: string; letteringSrc?: string; style?: EdlStyle | null }) {
+function Clip({ clip, src, letteringSrc, style, captions }: { clip: EdlClip; src?: string; letteringSrc?: string; style?: EdlStyle | null; captions?: boolean }) {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const transform = motionTransform(clip.motion, frame, clipFrames(clip), fps);
@@ -120,7 +121,8 @@ function Clip({ clip, src, letteringSrc, style }: { clip: EdlClip; src?: string;
         </AbsoluteFill>
       ) : null}
       {letteringSrc ? <Lettering src={letteringSrc} position={letteringPlace(clip)} size={clip.letteringSize || 'm'} /> : null}
-      {clip.text ? <Caption text={clip.text} position={clip.textPosition} style={style} anim={clip.textAnim} frames={clipFrames(clip)} /> : null}
+      {/* Com legenda da locução embaixo, o texto do clipe sobe para não colidir. */}
+      {clip.text ? <Caption text={clip.text} position={captions && clip.textPosition === 'bottom' ? 'top' : clip.textPosition} style={style} anim={clip.textAnim} frames={clipFrames(clip)} /> : null}
     </AbsoluteFill>
   );
 }
@@ -179,11 +181,71 @@ function Outro({ src, muted, background }: { src: string; muted: boolean; backgr
 }
 
 /** Trilha sob o vídeo todo: entra em 0,5 s, repete se for curta e some no último 1,5 s. */
-function Music({ src, volume }: { src: string; volume: number }) {
+function Music({ src, volume, speech, duck }: { src: string; volume: number; speech: [number, number][]; duck: number }) {
   const { fps, durationInFrames } = useVideoConfig();
+  // Abaixa a trilha enquanto há fala, com rampa de ~0,2 s nas bordas de cada trecho.
+  const ramp = Math.round(fps * 0.2);
+  const ducking = (f: number) => {
+    let level = 1;
+    for (const [a, b] of speech) {
+      const k = f < a ? (a - f) / ramp : f > b ? (f - b) / ramp : 0;
+      level = Math.min(level, duck + (1 - duck) * Math.min(1, Math.max(0, k)));
+    }
+    return level;
+  };
   return (
-    <Audio src={src} loop volume={f => (durationInFrames < fps * 3 ? volume
+    <Audio src={src} loop volume={f => ducking(f) * (durationInFrames < fps * 3 ? volume
       : volume * interpolate(f, [0, fps * 0.5, durationInFrames - fps * 1.5, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }))} />
+  );
+}
+
+/** Bloco de legenda (início e fim) que contém a palavra `i`. */
+export function captionGroup(words: VoiceWord[], i: number): [number, number] {
+  let sentenceStart = 0;
+  for (let k = 0; k < words.length; k++) {
+    const endsSentence = /[.!?…]$/.test(words[k].w) || k === words.length - 1;
+    if (!endsSentence) continue;
+    if (i <= k) {
+      const n = k - sentenceStart + 1;
+      const chunks = Math.ceil(n / 4);
+      const size = Math.ceil(n / chunks);
+      const g = Math.floor((i - sentenceStart) / size);
+      const a = sentenceStart + g * size;
+      return [a, Math.min(k + 1, a + size)];
+    }
+    sentenceStart = k + 1;
+  }
+  return [i, i + 1];
+}
+
+/**
+ * Legenda da locução, palavra por palavra: mostra o bloco de até 4 palavras da fala atual
+ * e destaca a palavra que está sendo dita.
+ */
+function VoiceCaption({ words, style }: { words: VoiceWord[]; style?: EdlStyle | null }) {
+  const frame = useCurrentFrame();
+  const { fps, width } = useVideoConfig();
+  const t = frame / fps;
+  const i = words.findIndex(w => t < w.e);
+  if (i < 0 || t < words[0].s - 0.05) return null;
+  // Blocos equilibrados de até 4 palavras dentro de cada frase (5 palavras → 3 + 2).
+  const [start, end] = captionGroup(words, i);
+  const group = words.slice(start, end);
+  const font = fontOf(style);
+  const accent = style?.endAccent || '#facc15';
+  return (
+    <AbsoluteFill style={{ justifyContent: 'flex-end', alignItems: 'center', padding: width * 0.07, paddingBottom: width * 0.24 }}>
+      <div style={{ textAlign: 'center', fontFamily: font.family, fontWeight: 900, fontSize: width * 0.068, lineHeight: 1.15, textTransform: 'uppercase',
+        textShadow: `0 ${width * 0.004}px ${width * 0.02}px rgba(0,0,0,0.85)`, WebkitTextStroke: `${width * 0.002}px rgba(0,0,0,0.6)` }}>
+        {group.map((w, k) => {
+          const active = start + k === i && t >= w.s;
+          return (
+            <span key={k} style={{ color: active ? accent : style?.textColor || '#fff', display: 'inline-block', margin: `0 ${width * 0.01}px`,
+              transform: active ? 'scale(1.08)' : undefined }}>{w.w}</span>
+          );
+        })}
+      </div>
+    </AbsoluteFill>
   );
 }
 
@@ -214,7 +276,8 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
     }
     items.push(
       <TransitionSeries.Sequence key={clip.id} durationInFrames={clipFrames(clip)}>
-        <Clip clip={clip} src={sources[clip.jobId]} letteringSrc={clip.letteringId ? sources[letteringSourceKey(clip.letteringId)] : undefined} style={edl.style} />
+        <Clip clip={clip} src={sources[clip.jobId]} letteringSrc={clip.letteringId ? sources[letteringSourceKey(clip.letteringId)] : undefined} style={edl.style}
+          captions={!!edl.voice?.captions && !!edl.voice.track?.some(v => v.clipId === clip.id)} />
       </TransitionSeries.Sequence>
     );
   });
@@ -235,12 +298,25 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
   }
   const markSrc = edl.watermark ? sources[letteringSourceKey(edl.watermark.assetId)] : undefined;
   const clipsFrames = edlClipsFrames(edl);
+  // Locução: cada trecho começa logo depois do corte do seu clipe.
+  const starts = clipStartFrames(edl);
+  const voiceItems = (edl.voice?.track || []).map(v => {
+    const i = edl.clips.findIndex(c => c.id === v.clipId);
+    return i < 0 || !sources[voiceSourceKey(v.clipId)] ? null : { ...v, from: starts[i] + VOICE_LEAD_FRAMES, src: sources[voiceSourceKey(v.clipId)] };
+  }).filter(Boolean) as { clipId: string; frames: number; words: VoiceWord[]; from: number; src: string }[];
+  const speech = voiceItems.map(v => [v.from, v.from + v.frames] as [number, number]);
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       <TransitionSeries>{items}</TransitionSeries>
       {edl.music && sources[musicSourceKey(edl.music.jobId, edl.music.index)]
-        ? <Music src={sources[musicSourceKey(edl.music.jobId, edl.music.index)]} volume={edl.music.volume} />
+        ? <Music src={sources[musicSourceKey(edl.music.jobId, edl.music.index)]} volume={edl.music.volume} speech={speech} duck={edl.voice?.duck ?? 1} />
         : null}
+      {voiceItems.map(v => (
+        <Sequence key={`voice-${v.clipId}`} from={v.from} durationInFrames={v.frames}>
+          <Audio src={v.src} volume={edl.voice!.volume} />
+          {edl.voice!.captions && v.words.length ? <VoiceCaption words={v.words} style={edl.style} /> : null}
+        </Sequence>
+      ))}
       {edl.watermark && markSrc && clipsFrames > 0 ? (
         <Sequence durationInFrames={clipsFrames}>
           <Watermark mark={edl.watermark} src={markSrc} />
