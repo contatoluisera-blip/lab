@@ -27,7 +27,7 @@ export function ProjectList() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const { canUseTool, refreshProfile } = useUserProfile();
-  const [mode, setMode] = useState<'ai' | 'manual'>('ai');
+  const [mode, setMode] = useState<'ai' | 'manual' | 'edit'>('ai');
   const [aiFormat, setAiFormat] = useState<MontagemFormat | 'auto'>('auto');
   const [file, setFile] = useState<ScriptFile | null>(null);
   const [description, setDescription] = useState('');
@@ -51,11 +51,13 @@ export function ProjectList() {
     setSaving(true);
     setError('');
     try {
-      const base = preview.length ? preview : [{ title: 'Cena 1', text: '' }];
+      // Só edição: sem cenas; os vídeos da pessoa entram no projeto aberto.
+      const base = mode === 'edit' ? [] : preview.length ? preview : [{ title: 'Cena 1', text: '' }];
       const scenes: ProjectScene[] = base.map(s => ({ id: newId(), title: s.title, text: s.text, targetSeconds: 5 }));
       const at = new Date().toISOString();
       const ref = await addDoc(collection(db, 'video_projects'), {
         uid: user.uid, title: title.trim().slice(0, 80), goal: goal.trim().slice(0, 200), format, scenes, edl: null, createdAt: at, updatedAt: at,
+        kind: mode === 'edit' ? 'edit' : 'full', uploads: [],
       });
       router.push(projectHref('/dashboard/montagem', ref.id));
     } catch {
@@ -109,15 +111,15 @@ export function ProjectList() {
         <h1 className="text-4xl md:text-5xl font-bold text-white tracking-tight">Montagem de vídeo</h1>
         <p className="text-gray-400 leading-relaxed">
           Do roteiro ao MP4 num lugar só. Cada projeto organiza as cenas: prompt, frame e vídeo de cada uma.
-          Depois, o Claude monta o primeiro corte e você ajusta e exporta.
+          Depois, o Claude monta o primeiro corte e você ajusta e exporta. Já tem os vídeos? Use &ldquo;Só edição&rdquo;.
         </p>
       </header>
 
       <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
         <section className="lg:col-span-5 rounded-[28px] border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-5 md:p-6 space-y-5" aria-label="Novo projeto">
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white">Novo projeto</h2>
-          <div className="grid grid-cols-2 gap-1 p-1 rounded-full bg-black/40 border border-white/[0.06]" role="tablist">
-            {([['ai', 'Roteiro com IA'], ['manual', 'Manual']] as const).map(([id, label]) => (
+          <div className="grid grid-cols-3 gap-1 p-1 rounded-full bg-black/40 border border-white/[0.06]" role="tablist">
+            {([['ai', 'Roteiro com IA'], ['manual', 'Manual'], ['edit', 'Só edição']] as const).map(([id, label]) => (
               <button key={id} type="button" role="tab" aria-selected={mode === id} onClick={() => { setMode(id); setError(''); }}
                 className={`py-2 rounded-full text-xs font-semibold ${mode === id ? 'bg-brand-emerald/20 text-white' : 'text-gray-500 hover:text-white'}`}>
                 {label}
@@ -196,6 +198,12 @@ export function ProjectList() {
               ))}
             </div>
           </div>
+          {mode === 'edit' ? (
+            <div className="rounded-xl bg-black/30 border border-white/[0.06] p-3 text-[11px] text-gray-400 leading-relaxed">
+              Para quem já tem os takes, gravados ou gerados fora. No projeto, envie os vídeos, descreva cada um e monte à mão ou com o Claude:
+              cortes, ordem, texto na tela e ID Visual, mantendo o áudio original. Paga só a exportação.
+            </div>
+          ) : (<>
           <label className="block space-y-1.5">
             <span className="text-xs text-gray-400">Roteiro (opcional): separe as cenas com uma linha em branco ou &ldquo;Cena 1:&rdquo;, &ldquo;Cena 2:&rdquo;</span>
             <textarea value={script} onChange={e => setScript(e.target.value)} rows={8} maxLength={8000}
@@ -205,6 +213,7 @@ export function ProjectList() {
           <p className="text-[11px] text-gray-500">
             {preview.length ? `${preview.length} cena(s) encontradas${preview.length >= MAX_SCENES ? ` (máximo de ${MAX_SCENES})` : ''}.` : 'Sem roteiro, o projeto começa com 1 cena; dá para adicionar depois.'}
           </p>
+          </>)}
           {error && <p className="text-sm text-red-400">{error}</p>}
           <button type="button" onClick={create} disabled={saving}
             className="w-full flex items-center justify-center gap-2 px-5 py-3 rounded-full bg-gradient-to-b from-[#34d399] to-[#10b981] text-black text-sm font-bold disabled:opacity-60">
@@ -226,7 +235,7 @@ export function ProjectList() {
                 <button type="button" onClick={() => router.push(projectHref('/dashboard/montagem', p.id))} className="flex-1 min-w-0 text-left">
                   <p className="text-sm font-semibold text-white truncate">{p.title}</p>
                   <p className="text-[11px] text-gray-500 mt-0.5">
-                    {p.format} · {p.scenes.length} cena(s) · {done} com vídeo escolhido{p.edl?.clips?.length ? ` · ${p.edl.clips.length} na linha do tempo` : ''}
+                    {p.format} · {p.kind === 'edit' ? `só edição · ${p.uploads?.length || 0} vídeo(s)` : `${p.scenes.length} cena(s) · ${done} com vídeo escolhido`}{p.edl?.clips?.length ? ` · ${p.edl.clips.length} na linha do tempo` : ''}
                   </p>
                 </button>
                 <button type="button" onClick={() => remove(p)} aria-label={`Apagar ${p.title}`} className="p-2 rounded-lg text-gray-500 hover:text-red-400 hover:bg-white/5">

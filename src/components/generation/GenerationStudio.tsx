@@ -142,6 +142,9 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
   const [positions, setPositions] = useState<Record<string, number | null>>({});
   const termsOk = useRef(false);
   const projectCtx = useProjectContext();
+  /** Desmarcado na barra do projeto: a geração fica avulsa, sem tocar na cena. */
+  const [linkToScene, setLinkToScene] = useState(true);
+  const sceneCtx = linkToScene ? projectCtx : null;
 
   // Aberto a partir de uma cena do Projeto de vídeo: o prompt da cena entra se o campo estiver vazio.
   const sceneKey = projectCtx?.scene?.id;
@@ -324,17 +327,17 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
       const res = await callTool<{ id: string; position: number | null }>('/api/gen/create', {
         kind, mode, modelId: model.id, config, prompt: prompt.trim(), negativePrompt: negative.trim(),
         inputs: { images, video: videoPath }, promptId: source?.id || null,
-        projectId: projectCtx?.project.id || null, sceneId: projectCtx?.scene?.id || null,
+        projectId: sceneCtx?.project.id || null, sceneId: sceneCtx?.scene?.id || null,
       });
       setSelectedId(res.data.id);
       setPositions(prev => ({ ...prev, [res.data.id]: res.data.position }));
       refreshProfile();
       // Prompt escrito aqui (sem o Gerador de Prompts) também vale como o prompt da cena.
-      if (projectCtx?.scene) {
+      if (sceneCtx?.scene) {
         const patch = kind === 'image'
           ? { framePrompt: prompt.trim(), framePromptId: source?.id || null }
           : { motionPrompt: prompt.trim(), motionPromptId: source?.id || null };
-        projectCtx.updateScene(patch).catch(err => console.error('[gen] falha ao ligar o prompt à cena:', err));
+        sceneCtx.updateScene(patch).catch(err => console.error('[gen] falha ao ligar o prompt à cena:', err));
       }
     } catch (e: any) {
       if (e.code === 'terms_required') { termsOk.current = false; setShowTerms(true); return; }
@@ -345,7 +348,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
     } finally {
       setSubmitting(false);
     }
-  }, [user, userProfile, prompt, negative, slots, slotDefs, mode, video, canUseTool, copy.tool, price.credits, kind, model.id, config, source, refreshProfile, projectCtx]);
+  }, [user, userProfile, prompt, negative, slots, slotDefs, mode, video, canUseTool, copy.tool, price.credits, kind, model.id, config, source, refreshProfile, sceneCtx]);
 
   const reuse = (job: GenJob) => {
     if (modes.some(m => m.id === job.mode)) changeMode(job.mode);
@@ -360,12 +363,12 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
     const out = job.outputs?.[0];
     if (!out?.path) return;
     setGenHandoff({ kind: 'video', mode: 'i2v', prompt: '', storedImages: [{ preview: out.url, path: out.path }], source: 'imagens' });
-    router.push(withProject('/dashboard/videos?from=imagens', projectCtx));
+    router.push(withProject('/dashboard/videos?from=imagens', sceneCtx));
   };
 
   const blocked = !!userProfile?.genBlocked;
   const balanceAfter = account.credits - price.credits;
-  const createHref = withProject(`/dashboard/prompt-studio?mode=${mode === 'v2v' ? 'v2v' : mode === 'i2i' ? 'i2i' : mode === 't2i' ? 't2i' : 'i2v'}`, projectCtx);
+  const createHref = withProject(`/dashboard/prompt-studio?mode=${mode === 'v2v' ? 'v2v' : mode === 'i2i' ? 'i2i' : mode === 't2i' ? 't2i' : 'i2v'}`, sceneCtx);
 
   if (!hasToolAccess(copy.tool)) {
     return (
@@ -379,7 +382,7 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
 
   return (
     <div className="space-y-8 pb-24">
-      {projectCtx && <ProjectBar ctx={projectCtx} step={kind === 'video' ? 'Cenas' : 'Frames'} />}
+      {projectCtx && <ProjectBar ctx={projectCtx} step={kind === 'video' ? 'Cenas' : 'Frames'} linked={linkToScene} onLinkedChange={setLinkToScene} />}
       {/* Cabeçalho */}
       <header className="flex flex-col md:flex-row md:items-end md:justify-between gap-5">
         <div className="space-y-3 max-w-2xl">

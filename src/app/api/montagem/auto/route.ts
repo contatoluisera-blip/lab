@@ -4,7 +4,7 @@ import { HttpError } from '@/lib/server/auth';
 import { adminDb } from '@/lib/firebase/admin';
 import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
-import { loadOwnedProject, projectClips, projects } from '@/lib/server/montagem/projects';
+import { allProjectClips, loadOwnedProject, projects } from '@/lib/server/montagem/projects';
 import { autoEdit } from '@/lib/server/montagem/claude';
 import { loadProjectBrand } from '@/lib/server/montagem/brand';
 
@@ -16,8 +16,8 @@ const DAILY_LIMIT = 30;
  */
 export const POST = withTool('montagem', async ({ user, body }) => {
   const project = await loadOwnedProject(user.uid, body?.projectId);
-  const clips = await projectClips(user.uid, project.id);
-  if (!clips.length) throw new HttpError(400, 'no_clips', 'Gere pelo menos uma cena de vídeo neste projeto antes de montar.');
+  const clips = await allProjectClips(user.uid, project);
+  if (!clips.length) throw new HttpError(400, 'no_clips', 'Gere ou envie pelo menos um vídeo neste projeto antes de montar.');
 
   const today = new Date().toISOString().slice(0, 10);
   const ref = projects().doc(project.id);

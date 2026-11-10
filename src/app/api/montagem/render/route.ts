@@ -8,7 +8,7 @@ import { MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, edlDurationFrames, edlLetteringPath
 import { isPaidPlan } from '@/lib/planConfig';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
 import { newJobId } from '@/lib/server/generation/queue';
-import { loadOwnedProject, projectClips } from '@/lib/server/montagem/projects';
+import { allProjectClips, loadOwnedProject } from '@/lib/server/montagem/projects';
 import { loadProjectBrand } from '@/lib/server/montagem/brand';
 import { StoredRender, dispatchRenders } from '@/lib/server/render/queue';
 import { lambdaConfig } from '@/lib/server/render/lambda';
@@ -36,7 +36,7 @@ export async function POST(req: Request) {
     const stored = profile.plan as string | undefined;
     const plan = isPaidPlan(stored) ? stored : 'start';
 
-    const clips = await projectClips(uid, project.id);
+    const clips = await allProjectClips(uid, project);
     const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
     const brand = await loadProjectBrand(uid, project.brandKitId);
     let edl;

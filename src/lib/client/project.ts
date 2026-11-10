@@ -45,17 +45,22 @@ export function useProjectContext(): ProjectContext | null {
   const sceneId = scene?.id;
   const updateScene = useCallback(async (patch: Partial<ProjectScene>) => {
     if (!projectId || !sceneId) return;
-    const ref = doc(db, 'video_projects', projectId);
-    await runTransaction(db, async tx => {
-      const scenes = ((await tx.get(ref)).data()?.scenes || []) as ProjectScene[];
-      if (!scenes.some(s => s.id === sceneId)) return;
-      tx.update(ref, { scenes: scenes.map(s => (s.id === sceneId ? { ...s, ...patch } : s)), updatedAt: new Date().toISOString() });
-    });
+    await updateProjectScene(projectId, sceneId, patch);
   }, [projectId, sceneId]);
 
   if (!project) return null;
   const query: Record<string, string> = { projeto: project.id, ...(scene ? { cena: scene.id } : {}) };
   return { project, scene, sceneIndex, updateScene, query };
+}
+
+/** Atualiza uma cena lendo as cenas na hora de gravar (outra aba pode ter mexido no projeto). */
+export async function updateProjectScene(projectId: string, sceneId: string, patch: Partial<ProjectScene>) {
+  const ref = doc(db, 'video_projects', projectId);
+  await runTransaction(db, async tx => {
+    const scenes = ((await tx.get(ref)).data()?.scenes || []) as ProjectScene[];
+    if (!scenes.some(s => s.id === sceneId)) return;
+    tx.update(ref, { scenes: scenes.map(s => (s.id === sceneId ? { ...s, ...patch } : s)), updatedAt: new Date().toISOString() });
+  });
 }
 
 /** Acrescenta o contexto do projeto a um endereço interno. */

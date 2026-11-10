@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { useProjectContext, withProject } from '@/lib/client/project';
 import { ProjectBar } from '@/components/montagem/ProjectBar';
+import { PROMPT_ASPECT, sceneDescription } from '@/lib/montagem';
 import { GEN_LIMITS } from '@/lib/generation';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
@@ -140,21 +141,18 @@ export default function PromptStudioPage() {
   const [resultMode, setResultMode] = useState<PromptMode>('i2v');
   const [history, setHistory] = useState<{ id: string; mode: PromptMode; description: string; createdAt: string }[]>([]);
   const projectCtx = useProjectContext();
+  /** A pessoa pode usar a página para outra coisa sem gravar nada na cena (desmarcando na barra). */
+  const [linkToScene, setLinkToScene] = useState(true);
+  const sceneCtx = linkToScene ? projectCtx : null;
 
   // Aberto a partir de uma cena do Projeto de vídeo: a descrição e a proporção vêm do projeto.
   const sceneKey = projectCtx?.scene?.id;
   useEffect(() => {
     if (!projectCtx?.scene) return;
     const { project, scene } = projectCtx;
-    const aspect = { '9:16': '9:16 (vertical)', '4:5': '4:5 (feed)', '16:9': '16:9 (horizontal)' }[project.format];
-    setChoices(prev => (prev.proporcao ? prev : { ...prev, proporcao: aspect }));
+    setChoices(prev => (prev.proporcao ? prev : { ...prev, proporcao: PROMPT_ASPECT[project.format] }));
     // A cena leva junto o papel dela no vídeo e os personagens e o estilo do projeto (coerência entre as cenas).
-    setDescription(prev => prev || [
-      `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`,
-      scene.brief ? `Papel da cena: ${scene.brief}` : '',
-      project.styleBible ? `Personagens e estilo do vídeo: ${project.styleBible}` : '',
-      project.brandPromptNote || '',
-    ].filter(Boolean).join('\n').slice(0, 2000));
+    setDescription(prev => prev || sceneDescription(project, scene));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneKey]);
 
@@ -265,7 +263,7 @@ export default function PromptStudioPage() {
       modelId: genModelFromChoices(resultMode, inputs.choices),
       source: 'prompts',
     });
-    router.push(withProject(kind === 'image' ? '/dashboard/imagens?from=prompts' : '/dashboard/videos?from=prompts', projectCtx));
+    router.push(withProject(kind === 'image' ? '/dashboard/imagens?from=prompts' : '/dashboard/videos?from=prompts', sceneCtx));
   };
 
   const setChoice = (id: string, value: string | string[]) => setChoices(prev => ({ ...prev, [id]: value }));
@@ -335,14 +333,14 @@ export default function PromptStudioPage() {
           description,
           choices: relevantChoices,
           result: data,
-          ...(projectCtx ? { projectId: projectCtx.project.id, sceneId: projectCtx.scene?.id || null } : {}),
+          ...(sceneCtx ? { projectId: sceneCtx.project.id, sceneId: sceneCtx.scene?.id || null } : {}),
           createdAt: new Date().toISOString(),
         }).catch(e => { console.error('[prompts] falha ao salvar:', e); return null; });
         if (saved) setSavedId(saved.id);
         // Na cena do projeto: frame (imagem) ou movimento (vídeo) ficam prontos para gerar.
-        if (saved && projectCtx?.scene) {
+        if (saved && sceneCtx?.scene) {
           const isImage = mode === 't2i' || mode === 'i2i';
-          await projectCtx.updateScene(isImage
+          await sceneCtx.updateScene(isImage
             ? { framePromptId: saved.id, framePrompt: data.prompt }
             : { motionPromptId: saved.id, motionPrompt: data.prompt }).catch(e => console.error('[prompts] falha ao ligar à cena:', e));
         }
@@ -359,7 +357,7 @@ export default function PromptStudioPage() {
 
   return (
     <div className="space-y-8 max-w-6xl mx-auto pb-24">
-      {projectCtx && <ProjectBar ctx={projectCtx} step="Prompts" />}
+      {projectCtx && <ProjectBar ctx={projectCtx} step="Prompts" linked={linkToScene} onLinkedChange={setLinkToScene} />}
       {/* Header */}
       <div className="flex flex-col gap-2 mb-8">
         <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full neo-glass text-brand-jade bg-brand-jade/10 text-sm font-medium w-fit mb-2">

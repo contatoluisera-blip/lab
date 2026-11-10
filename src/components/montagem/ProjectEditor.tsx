@@ -15,10 +15,11 @@ import { callTool } from '@/lib/client/api';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { STATUS_LABEL } from '@/lib/generation';
 import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
+import { UploadsPanel } from './UploadsPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
-  TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
+  ProjectUpload, TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
 
@@ -121,10 +122,12 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   }, [activeRenders]);
 
   const clipsDone = useMemo(() => jobs.filter(j => j.kind === 'video' && j.status === 'completed' && j.outputs?.[0]?.stored), [jobs]);
+  const uploads = useMemo(() => project?.uploads || [], [project?.uploads]);
   const sources = useMemo(() => ({
     ...Object.fromEntries(clipsDone.map(j => [j.id, j.outputs[0].url])),
+    ...Object.fromEntries(uploads.map(u => [u.id, u.url])),
     ...Object.fromEntries((brand?.letterings || []).map(l => [letteringSourceKey(l.id), l.url])),
-  }), [clipsDone, brand]);
+  }), [clipsDone, uploads, brand]);
   const previewEdl = useMemo(() => (edl ? { ...edl, style: brand ? edlStyleFor(brand) : null } : null), [edl, brand]);
 
   if (project === undefined || !edl) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand-mint" /></div>;
@@ -182,6 +185,16 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     changeEdl({ ...edl, clips: [...edl.clips, clip] });
   };
 
+  // Vídeo enviado: entra com o áudio original ligado.
+  const addUpload = (u: ProjectUpload) => {
+    const frames = sourceFramesFor(u.seconds);
+    const clip: EdlClip = {
+      id: newId(), jobId: u.id, sceneId: null, sourceFrames: frames,
+      trimStart: 0, trimEnd: frames, muted: false, transition: 'cut', text: '', textPosition: 'bottom',
+    };
+    changeEdl({ ...edl, clips: [...edl.clips, clip] });
+  };
+
   const animateFrame = (scene: ProjectScene, frame: Job) => {
     const out = frame.outputs?.[0];
     if (!out?.path) return;
@@ -232,6 +245,13 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     const i = project.scenes.findIndex(s => s.id === sceneId);
     return i >= 0 ? `Cena ${i + 1}` : 'Clipe';
   };
+  const clipLabel = (c: EdlClip) => (isUploadId(c.jobId) ? uploads.find(u => u.id === c.jobId)?.name || 'Vídeo enviado' : sceneNumber(c.sceneId));
+
+  // Projeto só de edição: sem roteiro, frames e animação; a numeração das etapas acompanha.
+  const isEdit = project.kind === 'edit';
+  const step = isEdit ? { uploads: 1, edit: 2, export: 3 } : { uploads: 3, edit: 4, export: 5 };
+  const hasMaterial = clipsDone.length > 0 || uploads.length > 0;
+  const usedIds = new Set(edl.clips.map(c => c.jobId));
 
   return (
     <div className="space-y-8 pb-24">
@@ -242,7 +262,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             <ArrowLeft className="w-3.5 h-3.5" /> Voltar aos projetos
           </Link>
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight truncate">{project.title}</h1>
-          <p className="text-sm text-gray-400">{project.format} · {project.scenes.length} cena(s){project.goal ? ` · ${project.goal}` : ''}</p>
+          <p className="text-sm text-gray-400">{project.format} · {isEdit ? `só edição · ${uploads.length} vídeo(s)` : `${project.scenes.length} cena(s)`}{project.goal ? ` · ${project.goal}` : ''}</p>
         </div>
         <div className="flex items-center gap-3 px-4 py-3 rounded-2xl border border-white/[0.07] bg-black/30 self-start md:self-auto">
           <Coins className="w-4 h-4 text-brand-mint" />
@@ -253,7 +273,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
         </div>
       </header>
 
-      <Pipeline project={project} jobs={jobs} edl={edl} renders={renders} />
+      {!isEdit && <Pipeline project={project} jobs={jobs} edl={edl} renders={renders} />}
 
       {error && (
         <div className="flex items-start justify-between gap-3 p-4 rounded-2xl border border-red-500/30 bg-red-500/10 text-sm text-red-200">
@@ -263,6 +283,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       )}
 
       {/* 1. Cenas: o painel de produção */}
+      {!isEdit && (<>
       <section aria-label="Cenas" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
           <div className="flex items-center gap-3">
@@ -366,12 +387,16 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
       <Storyboard project={project} jobs={jobs} onError={setError}
         onApprove={approved => saveProject({ storyboardApprovedAt: approved ? new Date().toISOString() : null })} />
+      </>)}
+
+      <UploadsPanel project={project} usedIds={usedIds} onUse={addUpload} onError={setError} step={String(step.uploads)}
+        onRemoved={id => changeEdl({ ...edl, clips: edl.clips.filter(c => c.jobId !== id) })} />
 
       {/* 3. Montagem */}
       <section aria-label="Montagem" className="space-y-4">
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <h2 className="text-sm font-semibold uppercase tracking-wide text-white">3. Montagem</h2>
-          <button type="button" onClick={autoEdit} disabled={aiBusy || !clipsDone.length}
+          <h2 className="text-sm font-semibold uppercase tracking-wide text-white">{step.edit}. Montagem</h2>
+          <button type="button" onClick={autoEdit} disabled={aiBusy || !hasMaterial}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-black bg-gradient-to-b from-[#34d399] to-[#10b981] disabled:opacity-50">
             {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? 'Montando…' : 'Montar com IA'}
           </button>
@@ -414,9 +439,9 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             ))}
           </div>
         </div>
-        {!clipsDone.length && (
+        {!hasMaterial && (
           <p className="text-sm text-gray-500 p-4 rounded-2xl border border-dashed border-white/10">
-            Gere pelo menos uma cena em vídeo (etapa 1) para começar a montar.
+            {isEdit ? `Envie pelo menos um vídeo (etapa ${step.uploads}) para começar a montar.` : `Gere uma cena em vídeo (etapa 1) ou envie seus vídeos (etapa ${step.uploads}) para começar a montar.`}
           </p>
         )}
         {aiNote && (
@@ -441,7 +466,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
               <div key={c.id} className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
                 <div className="flex items-center gap-2">
                   <span className="text-[10px] font-mono font-bold text-brand-mint">{String(i + 1).padStart(2, '0')}</span>
-                  <p className="flex-1 text-sm font-semibold text-white">{sceneNumber(c.sceneId)} <span className="text-gray-500 font-normal">· {secs(clipFrames(c))} s</span></p>
+                  <p className="flex-1 min-w-0 truncate text-sm font-semibold text-white">{clipLabel(c)} <span className="text-gray-500 font-normal">· {secs(clipFrames(c))} s</span></p>
                   <button type="button" onClick={() => patchClip(c.id, { muted: !c.muted })} aria-label={c.muted ? 'Ligar áudio do clipe' : 'Silenciar clipe'} className="p-1.5 text-gray-400 hover:text-white">
                     {c.muted ? <VolumeX className="w-4 h-4" /> : <Volume2 className="w-4 h-4" />}
                   </button>
@@ -538,7 +563,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       <section aria-label="Exportar" className="rounded-[28px] border border-white/[0.07] bg-gradient-to-b from-white/[0.035] to-white/[0.01] p-5 md:p-6 space-y-5">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
           <div>
-            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">4. Exportar</h2>
+            <h2 className="text-sm font-semibold uppercase tracking-wide text-white">{step.export}. Exportar</h2>
             <p className="text-sm text-gray-400 mt-1">
               {edl.clips.length
                 ? <>Vídeo de <strong className="text-white">{secs(totalFrames)} s</strong> em 1080p · <strong className="text-white">{cost} créditos</strong> · limite do seu plano: {maxFrames / MONTAGEM_FPS} s</>

@@ -2,10 +2,14 @@
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { Check, ChevronDown, Film, ImageIcon, Loader2, ShieldCheck } from 'lucide-react';
-import { callTool } from '@/lib/client/api';
+import { addDoc, collection } from 'firebase/firestore';
+import { db } from '@/lib/firebase';
+import { callTool, parseModelJson, streamTool } from '@/lib/client/api';
+import { updateProjectScene } from '@/lib/client/project';
+import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { GenJob, GenModel, modelsFor, normalizeConfig, quote } from '@/lib/generation';
-import { Edl, ProjectScene, RenderJob, VideoProject } from '@/lib/montagem';
+import { Edl, PROMPT_ASPECT, ProjectScene, RenderJob, VideoProject, sceneDescription } from '@/lib/montagem';
 
 export type Job = GenJob & { sceneId?: string | null };
 
@@ -67,6 +71,80 @@ function nearestDuration(model: GenModel, seconds: number) {
   return options.find(d => d >= seconds) ?? options[options.length - 1];
 }
 
+/** Reduz o frame para o Gerador de Prompts (até 1600 px, JPEG): a API aceita até ~3 MB. */
+async function shrinkDataUrl(dataUrl: string, max = 1600) {
+  const img = new Image();
+  img.src = dataUrl;
+  await img.decode();
+  const scale = Math.min(1, max / Math.max(img.width, img.height));
+  const canvas = document.createElement('canvas');
+  canvas.width = Math.round(img.width * scale);
+  canvas.height = Math.round(img.height * scale);
+  canvas.getContext('2d')!.drawImage(img, 0, 0, canvas.width, canvas.height);
+  return canvas.toDataURL('image/jpeg', 0.88);
+}
+
+const DURATION_CHOICES = [5, 8, 10, 15];
+const durationChoice = (seconds: number) => `${DURATION_CHOICES.find(d => d >= seconds) ?? 15} segundos`;
+
+/**
+ * Prompts de movimento que faltam: o mesmo Gerador de Prompts, cena a cena, com o frame
+ * aprovado e a descrição da cena. Cada prompt custa como no Gerador (1 crédito).
+ */
+function MotionPrompts({ project, scenes, onError }: {
+  project: VideoProject;
+  scenes: { scene: ProjectScene; frameJobId: string }[];
+  onError: (message: string) => void;
+}) {
+  const { user } = useAuth();
+  const { canUseTool, refreshProfile } = useUserProfile();
+  const [progress, setProgress] = useState('');
+  const alive = useRef(true);
+  useEffect(() => () => { alive.current = false; }, []);
+  const number = (s: ProjectScene) => project.scenes.findIndex(x => x.id === s.id) + 1;
+
+  const run = async () => {
+    const check = canUseTool('prompts', scenes.length);
+    if (!check.ok) { onError(check.message || 'Créditos insuficientes para criar os prompts.'); return; }
+    if (!confirm(`Criar o prompt de movimento das cenas ${scenes.map(x => number(x.scene)).join(', ')} a partir do frame e da descrição de cada uma?\nCusto: ${scenes.length} crédito(s). Deixe esta página aberta até terminar.`)) return;
+    for (let i = 0; i < scenes.length && alive.current; i++) {
+      const { scene, frameJobId } = scenes[i];
+      setProgress(`Prompt da cena ${number(scene)} (${i + 1} de ${scenes.length})...`);
+      try {
+        const frame = await callTool<{ dataUrl: string }>('/api/montagem/brand', { action: 'output', jobId: frameJobId });
+        const description = sceneDescription(project, scene);
+        const choices = { proporcao: PROMPT_ASPECT[project.format], duracao: durationChoice(scene.targetSeconds || 5) };
+        const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await shrinkDataUrl(frame.data.dataUrl) } });
+        const data = parseModelJson<{ prompt?: string }>(text);
+        if (!data.prompt) throw new Error('A IA não devolveu o prompt.');
+        const saved = await addDoc(collection(db, 'prompts'), {
+          userId: user!.uid, mode: 'i2v', description, choices, result: data,
+          projectId: project.id, sceneId: scene.id, createdAt: new Date().toISOString(),
+        }).catch(() => null);
+        await updateProjectScene(project.id, scene.id, { motionPrompt: data.prompt, motionPromptId: saved?.id || null });
+      } catch (e: any) {
+        onError(`Cena ${number(scene)}: ${e.message || 'não foi possível criar o prompt.'} Crie esse no Gerador de Prompts.`);
+        break;
+      }
+    }
+    setProgress('');
+    refreshProfile();
+  };
+
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 w-full p-3 rounded-xl border border-amber-400/30 bg-amber-400/[0.05]">
+      <p className="text-xs text-amber-100">
+        {scenes.length === 1 ? 'A cena' : 'As cenas'} {scenes.map(x => number(x.scene)).join(', ')} ainda não {scenes.length === 1 ? 'tem' : 'têm'} prompt de movimento e não entram na animação.
+      </p>
+      <button type="button" onClick={run} disabled={!!progress}
+        className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-black bg-amber-300 disabled:opacity-50">
+        {progress ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : null}
+        {progress || `Criar ${scenes.length} prompt(s) · ${scenes.length} crédito(s)`}
+      </button>
+    </div>
+  );
+}
+
 export function BatchGenerate({ kind, project, jobs, onError }: {
   kind: 'image' | 'video';
   project: VideoProject;
@@ -100,13 +178,22 @@ export function BatchGenerate({ kind, project, jobs, onError }: {
     };
   });
   const total = items.reduce((s, it) => s + it.credits, 0);
+  // Animação: cenas com frame mas sem prompt de movimento ficavam de fora sem aviso.
+  const noPrompt = kind === 'video'
+    ? project.scenes.map(scene => ({ scene, m: sceneMedia(scene, jobs) }))
+      .filter(({ m }) => m.chosenFrame && !m.motionPrompt && !m.chosenClip && !m.clipActive)
+      .map(({ scene, m }) => ({ scene, frameJobId: m.chosenFrame!.id }))
+    : [];
 
   const run = async () => {
     if (!items.length) return;
     const check = canUseTool(kind === 'image' ? 'gen-image' : 'gen-video', total);
     if (!check.ok) { onError(check.message || 'Créditos insuficientes para gerar tudo.'); return; }
     const what = kind === 'image' ? 'frame(s)' : 'cena(s) em vídeo';
-    if (!confirm(`Gerar ${items.length} ${what} com ${model.name} por ${total} créditos?\nAs gerações entram na fila (até 3 por vez); deixe esta página aberta até todas serem enviadas.`)) return;
+    // Mostra o começo de cada prompt: dá para ver se algum não é desta cena antes de gastar.
+    const list = items.map(it => `Cena ${project.scenes.indexOf(it.scene) + 1}: ${String(it.body.prompt).replace(/\s+/g, ' ').slice(0, 70)}...`).join('\n');
+    const skipped = noPrompt.length ? `\n\nFora do lote (sem prompt de movimento): cenas ${noPrompt.map(x => project.scenes.indexOf(x.scene) + 1).join(', ')}.` : '';
+    if (!confirm(`Gerar ${items.length} ${what} com ${model.name} por ${total} créditos?\n\n${list}${skipped}\n\nAs gerações entram na fila (até 3 por vez); deixe esta página aberta até todas serem enviadas.`)) return;
     for (let i = 0; i < items.length && alive.current; i++) {
       setProgress(`Enviando ${i + 1} de ${items.length}...`);
       for (;;) {
@@ -137,6 +224,7 @@ export function BatchGenerate({ kind, project, jobs, onError }: {
   const Icon = kind === 'image' ? ImageIcon : Film;
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {noPrompt.length > 0 && <MotionPrompts project={project} scenes={noPrompt} onError={onError} />}
       <label className="relative">
         <span className="sr-only">Modelo</span>
         <select value={model.id} onChange={e => setModelId(e.target.value)} disabled={!!progress}

@@ -1,7 +1,7 @@
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
 import Anthropic from '@anthropic-ai/sdk';
-import { MONTAGEM_FPS, TEXT_MAX, VideoProject } from '@/lib/montagem';
+import { MONTAGEM_FPS, TEXT_MAX, VideoProject, isUploadId } from '@/lib/montagem';
 import { BRAND_FONTS, BrandKit, LETTERING_ROLES } from '@/lib/brand';
 import type { ProjectClip } from './projects';
 
@@ -41,15 +41,20 @@ const SCHEMA = {
 
 const SYSTEM = `Você é diretor de montagem de vídeos curtos para criadores de conteúdo.
 Você recebe o roteiro dividido em cenas e os clipes de vídeo já gerados para cada cena, com a duração real de cada um.
+Pode vir também "seusVideos": vídeos que o criador enviou (takes gravados ou prontos), com nome, descrição e miniaturas
+do começo, meio e fim de cada um. Projetos só de edição não têm roteiro: monte com esses vídeos.
 Monte o primeiro corte. Regras:
 - Use apenas os jobId recebidos, exatamente como estão. Pode deixar clipes de fora se não servirem.
 - Siga a ordem do roteiro, a não ser que trazer uma cena para o início crie um gancho claramente melhor.
 - Cortes dentro da duração de cada clipe; cada trecho com pelo menos 0,6 s. Corte o começo e o fim parados quando o clipe for longo para a cena.
 - Respeite a duração alvo de cada cena quando houver e a duração máxima total informada.
 - Transições: "cut" por padrão (ritmo de Reels); "fade" para mudança de tempo ou lugar; "slide" com moderação.
-- Texto na tela: curto, em português do Brasil, só quando ajudar (gancho na 1ª cena, ideia-chave, chamada). Vazio no resto.
+- Texto na tela: curto, em português do Brasil, só quando ajudar (gancho na 1ª cena, ideia-chave, chamada). Vazio no resto. Sem emojis: a fonte do vídeo não tem.
 - endCard: ative só se o objetivo pedir chamada final (seguir, comprar, comentar); título até 6 palavras.
 - Nunca invente fatos, preços ou promessas que não estejam no roteiro.
+- Em "seusVideos", leia a descrição e as miniaturas para entender cada take. Sem roteiro, ordene pela descrição do criador
+  e pela direção de edição; na dúvida, mantenha a ordem de envio. O áudio original deles é mantido: não corte no meio
+  de uma fala descrita, e prefira cortes nas partes paradas do começo e do fim.
 Se vier "direcaoDeEdicao", ela é a direção do criador: siga ritmo, tom, uso de texto, transições e chamada final como ele pediu,
 dentro das regras acima (clipes recebidos, cortes válidos, duração máxima). Ela não muda o formato da resposta.
 No resumo, diga em uma frase como a direção foi aplicada.
@@ -80,8 +85,11 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
       .sort((a, b) => (a.jobId === s.clipJobId ? -1 : b.jobId === s.clipJobId ? 1 : b.createdAt.localeCompare(a.createdAt)))
       .map(c => ({ jobId: c.jobId, duracao: Math.round((c.sourceFrames / MONTAGEM_FPS) * 10) / 10, escolhidoPeloUsuario: c.jobId === s.clipJobId, prompt: c.prompt.slice(0, 300) })),
   }));
-  const soltos = clips.filter(c => !c.sceneId || !project.scenes.some(s => s.id === c.sceneId))
-    .map(c => ({ jobId: c.jobId, duracao: Math.round((c.sourceFrames / MONTAGEM_FPS) * 10) / 10, prompt: c.prompt.slice(0, 300) }));
+  const seconds = (c: ProjectClip) => Math.round((c.sourceFrames / MONTAGEM_FPS) * 10) / 10;
+  const soltos = clips.filter(c => !c.upload && (!c.sceneId || !project.scenes.some(s => s.id === c.sceneId)))
+    .map(c => ({ jobId: c.jobId, duracao: seconds(c), prompt: c.prompt.slice(0, 300) }));
+  const enviados = clips.filter(c => c.upload);
+  const seusVideos = enviados.map(c => ({ jobId: c.jobId, nome: c.upload!.name, duracao: seconds(c), descricao: c.prompt || null }));
 
   const payload = {
     titulo: project.title,
@@ -91,6 +99,7 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
     duracaoMaximaSegundos: maxSeconds,
     cenas: byScene,
     clipesSemCena: soltos,
+    seusVideos,
     idVisual: brand ? {
       nome: brand.name,
       cores: brand.colors,
@@ -104,6 +113,14 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
   for (const l of brand?.letterings || []) {
     content.push({ type: 'text', text: `Lettering ${l.id}:` });
     content.push({ type: 'image', source: { type: 'url', url: l.url } });
+  }
+  // Miniaturas dos vídeos enviados: com muitos takes, só a do meio (cada imagem soma tempo, e a Netlify corta em ~26 s).
+  const perTake = enviados.length > 4 ? 1 : 3;
+  for (const c of enviados) {
+    const thumbs = perTake === 1 ? [c.upload!.thumbs[1] || c.upload!.thumbs[0]].filter(Boolean) : c.upload!.thumbs;
+    if (!thumbs.length) continue;
+    content.push({ type: 'text', text: `Vídeo ${c.jobId} (${perTake === 1 ? 'meio' : 'começo, meio e fim'}):` });
+    for (const url of thumbs) content.push({ type: 'image', source: { type: 'url', url } });
   }
   content.push({ type: 'text', text: `Projeto:\n${JSON.stringify(payload, null, 1)}` });
 
@@ -127,7 +144,8 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
       transition: c.transicao,
       text: c.texto || '',
       textPosition: c.posicaoTexto,
-      muted: true,
+      // Clipes gerados entram mudos; vídeos enviados mantêm o áudio original (fala, ambiente).
+      muted: !isUploadId(String(c.jobId)),
       letteringId: String(c.letteringId || ''),
       letteringPosition: c.posicaoLettering,
       letteringSize: c.tamanhoLettering,

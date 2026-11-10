@@ -58,9 +58,44 @@ export interface ProjectScene {
   clipJobId?: string | null;
 }
 
+/**
+ * Vídeo enviado pela pessoa (take gravado ou gerado fora): entra na montagem como um clipe.
+ * O id começa com "up_" e é o jobId do clipe na linha do tempo.
+ */
+export interface ProjectUpload {
+  id: string;
+  name: string;
+  /** Caminho no Storage: sempre montagem-uploads/{uid}/... (o servidor confere). */
+  path: string;
+  url: string;
+  seconds: number;
+  width: number;
+  height: number;
+  /** O que acontece no take: o Claude monta por aqui e pelas miniaturas. */
+  description: string;
+  /** Miniaturas (começo, meio e fim) para o Claude ver o take. */
+  thumbs: { path: string; url: string }[];
+  createdAt: string;
+}
+
+export const UPLOAD_ID_PREFIX = 'up_';
+export const UPLOAD_LIMITS = {
+  maxBytes: 200 * 1024 * 1024,
+  maxSeconds: 600,
+  perProject: 30,
+  descriptionMax: 400,
+  accept: 'video/mp4,video/quicktime,video/webm,.mp4,.mov,.webm',
+};
+export const isUploadId = (id: string) => id.startsWith(UPLOAD_ID_PREFIX);
+export const uploadFolder = (uid: string) => `montagem-uploads/${uid}/`;
+
 export interface VideoProject {
   id: string;
   uid: string;
+  /** "edit": só montagem, com os vídeos da própria pessoa (sem roteiro, frames nem animação). */
+  kind?: 'full' | 'edit';
+  /** Vídeos enviados para este projeto. */
+  uploads?: ProjectUpload[];
   title: string;
   goal: string;
   format: MontagemFormat;
@@ -98,6 +133,19 @@ export function projectHref(path: string, projectId: string, sceneId?: string | 
   const params = new URLSearchParams({ ...extra, projeto: projectId });
   if (sceneId) params.set('cena', sceneId);
   return `${path}?${params.toString()}`;
+}
+
+/** Proporção do projeto no vocabulário do Gerador de Prompts. */
+export const PROMPT_ASPECT: Record<MontagemFormat, string> = { '9:16': '9:16 (vertical)', '4:5': '4:5 (feed)', '16:9': '16:9 (horizontal)' };
+
+/** Descrição de uma cena para o Gerador de Prompts: papel no vídeo, personagens, estilo e marca. */
+export function sceneDescription(project: VideoProject, scene: ProjectScene) {
+  return [
+    `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`,
+    scene.brief ? `Papel da cena: ${scene.brief}` : '',
+    project.styleBible ? `Personagens e estilo do vídeo: ${project.styleBible}` : '',
+    project.brandPromptNote || '',
+  ].filter(Boolean).join('\n').slice(0, 2000);
 }
 
 /** Divide um roteiro em cenas: blocos separados por linha em branco ou marcados com "Cena N". */
@@ -207,7 +255,8 @@ export interface AllowedClip {
 }
 
 const clampInt = (v: unknown, min: number, max: number) => Math.min(max, Math.max(min, Math.round(Number(v) || 0)));
-const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : '');
+// Sem emojis: a fonte do vídeo não tem esses caracteres e o render mostraria quadrados.
+const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/[\p{Extended_Pictographic}\u{FE0F}\u{200D}]/gu, '').replace(/\s+/g, ' ').trim().slice(0, TEXT_MAX) : '');
 
 /**
  * Valida e normaliza um plano vindo do navegador ou do Claude.
