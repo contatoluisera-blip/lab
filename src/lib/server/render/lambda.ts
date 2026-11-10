@@ -4,6 +4,7 @@
 
 import { getRenderProgress, presignUrl, renderMediaOnLambda, type AwsRegion } from '@remotion/lambda/client';
 import type { MontagemProps } from '@/remotion/Montagem';
+import { edlDurationFrames } from '@/lib/montagem';
 
 export const COMPOSITION_ID = 'Montagem';
 
@@ -22,8 +23,20 @@ function webhookUrl() {
   return { url: `${base}/api/render/webhook`, secret };
 }
 
-/** ~60 frames por função: 60 s de vídeo usam 30 funções em paralelo. */
+/** Netlify define CONTEXT=production só no deploy da main. */
+function isProductionDeploy() {
+  return process.env.CONTEXT === 'production';
+}
+
+/**
+ * ~60 frames por função (60 s de vídeo = 30 funções em paralelo), sem passar de
+ * REMOTION_MAX_LAMBDAS por render: conta nova da AWS só roda 10 funções ao mesmo tempo.
+ */
 const FRAMES_PER_LAMBDA = 60;
+function framesPerLambda(totalFrames: number) {
+  const max = Math.max(1, Number(process.env.REMOTION_MAX_LAMBDAS) || 30);
+  return Math.max(FRAMES_PER_LAMBDA, Math.ceil(totalFrames / max));
+}
 
 export async function startLambdaRender(jobId: string, props: MontagemProps) {
   const cfg = lambdaConfig();
@@ -36,10 +49,14 @@ export async function startLambdaRender(jobId: string, props: MontagemProps) {
     inputProps: props,
     codec: 'h264',
     privacy: 'private',
-    framesPerLambda: FRAMES_PER_LAMBDA,
+    framesPerLambda: framesPerLambda(edlDurationFrames(props.edl)),
     maxRetries: 2,
     downloadBehavior: { type: 'download', fileName: 'creator-lab.mp4' },
     webhook: hook ? { ...hook, customData: { jobId } } : null,
+    // Licença Remotion (plano por render): só o site em produção conta render;
+    // local e deploy preview vão como desenvolvimento, sem cobrança.
+    licenseKey: process.env.REMOTION_LICENSE_KEY || null,
+    isProduction: isProductionDeploy(),
   });
   return { renderId: res.renderId, bucketName: res.bucketName };
 }

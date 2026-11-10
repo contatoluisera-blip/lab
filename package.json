@@ -7,7 +7,7 @@
     "build": "next build",
     "start": "next start",
     "lint": "eslint",
-    "video:function": "remotion lambda functions deploy --memory=3009 --timeout=240 --disk=10240",
+    "video:function": "remotion lambda functions deploy --memory=3008 --timeout=240 --disk=10240",
     "video:site": "remotion lambda sites create src/remotion/index.ts --site-name=creator-lab-montagem",
     "video:studio": "remotion studio src/remotion/index.ts --port 3011"
   },
