@@ -71,10 +71,15 @@ function nearestDuration(model: GenModel, seconds: number) {
   return options.find(d => d >= seconds) ?? options[options.length - 1];
 }
 
-/** Reduz o frame para o Gerador de Prompts (até 1600 px, JPEG): a API aceita até ~3 MB. */
-async function shrinkDataUrl(dataUrl: string, max = 1600) {
+/**
+ * Lê o frame direto do Storage (o bucket libera leitura com CORS; o link já leva o token) e reduz
+ * para o Gerador de Prompts (até 1600 px, JPEG). Frames chegam a 8 MB: passar pelo servidor estoura a Netlify.
+ */
+async function frameForPrompt(url: string, max = 1600) {
   const img = new Image();
-  img.src = dataUrl;
+  img.crossOrigin = 'anonymous';
+  // Parâmetro extra: o storyboard já carregou este arquivo sem CORS, e o cache não serviria para o canvas.
+  img.src = `${url}${url.includes('?') ? '&' : '?'}cors=1`;
   await img.decode();
   const scale = Math.min(1, max / Math.max(img.width, img.height));
   const canvas = document.createElement('canvas');
@@ -93,7 +98,7 @@ const durationChoice = (seconds: number) => `${DURATION_CHOICES.find(d => d >= s
  */
 function MotionPrompts({ project, scenes, onError }: {
   project: VideoProject;
-  scenes: { scene: ProjectScene; frameJobId: string }[];
+  scenes: { scene: ProjectScene; frameUrl: string }[];
   onError: (message: string) => void;
 }) {
   const { user } = useAuth();
@@ -108,13 +113,12 @@ function MotionPrompts({ project, scenes, onError }: {
     if (!check.ok) { onError(check.message || 'Créditos insuficientes para criar os prompts.'); return; }
     if (!confirm(`Criar o prompt de movimento das cenas ${scenes.map(x => number(x.scene)).join(', ')} a partir do frame e da descrição de cada uma?\nCusto: ${scenes.length} crédito(s). Deixe esta página aberta até terminar.`)) return;
     for (let i = 0; i < scenes.length && alive.current; i++) {
-      const { scene, frameJobId } = scenes[i];
+      const { scene, frameUrl } = scenes[i];
       setProgress(`Prompt da cena ${number(scene)} (${i + 1} de ${scenes.length})...`);
       try {
-        const frame = await callTool<{ dataUrl: string }>('/api/montagem/brand', { action: 'output', jobId: frameJobId });
         const description = sceneDescription(project, scene);
         const choices = { proporcao: PROMPT_ASPECT[project.format], duracao: durationChoice(scene.targetSeconds || 5) };
-        const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await shrinkDataUrl(frame.data.dataUrl) } });
+        const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await frameForPrompt(frameUrl) } });
         const data = parseModelJson<{ prompt?: string }>(text);
         if (!data.prompt) throw new Error('A IA não devolveu o prompt.');
         const saved = await addDoc(collection(db, 'prompts'), {
@@ -182,7 +186,7 @@ export function BatchGenerate({ kind, project, jobs, onError }: {
   const noPrompt = kind === 'video'
     ? project.scenes.map(scene => ({ scene, m: sceneMedia(scene, jobs) }))
       .filter(({ m }) => m.chosenFrame && !m.motionPrompt && !m.chosenClip && !m.clipActive)
-      .map(({ scene, m }) => ({ scene, frameJobId: m.chosenFrame!.id }))
+      .map(({ scene, m }) => ({ scene, frameUrl: m.chosenFrame!.outputs[0].url }))
     : [];
 
   const run = async () => {
