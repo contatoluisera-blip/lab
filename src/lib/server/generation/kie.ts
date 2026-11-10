@@ -301,18 +301,28 @@ export interface KieRecord {
   urls: string[];
   /** Duração de cada arquivo, quando o provedor informa (trilhas do Suno). */
   durations?: (number | undefined)[];
+  /**
+   * Suno avisa em etapas (texto, primeira faixa, todas): o registro já diz "success" antes de existir
+   * o MP3 final de cada faixa. Enquanto faltar algum, o resultado ainda não está pronto.
+   */
+  incomplete?: boolean;
   failMsg?: string;
   creditsConsumed?: number;
 }
 
 /** Suno: as faixas vêm em data[] com audio_url e duration (docs.kie.ai/suno-api/generate-music). */
-function collectTracks(obj: any): { url: string; seconds?: number }[] {
+function collectTracks(obj: any): { url: string; seconds?: number }[] & { incomplete?: boolean } {
   const lists = [obj?.data, obj?.response?.data, Array.isArray(obj) ? obj : null];
   for (const list of lists) {
     if (!Array.isArray(list)) continue;
-    const tracks = list.filter((t: any) => t && typeof t.audio_url === 'string' && t.audio_url)
+    const audio = list.filter((t: any) => t && (typeof t.audio_url === 'string' || typeof t.stream_audio_url === 'string' || t.id));
+    if (!audio.length) continue;
+    const tracks: { url: string; seconds?: number }[] & { incomplete?: boolean } = audio
+      .filter((t: any) => typeof t.audio_url === 'string' && t.audio_url)
       .map((t: any) => ({ url: t.audio_url as string, seconds: typeof t.duration === 'number' ? t.duration : undefined }));
-    if (tracks.length) return tracks;
+    // Faixa listada sem o MP3 final (só o stream): ainda está terminando.
+    tracks.incomplete = tracks.length < audio.length;
+    return tracks;
   }
   return [];
 }
@@ -333,13 +343,15 @@ export async function getKieRecord(apiKey: string, taskId: string): Promise<KieR
   const d = data.data;
   let parsed: any = null;
   try { parsed = typeof d.resultJson === 'string' ? JSON.parse(d.resultJson) : d.resultJson; } catch { /* sem resultado ainda */ }
-  const tracks = collectTracks(parsed).length ? collectTracks(parsed) : collectTracks(d.response ? { data: d.response.data ?? d.response } : null);
+  const fromResult = collectTracks(parsed);
+  const tracks = fromResult.length || fromResult.incomplete ? fromResult : collectTracks(d.response ? { data: d.response.data ?? d.response } : null);
   const urls = tracks.length ? tracks.map(t => t.url) : collectUrls(parsed).length ? collectUrls(parsed) : collectUrls(d.response);
   const state = ['waiting', 'queuing', 'generating', 'success', 'fail'].includes(d.state) ? d.state : 'unknown';
   return {
     state,
     urls,
     durations: tracks.length ? tracks.map(t => t.seconds) : undefined,
+    incomplete: !!tracks.incomplete || (String(d.model || '').includes('music') && !tracks.length),
     failMsg: d.failMsg || undefined,
     creditsConsumed: typeof d.creditsConsumed === 'number' ? d.creditsConsumed : undefined,
   };

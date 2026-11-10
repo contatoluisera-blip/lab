@@ -210,7 +210,8 @@ export async function refreshJob(jobId: string) {
     });
     return 'failed';
   }
-  if (record.state !== 'success') {
+  // Trilha (Suno): "success" chega antes do MP3 final de cada faixa; espera, sem dar como falha.
+  if (record.state !== 'success' || (job.kind === 'audio' && record.incomplete)) {
     const started = Date.parse(job.submittedAt || job.createdAt);
     if (Date.now() - started > PROCESSING_TIMEOUT_MS) {
       await failJob(job.id, 'A geração passou de 30 minutos e foi cancelada. Seu crédito foi devolvido.');
