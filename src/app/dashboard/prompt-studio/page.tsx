@@ -9,6 +9,7 @@ import { setGenHandoff } from '@/lib/client/handoff';
 import { useProjectContext, withProject } from '@/lib/client/project';
 import { ProjectBar } from '@/components/montagem/ProjectBar';
 import { PROMPT_ASPECT, sceneDescription } from '@/lib/montagem';
+import { ensurePromptFits } from '@/lib/client/promptFit';
 import { GEN_LIMITS } from '@/lib/generation';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
@@ -314,6 +315,11 @@ export default function PromptStudioPage() {
       });
       const data = parseModelJson<PromptResult>(text);
       if (!data.prompt) throw new Error('A IA não devolveu o prompt. Tente de novo.');
+      // As plataformas aceitam até 2.500 caracteres: se passou, o Claude enxuga mantendo os blocos.
+      if (data.prompt.length > GEN_LIMITS.promptTarget) {
+        setProgress('Ajustando o prompt ao limite das plataformas...');
+        data.prompt = await ensurePromptFits(data.prompt, data.negativePrompt || '');
+      }
 
       setResult(data);
       setResultMode(mode);

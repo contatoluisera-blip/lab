@@ -8,7 +8,8 @@ import { callTool, parseModelJson, streamTool } from '@/lib/client/api';
 import { updateProjectScene } from '@/lib/client/project';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
-import { GenJob, GenModel, modelsFor, normalizeConfig, quote } from '@/lib/generation';
+import { GEN_LIMITS, GenJob, GenModel, modelsFor, normalizeConfig, quote } from '@/lib/generation';
+import { ensurePromptFits } from '@/lib/client/promptFit';
 import { Edl, PROMPT_ASPECT, ProjectScene, RenderJob, VideoProject, sceneDescription } from '@/lib/montagem';
 
 export type Job = GenJob & { sceneId?: string | null };
@@ -119,8 +120,9 @@ function MotionPrompts({ project, scenes, onError }: {
         const description = sceneDescription(project, scene);
         const choices = { proporcao: PROMPT_ASPECT[project.format], duracao: durationChoice(scene.targetSeconds || 5) };
         const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await frameForPrompt(frameUrl) } });
-        const data = parseModelJson<{ prompt?: string }>(text);
+        const data = parseModelJson<{ prompt?: string; negativePrompt?: string }>(text);
         if (!data.prompt) throw new Error('A IA não devolveu o prompt.');
+        data.prompt = await ensurePromptFits(data.prompt, data.negativePrompt || '');
         const saved = await addDoc(collection(db, 'prompts'), {
           userId: user!.uid, mode: 'i2v', description, choices, result: data,
           projectId: project.id, sceneId: scene.id, createdAt: new Date().toISOString(),
@@ -202,7 +204,14 @@ export function BatchGenerate({ kind, project, jobs, onError }: {
       setProgress(`Enviando ${i + 1} de ${items.length}...`);
       for (;;) {
         try {
-          await callTool('/api/gen/create', items[i].body);
+          // Prompt salvo antes do limite (ou longo demais): o Claude enxuga e a cena guarda a versão nova.
+          const body = items[i].body;
+          if (body.prompt.length > GEN_LIMITS.promptMax) {
+            setProgress(`Ajustando o prompt da cena ${project.scenes.indexOf(items[i].scene) + 1} ao limite de ${GEN_LIMITS.promptMax} caracteres...`);
+            body.prompt = await ensurePromptFits(body.prompt);
+            await updateProjectScene(project.id, items[i].scene.id, kind === 'image' ? { framePrompt: body.prompt } : { motionPrompt: body.prompt });
+          }
+          await callTool('/api/gen/create', body);
           break;
         } catch (e: any) {
           if (e.code === 'too_many_active' && alive.current) {

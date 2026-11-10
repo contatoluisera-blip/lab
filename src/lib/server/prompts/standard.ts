@@ -297,4 +297,8 @@ Responda APENAS com um objeto JSON válido, sem markdown e sem texto fora dele, 
 }
 "ficha" deve ter de 6 a 10 itens curtos em português com as escolhas finais (Modelo, Modo, Duração/Resolução, Proporção, Câmera ou Composição, Lente, Estilo, Luz, Áudio quando houver).
 Falas de personagens ficam em PT-BR entre aspas dentro do prompt em inglês, com a indicação "in Brazilian Portuguese".
+Tamanho: "prompt" com no máximo 2.000 caracteres (as plataformas cortam em 2.500, somando o negative) e "negativePrompt" com no máximo 250.
+Para caber sem perder qualidade: cada bloco rotulado em frases densas e concretas; não redescreva o que a imagem já mostra;
+não repita a mesma restrição em dois blocos. Se precisar cortar, corte adjetivos e redundâncias, nunca a ação no tempo,
+a câmera, a continuidade (o que fica idêntico) nem as falas.
 `.trim();

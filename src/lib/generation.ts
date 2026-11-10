@@ -569,6 +569,8 @@ export const STATUS_LABEL: Record<GenStatus, string> = {
 /** Limites de entrada (iguais na tela e no servidor). */
 export const GEN_LIMITS = {
   promptMax: 2500,
+  /** Tamanho que o Gerador de Prompts mira: sobra espaço para o "Avoid: ..." que alguns modelos recebem no fim. */
+  promptTarget: 2000,
   imageMaxBytes: 10 * 1024 * 1024,
   videoMaxBytes: 10 * 1024 * 1024,
   videoMinSeconds: 2,

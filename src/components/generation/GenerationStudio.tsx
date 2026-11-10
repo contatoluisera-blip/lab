@@ -15,6 +15,7 @@ import { callTool } from '@/lib/client/api';
 import { setGenHandoff, takeGenHandoff } from '@/lib/client/handoff';
 import { useProjectContext, withProject } from '@/lib/client/project';
 import { ProjectBar } from '@/components/montagem/ProjectBar';
+import { ensurePromptFits } from '@/lib/client/promptFit';
 import {
   GEN_LIMITS, GEN_MODES, GEN_TERMS_VERSION, GenConfig, GenJob, GenKind, GenMode, STATUS_LABEL,
   getModel, modelsFor, normalizeConfig, quote,
@@ -324,8 +325,11 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
         await uploadBytes(storageRef(storage, videoPath), video.file, { contentType: video.file.type });
       }
 
+      // Prompt trazido da cena ou do Gerador que passou do limite: o Claude enxuga antes de enviar.
+      const finalPrompt = await ensurePromptFits(prompt.trim(), negative.trim());
+      if (finalPrompt !== prompt.trim()) setPrompt(finalPrompt);
       const res = await callTool<{ id: string; position: number | null }>('/api/gen/create', {
-        kind, mode, modelId: model.id, config, prompt: prompt.trim(), negativePrompt: negative.trim(),
+        kind, mode, modelId: model.id, config, prompt: finalPrompt, negativePrompt: negative.trim(),
         inputs: { images, video: videoPath }, promptId: source?.id || null,
         projectId: sceneCtx?.project.id || null, sceneId: sceneCtx?.scene?.id || null,
       });
@@ -335,8 +339,8 @@ export function GenerationStudio({ kind }: { kind: GenKind }) {
       // Prompt escrito aqui (sem o Gerador de Prompts) também vale como o prompt da cena.
       if (sceneCtx?.scene) {
         const patch = kind === 'image'
-          ? { framePrompt: prompt.trim(), framePromptId: source?.id || null }
-          : { motionPrompt: prompt.trim(), motionPromptId: source?.id || null };
+          ? { framePrompt: finalPrompt, framePromptId: source?.id || null }
+          : { motionPrompt: finalPrompt, motionPromptId: source?.id || null };
         sceneCtx.updateScene(patch).catch(err => console.error('[gen] falha ao ligar o prompt à cena:', err));
       }
     } catch (e: any) {
