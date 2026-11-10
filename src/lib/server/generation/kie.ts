@@ -12,6 +12,8 @@ export interface KieInputs {
   negativePrompt?: string;
   imageUrls: string[];
   videoUrl?: string;
+  /** Título da trilha (Suno). */
+  title?: string;
 }
 
 /** Corpo do createTask para cada modelo do catálogo. */
@@ -44,6 +46,20 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
           duration: String(config.duration === 10 ? 10 : 5),
           mode: config.quality === 'std' ? 'std' : config.quality === '4k' ? '4K' : 'pro',
           multi_shots: false,
+        },
+      };
+    case 'suno-v6':
+      // Modo personalizado: estilo + título; instrumental (a locução entra por cima na Montagem).
+      return {
+        model: 'ai-music-api/generate',
+        input: {
+          custom_mode: true,
+          instrumental: true,
+          model: 'V6',
+          style: inputs.prompt.slice(0, 1000),
+          title: (inputs.title || 'Trilha Creator Lab').slice(0, 80),
+          ...(inputs.negativePrompt ? { negative_tags: inputs.negativePrompt.slice(0, 200) } : {}),
+          duration: Math.min(360, Math.max(10, Number(config.duration) || 30)),
         },
       };
     case 'veo-fast':
@@ -283,8 +299,22 @@ export async function createKieTask(apiKey: string, payload: Record<string, unkn
 export interface KieRecord {
   state: 'waiting' | 'queuing' | 'generating' | 'success' | 'fail' | 'unknown';
   urls: string[];
+  /** Duração de cada arquivo, quando o provedor informa (trilhas do Suno). */
+  durations?: (number | undefined)[];
   failMsg?: string;
   creditsConsumed?: number;
+}
+
+/** Suno: as faixas vêm em data[] com audio_url e duration (docs.kie.ai/suno-api/generate-music). */
+function collectTracks(obj: any): { url: string; seconds?: number }[] {
+  const lists = [obj?.data, obj?.response?.data, Array.isArray(obj) ? obj : null];
+  for (const list of lists) {
+    if (!Array.isArray(list)) continue;
+    const tracks = list.filter((t: any) => t && typeof t.audio_url === 'string' && t.audio_url)
+      .map((t: any) => ({ url: t.audio_url as string, seconds: typeof t.duration === 'number' ? t.duration : undefined }));
+    if (tracks.length) return tracks;
+  }
+  return [];
 }
 
 function collectUrls(obj: any): string[] {
@@ -303,11 +333,13 @@ export async function getKieRecord(apiKey: string, taskId: string): Promise<KieR
   const d = data.data;
   let parsed: any = null;
   try { parsed = typeof d.resultJson === 'string' ? JSON.parse(d.resultJson) : d.resultJson; } catch { /* sem resultado ainda */ }
-  const urls = collectUrls(parsed).length ? collectUrls(parsed) : collectUrls(d.response);
+  const tracks = collectTracks(parsed).length ? collectTracks(parsed) : collectTracks(d.response ? { data: d.response.data ?? d.response } : null);
+  const urls = tracks.length ? tracks.map(t => t.url) : collectUrls(parsed).length ? collectUrls(parsed) : collectUrls(d.response);
   const state = ['waiting', 'queuing', 'generating', 'success', 'fail'].includes(d.state) ? d.state : 'unknown';
   return {
     state,
     urls,
+    durations: tracks.length ? tracks.map(t => t.seconds) : undefined,
     failMsg: d.failMsg || undefined,
     creditsConsumed: typeof d.creditsConsumed === 'number' ? d.creditsConsumed : undefined,
   };

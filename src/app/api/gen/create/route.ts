@@ -48,7 +48,8 @@ export async function POST(req: Request) {
     const model = getModel(String(body.modelId || ''));
     const mode = body.mode as GenMode;
     if (!model || !model.modes.includes(mode)) throw new HttpError(400, 'bad_model', 'Escolha um modelo compatível com o tipo de geração.');
-    tool = model.kind === 'video' ? 'gen-video' : 'gen-image';
+    // Trilha só existe dentro da Montagem: cobra na ferramenta dela.
+    tool = model.kind === 'video' ? 'gen-video' : model.kind === 'audio' ? 'montagem' : 'gen-image';
 
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (prompt.length < 3) throw new HttpError(400, 'missing_prompt', 'Escreva ou importe um prompt antes de gerar.');
@@ -117,6 +118,7 @@ export async function POST(req: Request) {
       promptId: typeof body.promptId === 'string' ? body.promptId.slice(0, 64) : null,
       projectId,
       sceneId,
+      title: model.kind === 'audio' && typeof body.title === 'string' ? body.title.trim().slice(0, 80) || null : null,
       expectedKieCredits: price.kieCredits,
       refunded: false,
       attempts: 0,
@@ -126,7 +128,7 @@ export async function POST(req: Request) {
     await adminDb.collection('gen_jobs').doc(id).set(job);
     charge = null; // a partir daqui, o estorno é da fila (failJob)
 
-    await logPlatformAction(uid, user.email ?? undefined, tool, `Pediu ${model.kind === 'video' ? 'vídeo' : 'imagem'} (${model.name}, ${price.credits} créditos)`);
+    await logPlatformAction(uid, user.email ?? undefined, tool, `Pediu ${model.kind === 'video' ? 'vídeo' : model.kind === 'audio' ? 'trilha' : 'imagem'} (${model.name}, ${price.credits} créditos)`);
     await dispatchQueue(4).catch(e => console.error('[gen] dispatch após criar', e?.message));
     const positions = await queuePositions([id]);
 

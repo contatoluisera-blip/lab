@@ -5,8 +5,8 @@
 // Para mudar preço ou modelo, edite só este arquivo.
 // ─────────────────────────────────────────────────────────────
 
-export type GenKind = 'image' | 'video';
-export type GenMode = 't2i' | 'i2i' | 't2v' | 'i2v' | 'v2v';
+export type GenKind = 'image' | 'video' | 'audio';
+export type GenMode = 't2i' | 'i2i' | 't2v' | 'i2v' | 'v2v' | 't2a';
 
 /** Versão dos termos de uso da geração. Mudou o texto? Suba a versão: todos aceitam de novo. */
 export const GEN_TERMS_VERSION = '2026-11-04';
@@ -457,9 +457,28 @@ const BASE_FAMILY: Record<string, { family: string; featured?: boolean; highligh
   'wan-v2v': { family: 'Alibaba', featured: true },
 };
 
+/**
+ * Trilha sonora da Montagem: Suno V6 na KIE, instrumental, com a duração pedida (10 a 360 s).
+ * Preço oficial (kie.ai/suno-api): 12 créditos KIE = US$ 0,06 por pedido, que devolve mais de uma versão.
+ */
+const AUDIO_MODELS: GenModel[] = [
+  {
+    id: 'suno-v6', kind: 'audio', family: 'Suno', featured: true,
+    name: 'Suno V6',
+    tagline: 'Trilha instrumental no clima e na duração do vídeo.',
+    badges: ['Instrumental', 'Até 6 min'],
+    modes: ['t2a'],
+    durations: [15, 30, 45, 60, 90, 120, 180].map(v => ({ value: v, label: `${v} s` })),
+    defaults: { duration: 30 },
+    priceUsd: () => 0.06,
+    tierCredits: () => 1,
+  },
+];
+
 export const GEN_MODELS: GenModel[] = [
   ...BASE_MODELS.map(m => ({ ...m, ...BASE_FAMILY[m.id] })),
   ...EXTRA_MODELS,
+  ...AUDIO_MODELS,
 ];
 
 export const GEN_MODES: Record<GenKind, { id: GenMode; label: string; description: string }[]> = {
@@ -471,6 +490,9 @@ export const GEN_MODES: Record<GenKind, { id: GenMode; label: string; descriptio
     { id: 'i2v', label: 'Imagem → vídeo', description: 'Anime um frame seu, com primeiro e último quadro.' },
     { id: 't2v', label: 'Texto → vídeo', description: 'A cena nasce só do prompt.' },
     { id: 'v2v', label: 'Vídeo → vídeo', description: 'Transforme um vídeo mantendo o movimento.' },
+  ],
+  audio: [
+    { id: 't2a', label: 'Trilha', description: 'Música instrumental a partir do clima e do estilo.' },
   ],
 };
 
@@ -525,7 +547,9 @@ export type GenStatus = 'queued' | 'submitting' | 'processing' | 'finalizing' | 
 
 export interface GenOutput {
   url: string;
-  type: 'image' | 'video';
+  type: 'image' | 'video' | 'audio';
+  /** Duração em segundos (trilhas). */
+  seconds?: number;
   /** Guardado no Storage da Creator Lab (sem prazo) ou só no link da KIE (14 dias). */
   stored: boolean;
   /** Caminho no Storage: permite reaproveitar o resultado como entrada (ex.: animar uma imagem). */

@@ -277,7 +277,13 @@ export interface Edl {
   watermark?: { assetId: string; type: 'image' | 'video'; frames: number; corner: WatermarkCorner; size: LetteringSize; opacity: number } | null;
   /** Vinheta final animada (vídeo do projeto), depois da chamada final, com o áudio dela. */
   outro?: { assetId: string; frames: number; muted: boolean } | null;
+  /** Trilha (faixa de uma geração de áudio do projeto): toca em loop sob o vídeo todo, com fade no fim. */
+  music?: { jobId: string; index: number; volume: number } | null;
 }
+
+/** Chave da trilha em `sources` e em `sourcePaths`. */
+export const musicSourceKey = (jobId: string, index: number) => `music:${jobId}:${index}`;
+export const MUSIC_DEFAULT_VOLUME = 0.35;
 
 export function emptyEdl(format: MontagemFormat): Edl {
   return { version: 1, format, fps: MONTAGEM_FPS, clips: [], endCard: { enabled: false, title: '', subtitle: '' } };
@@ -334,7 +340,7 @@ const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/[\p{Extend
  * cortes ficam dentro da duração do arquivo. Letterings e estilo vêm só da ID Visual do projeto.
  * Lança Error com mensagem em português.
  */
-export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = []): Edl {
+export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = [], music: Record<string, { path: string }> = {}): Edl {
   const validLettering = (v: unknown) => (typeof v === 'string' && (brand?.letterings.some(l => l.id === v) || assets.some(a => a.type === 'image' && a.id === v)) ? v : null);
   const list: any[] = Array.isArray(raw?.clips) ? raw.clips : [];
   if (!list.length) throw new Error('Coloque pelo menos uma cena na linha do tempo.');
@@ -378,7 +384,12 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
   // A duração da vinheta vem do arquivo (servidor), não do que o navegador mandou.
   const outroAsset = assets.find(a => a.id === raw?.outro?.assetId && a.type === 'video');
   const outro = outroAsset ? { assetId: outroAsset.id, frames: sourceFramesFor(Math.min(ASSET_LIMITS.videoMaxSeconds, outroAsset.seconds || 3)), muted: raw.outro.muted === true } : null;
-  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null, watermark, outro };
+  const musicKey = raw?.music ? musicSourceKey(String(raw.music.jobId), Math.round(Number(raw.music.index) || 0)) : '';
+  const track = musicKey && music[musicKey] ? {
+    jobId: String(raw.music.jobId), index: Math.round(Number(raw.music.index) || 0),
+    volume: Math.min(1, Math.max(0.05, Number(raw.music.volume) || MUSIC_DEFAULT_VOLUME)),
+  } : null;
+  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null, watermark, outro, music: track };
   const frames = edlDurationFrames(edl);
   if (frames > maxFrames) {
     throw new Error(`O vídeo tem ${Math.ceil(frames / MONTAGEM_FPS)} s e o seu plano permite até ${Math.floor(maxFrames / MONTAGEM_FPS)} s. Corte algumas cenas.`);

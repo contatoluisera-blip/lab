@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
 import { HttpError } from '@/lib/server/auth';
-import { ASSET_ID_PREFIX, ASSET_LIMITS, AllowedClip, ProjectAsset, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
+import { ASSET_ID_PREFIX, ASSET_LIMITS, AllowedClip, ProjectAsset, musicSourceKey, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
 import { LETTERING_ROLES } from '@/lib/brand';
 import type { StoredJob } from '@/lib/server/generation/queue';
 
@@ -99,4 +99,16 @@ export function projectAssets(uid: string, project: VideoProject): ProjectAsset[
       transparent: a.transparent !== false,
       createdAt: String(a.createdAt || ''),
     }));
+}
+
+/** Trilhas geradas no projeto (Suno): chave da faixa → caminho no Storage, para validar e assinar no render. */
+export async function projectMusic(uid: string, projectId: string): Promise<Record<string, { path: string }>> {
+  const snap = await adminDb.collection('gen_jobs').where('uid', '==', uid).where('projectId', '==', projectId).get();
+  const out: Record<string, { path: string }> = {};
+  for (const d of snap.docs) {
+    const j = d.data() as StoredJob;
+    if (j.kind !== 'audio' || j.status !== 'completed') continue;
+    (j.outputs || []).forEach((o, i) => { if (o.stored && o.path) out[musicSourceKey(d.id, i)] = { path: o.path }; });
+  }
+  return out;
 }

@@ -27,10 +27,13 @@ import { Viewfinder } from './Viewfinder';
 import { TermsModal } from './TermsModal';
 import { PromptImport, SavedPrompt } from './PromptImport';
 
-/** Prompts do Gerador que servem para cada aba. */
-const IMPORTABLE: Record<GenKind, PromptMode[]> = { image: ['t2i', 'i2i'], video: ['i2v', 'v2v'] };
+/** Esta tela gera imagem e vídeo; trilha fica na Montagem. */
+type StudioKind = Exclude<GenKind, 'audio'>;
 
-const COPY: Record<GenKind, { title: string; subtitle: string; cta: string; tool: 'gen-image' | 'gen-video' }> = {
+/** Prompts do Gerador que servem para cada aba. */
+const IMPORTABLE: Record<StudioKind, PromptMode[]> = { image: ['t2i', 'i2i'], video: ['i2v', 'v2v'] };
+
+const COPY: Record<StudioKind, { title: string; subtitle: string; cta: string; tool: 'gen-image' | 'gen-video' }> = {
   image: {
     title: 'Gerar imagem',
     subtitle: 'Frames, capas e cenas estáticas com os melhores modelos de imagem. Direção no Gerador de Prompts, geração aqui.',
@@ -100,7 +103,7 @@ async function download(url: string, name: string) {
   }
 }
 
-export function GenerationStudio({ kind }: { kind: GenKind }) {
+export function GenerationStudio({ kind }: { kind: StudioKind }) {
   const { user } = useAuth();
   const router = useRouter();
   const { userProfile, account, refreshProfile, hasToolAccess, canUseTool } = useUserProfile();

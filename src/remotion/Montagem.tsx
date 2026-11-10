@@ -1,9 +1,9 @@
 import React from 'react';
-import { AbsoluteFill, Img, Loop, OffthreadVideo, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Audio, Img, Loop, OffthreadVideo, Sequence, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { TransitionSeries, linearTiming } from '@remotion/transitions';
 import { fade } from '@remotion/transitions/fade';
 import { slide } from '@remotion/transitions/slide';
-import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, transitionFramesAt } from '../lib/montagem';
+import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
 import type { EdlStyle } from '../lib/brand';
 import { FONTS } from './fonts';
 
@@ -134,6 +134,15 @@ function Outro({ src, muted, background }: { src: string; muted: boolean; backgr
   );
 }
 
+/** Trilha sob o vídeo todo: entra em 0,5 s, repete se for curta e some no último 1,5 s. */
+function Music({ src, volume }: { src: string; volume: number }) {
+  const { fps, durationInFrames } = useVideoConfig();
+  return (
+    <Audio src={src} loop volume={f => (durationInFrames < fps * 3 ? volume
+      : volume * interpolate(f, [0, fps * 0.5, durationInFrames - fps * 1.5, durationInFrames], [0, 1, 1, 0], { extrapolateLeft: 'clamp', extrapolateRight: 'clamp' }))} />
+  );
+}
+
 export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
   const items: React.ReactNode[] = [];
   edl.clips.forEach((clip, i) => {
@@ -173,6 +182,9 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       <TransitionSeries>{items}</TransitionSeries>
+      {edl.music && sources[musicSourceKey(edl.music.jobId, edl.music.index)]
+        ? <Music src={sources[musicSourceKey(edl.music.jobId, edl.music.index)]} volume={edl.music.volume} />
+        : null}
       {edl.watermark && markSrc && clipsFrames > 0 ? (
         <Sequence durationInFrames={clipsFrames}>
           <Watermark mark={edl.watermark} src={markSrc} />

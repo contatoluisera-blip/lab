@@ -40,6 +40,8 @@ export interface StoredJob extends GenJob {
   tool: ToolId;
   lastCheckedAt?: string | null;
   attempts: number;
+  /** Título da trilha (Suno). */
+  title?: string | null;
 }
 
 /** Id em ordem de criação: permite listar as gerações de alguém pela ordem sem índice composto. */
@@ -112,7 +114,7 @@ async function submit(job: StoredJob) {
   }
 
   const payload = buildKiePayload(job.modelId, job.mode as GenMode, job.config as GenConfig, {
-    prompt: job.prompt, negativePrompt: job.negativePrompt || undefined, imageUrls, videoUrl,
+    prompt: job.prompt, negativePrompt: job.negativePrompt || undefined, imageUrls, videoUrl, title: job.title || undefined,
   });
   const result = await createKieTask(apiKey, payload, callbackUrl(job.id));
   const ref = jobs().doc(job.id);
@@ -163,13 +165,14 @@ export async function dispatchQueue(max = GEN_RATE_LIMIT) {
 }
 
 // ── Conclusão ────────────────────────────────────────────────────────────────
-async function storeOutput(job: StoredJob, url: string, index: number): Promise<GenOutput> {
-  const type: GenOutput['type'] = job.kind === 'video' ? 'video' : 'image';
+async function storeOutput(job: StoredJob, url: string, index: number, seconds?: number): Promise<GenOutput> {
+  const type: GenOutput['type'] = job.kind === 'video' ? 'video' : job.kind === 'audio' ? 'audio' : 'image';
+  const extra = seconds ? { seconds: Math.round(seconds * 100) / 100 } : {};
   try {
     const res = await fetch(url);
     if (!res.ok) throw new Error(`download ${res.status}`);
-    const contentType = res.headers.get('content-type') || (type === 'video' ? 'video/mp4' : 'image/png');
-    const ext = type === 'video' ? 'mp4' : contentType.includes('jpeg') ? 'jpg' : 'png';
+    const contentType = res.headers.get('content-type') || (type === 'video' ? 'video/mp4' : type === 'audio' ? 'audio/mpeg' : 'image/png');
+    const ext = type === 'video' ? 'mp4' : type === 'audio' ? (contentType.includes('wav') ? 'wav' : 'mp3') : contentType.includes('jpeg') ? 'jpg' : 'png';
     const path = `gen-outputs/${job.uid}/${job.id}/${index}.${ext}`;
     const token = randomUUID();
     const bucket = adminStorage.bucket();
@@ -181,11 +184,12 @@ async function storeOutput(job: StoredJob, url: string, index: number): Promise<
       type,
       stored: true,
       path,
+      ...extra,
     };
   } catch (e: any) {
     // Sem cópia, o link da KIE ainda vale por 14 dias.
     console.error('[gen] falha ao copiar resultado', job.id, e?.message);
-    return { url, type, stored: false };
+    return { url, type, stored: false, ...extra };
   }
 }
 
@@ -227,7 +231,7 @@ export async function refreshJob(jobId: string) {
   });
   if (!claimed) return 'finalizing';
 
-  const outputs = await Promise.all(record.urls.slice(0, 4).map((u, i) => storeOutput(job, u, i)));
+  const outputs = await Promise.all(record.urls.slice(0, 4).map((u, i) => storeOutput(job, u, i, record.durations?.[i])));
   const consumed = record.creditsConsumed ?? null;
   const costMismatch = consumed != null && consumed > job.expectedKieCredits * 1.15;
   if (costMismatch) console.warn('[gen] consumo acima do previsto', job.id, job.modelId, consumed, job.expectedKieCredits);
