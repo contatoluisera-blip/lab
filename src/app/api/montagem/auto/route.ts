@@ -6,6 +6,7 @@ import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, sanitizeEdl } from '
 import { isPaidPlan } from '@/lib/planConfig';
 import { loadOwnedProject, projectClips, projects } from '@/lib/server/montagem/projects';
 import { autoEdit } from '@/lib/server/montagem/claude';
+import { loadProjectBrand } from '@/lib/server/montagem/brand';
 
 const DAILY_LIMIT = 30;
 
@@ -31,11 +32,12 @@ export const POST = withTool('montagem', async ({ user, body }) => {
   const plan = profile.plan as string | undefined;
   const maxSeconds = isPaidPlan(plan) ? MONTAGEM_MAX_SECONDS[plan] : 60;
   const direction = typeof body?.direction === 'string' ? body.direction.replace(/\s+/g, ' ').trim().slice(0, DIRECTION_MAX) : '';
-  const result = await autoEdit(project, clips, maxSeconds, direction);
+  const brand = await loadProjectBrand(user.uid, project.brandKitId);
+  const result = await autoEdit(project, clips, maxSeconds, direction, brand);
   const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
   let edl;
   try {
-    edl = sanitizeEdl({ clips: result.clips.map((c, i) => ({ ...c, id: `ai${i}` })), endCard: result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS);
+    edl = sanitizeEdl({ clips: result.clips.map((c, i) => ({ ...c, id: `ai${i}` })), endCard: result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS, brand);
   } catch (e: any) {
     throw new HttpError(502, 'auto_edit_invalid', `A montagem com IA saiu fora das regras (${e.message}). Tente de novo.`);
   }

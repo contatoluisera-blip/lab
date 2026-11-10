@@ -6,7 +6,7 @@ import dynamic from 'next/dynamic';
 import { useRouter } from 'next/navigation';
 import { collection, doc, onSnapshot, query, updateDoc, where } from 'firebase/firestore';
 import {
-  ArrowDown, ArrowLeft, ArrowUp, Check, Coins, Download, Film, ImageIcon, Loader2, Plus, Sparkles, Trash2, Volume2, VolumeX, Wand2, Wand, X, Clapperboard,
+  ArrowDown, ArrowLeft, ArrowUp, Check, Coins, Download, Film, ImageIcon, Loader2, Palette, Plus, Sparkles, Trash2, Volume2, VolumeX, Wand2, Wand, X, Clapperboard,
 } from 'lucide-react';
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
@@ -17,9 +17,10 @@ import { STATUS_LABEL } from '@/lib/generation';
 import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
-  DIRECTION_MAX, Edl, EdlClip, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
-  TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, edlDurationFrames, emptyEdl, montagemCost, projectHref, sourceFramesFor,
+  DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
+  TRANSITIONS, TextPosition, TransitionKind, VideoProject, clipFrames, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
+import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
 
 const Preview = dynamic(() => import('./Preview'), {
   ssr: false,
@@ -64,6 +65,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const [aiNote, setAiNote] = useState('');
   const [directionText, setDirection] = useState('');
   const [exporting, setExporting] = useState(false);
+  const [kits, setKits] = useState<BrandKit[] | null>(null);
   const saveTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const loadedEdl = useRef(false);
 
@@ -88,6 +90,22 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     return () => unsubs.forEach(u => u());
   }, [user, projectId]);
 
+  // Biblioteca de ID Visual da conta.
+  useEffect(() => {
+    if (!user) return;
+    callTool<{ kits: BrandKit[] }>('/api/montagem/brand', { action: 'list' }).then(r => setKits(r.data.kits)).catch(() => setKits([]));
+  }, [user]);
+
+  const brand = useMemo(() => kits?.find(k => k.id === project?.brandKitId) || null, [kits, project?.brandKitId]);
+
+  // A paleta acompanha a cena até o Gerador de Prompts: se a ID Visual mudou na biblioteca, atualiza a nota do projeto.
+  const brandNote = brand ? brandPromptNote(brand) : '';
+  const projectNote = project?.brandPromptNote || '';
+  useEffect(() => {
+    if (!project?.id || kits === null || brandNote === projectNote) return;
+    updateDoc(doc(db, 'video_projects', project.id), { brandPromptNote: brandNote }).catch(() => {});
+  }, [project?.id, kits, brandNote, projectNote]);
+
   // Exportação em andamento: empurra a fila e confere a AWS a cada 10 s.
   const activeRenders = renders.filter(r => r.active).length;
   const prevActive = useRef(0);
@@ -103,7 +121,11 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   }, [activeRenders]);
 
   const clipsDone = useMemo(() => jobs.filter(j => j.kind === 'video' && j.status === 'completed' && j.outputs?.[0]?.stored), [jobs]);
-  const sources = useMemo(() => Object.fromEntries(clipsDone.map(j => [j.id, j.outputs[0].url])), [clipsDone]);
+  const sources = useMemo(() => ({
+    ...Object.fromEntries(clipsDone.map(j => [j.id, j.outputs[0].url])),
+    ...Object.fromEntries((brand?.letterings || []).map(l => [letteringSourceKey(l.id), l.url])),
+  }), [clipsDone, brand]);
+  const previewEdl = useMemo(() => (edl ? { ...edl, style: brand ? edlStyleFor(brand) : null } : null), [edl, brand]);
 
   if (project === undefined || !edl) return <div className="flex justify-center py-24"><Loader2 className="w-6 h-6 animate-spin text-brand-mint" /></div>;
   if (project === null) {
@@ -120,6 +142,8 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const totalFrames = edl.clips.length ? edlDurationFrames(edl) : 0;
   const cost = montagemCost(totalFrames);
   const missing = edl.clips.filter(c => !sources[c.jobId]).length;
+  const letterings = brand?.letterings || [];
+  const pickBrand = (id: string) => saveProject({ brandKitId: id || null });
 
   // ── Escrita ────────────────────────────────────────────────────────────────
   const saveProject = (patch: Partial<VideoProject>) =>
@@ -352,6 +376,27 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? 'Montando…' : 'Montar com IA'}
           </button>
         </div>
+        <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <label htmlFor="project-brand" className="flex items-center gap-1.5 text-xs font-semibold text-white">
+              <Palette className="w-3.5 h-3.5 text-brand-mint" /> ID Visual do vídeo <span className="font-normal text-gray-500">(opcional)</span>
+            </label>
+            <Link href="/dashboard/id-visual" className={linkCls}>Abrir biblioteca</Link>
+          </div>
+          <select id="project-brand" value={project.brandKitId || ''} onChange={e => pickBrand(e.target.value)} disabled={kits === null}
+            className="w-full px-3 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-50">
+            <option value="">{kits === null ? 'Carregando…' : kits.length ? 'Sem ID Visual' : 'Nenhuma ID Visual criada ainda'}</option>
+            {kits?.map(k => <option key={k.id} value={k.id}>{k.name}</option>)}
+          </select>
+          {brand && (
+            <div className="flex flex-wrap items-center gap-3">
+              <div className="flex gap-1" aria-label="Cores da ID Visual">
+                {brand.colors.map(c => <span key={c} title={c} className="w-5 h-5 rounded-full border border-white/20" style={{ background: c }} />)}
+              </div>
+              <p className="text-[11px] text-gray-400">{letterings.length} lettering(s). O Claude vê essas artes ao montar, e as cores vão para o Gerador de Prompts.</p>
+            </div>
+          )}
+        </div>
         <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-2.5">
           <label htmlFor="edit-direction" className="flex items-center gap-1.5 text-xs font-semibold text-white">
             <Wand2 className="w-3.5 h-3.5 text-brand-mint" /> Direção de edição para o Claude <span className="font-normal text-gray-500">(opcional)</span>
@@ -382,7 +427,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
 
         <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
           <div className="lg:col-span-4 lg:sticky lg:top-4 space-y-3">
-            {edl.clips.length ? <Preview edl={edl} sources={sources} /> : (
+            {edl.clips.length ? <Preview edl={previewEdl!} sources={sources} /> : (
               <div className="aspect-[9/16] w-full rounded-2xl bg-black/40 border border-white/[0.06] flex flex-col items-center justify-center gap-2 text-center p-6">
                 <Clapperboard className="w-8 h-8 text-brand-emerald/40" />
                 <p className="text-xs text-gray-500">A prévia aparece quando houver cenas na linha do tempo.</p>
@@ -428,6 +473,23 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                     {TRANSITIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
                   </select>
                 </div>
+                {letterings.length > 0 && (
+                  <div className="grid grid-cols-1 sm:grid-cols-12 gap-2">
+                    <select value={letterings.some(l => l.id === c.letteringId) ? c.letteringId! : ''} onChange={e => patchClip(c.id, { letteringId: e.target.value || null })} aria-label="Lettering do clipe"
+                      className="sm:col-span-6 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white">
+                      <option value="">Sem lettering</option>
+                      {letterings.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                    </select>
+                    <select value={c.letteringPosition || 'top'} disabled={!c.letteringId} onChange={e => patchClip(c.id, { letteringPosition: e.target.value as TextPosition })} aria-label="Posição do lettering"
+                      className="sm:col-span-3 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-40">
+                      <option value="top">Lettering no topo</option><option value="center">Lettering no centro</option><option value="bottom">Lettering embaixo</option>
+                    </select>
+                    <select value={c.letteringSize || 'm'} disabled={!c.letteringId} onChange={e => patchClip(c.id, { letteringSize: e.target.value as LetteringSize })} aria-label="Tamanho do lettering"
+                      className="sm:col-span-3 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-40">
+                      {LETTERING_SIZES.map(s => <option key={s.id} value={s.id}>{s.label}</option>)}
+                    </select>
+                  </div>
+                )}
               </div>
             ))}
 
@@ -443,6 +505,13 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                       aria-label="Título da chamada final" className="px-3 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white placeholder:text-gray-600 outline-none" />
                     <input value={edl.endCard.subtitle} maxLength={120} placeholder="Subtítulo (opcional)" onChange={e => changeEdl({ ...edl, endCard: { ...edl.endCard, subtitle: e.target.value } })}
                       aria-label="Subtítulo da chamada final" className="px-3 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white placeholder:text-gray-600 outline-none" />
+                    {letterings.length > 0 && (
+                      <select value={letterings.some(l => l.id === edl.endCard.letteringId) ? edl.endCard.letteringId! : ''} onChange={e => changeEdl({ ...edl, endCard: { ...edl.endCard, letteringId: e.target.value || null } })} aria-label="Lettering da chamada final"
+                        className="sm:col-span-2 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white">
+                        <option value="">Sem lettering na chamada final</option>
+                        {letterings.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                      </select>
+                    )}
                   </div>
                 )}
               </div>

@@ -1,6 +1,8 @@
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
+import Anthropic from '@anthropic-ai/sdk';
 import { MONTAGEM_FPS, TEXT_MAX, VideoProject } from '@/lib/montagem';
+import { BRAND_FONTS, BrandKit, LETTERING_ROLES } from '@/lib/brand';
 import type { ProjectClip } from './projects';
 
 const SCHEMA = {
@@ -13,7 +15,7 @@ const SCHEMA = {
       items: {
         type: 'object',
         additionalProperties: false,
-        required: ['jobId', 'inicio', 'fim', 'transicao', 'texto', 'posicaoTexto'],
+        required: ['jobId', 'inicio', 'fim', 'transicao', 'texto', 'posicaoTexto', 'letteringId', 'posicaoLettering', 'tamanhoLettering'],
         properties: {
           jobId: { type: 'string', description: 'Id exato de um dos clipes recebidos.' },
           inicio: { type: 'number', description: 'Segundo inicial do corte dentro do clipe.' },
@@ -21,14 +23,17 @@ const SCHEMA = {
           transicao: { type: 'string', enum: ['cut', 'fade', 'slide'] },
           texto: { type: 'string', description: `Texto curto na tela (até ${TEXT_MAX} caracteres) ou vazio.` },
           posicaoTexto: { type: 'string', enum: ['top', 'center', 'bottom'] },
+          letteringId: { type: 'string', description: 'Id exato de um lettering da ID Visual, ou vazio.' },
+          posicaoLettering: { type: 'string', enum: ['top', 'center', 'bottom'] },
+          tamanhoLettering: { type: 'string', enum: ['s', 'm', 'l'] },
         },
       },
     },
     endCard: {
       type: 'object',
       additionalProperties: false,
-      required: ['enabled', 'title', 'subtitle'],
-      properties: { enabled: { type: 'boolean' }, title: { type: 'string' }, subtitle: { type: 'string' } },
+      required: ['enabled', 'title', 'subtitle', 'letteringId'],
+      properties: { enabled: { type: 'boolean' }, title: { type: 'string' }, subtitle: { type: 'string' }, letteringId: { type: 'string', description: 'Id exato de um lettering da ID Visual (ex.: o logo), ou vazio.' } },
     },
     resumo: { type: 'string', description: 'Uma ou duas frases explicando as escolhas da montagem.' },
   },
@@ -47,16 +52,23 @@ Monte o primeiro corte. Regras:
 - Nunca invente fatos, preços ou promessas que não estejam no roteiro.
 Se vier "direcaoDeEdicao", ela é a direção do criador: siga ritmo, tom, uso de texto, transições e chamada final como ele pediu,
 dentro das regras acima (clipes recebidos, cortes válidos, duração máxima). Ela não muda o formato da resposta.
-No resumo, diga em uma frase como a direção foi aplicada.`;
+No resumo, diga em uma frase como a direção foi aplicada.
+Se vier "idVisual", ela é a identidade do vídeo. Você recebe a imagem de cada lettering, identificada pelo id:
+- Use apenas os letterings recebidos, pelo id exato. Sem idVisual ou sem lettering adequado, deixe letteringId vazio.
+- O lettering é uma arte pronta: as palavras dele não mudam. Só use onde o que ele diz combina com a cena; nunca force.
+- Prefira o lettering ao texto comum quando os dois disserem a mesma coisa, e não repita a frase em "texto".
+- Respeite a função de cada um: gancho no início, título na ideia central, chamada no fim. O logo pode ir na chamada final (endCard.letteringId).
+- tamanhoLettering: "s" para logo discreto, "m" para o normal, "l" para gancho de impacto. Não ponha lettering e texto na mesma posição.
+- Use com critério: um vídeo não precisa de lettering em toda cena.`;
 
 export interface AutoEditResult {
-  clips: { jobId: string; trimStart: number; trimEnd: number; transition: string; text: string; textPosition: string; muted: boolean }[];
-  endCard: { enabled: boolean; title: string; subtitle: string };
+  clips: { jobId: string; trimStart: number; trimEnd: number; transition: string; text: string; textPosition: string; muted: boolean; letteringId: string; letteringPosition: string; letteringSize: string }[];
+  endCard: { enabled: boolean; title: string; subtitle: string; letteringId: string };
   resumo: string;
 }
 
 /** Primeiro corte com o Claude: devolve o plano em segundos convertidos para frames (o servidor valida depois). */
-export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number, direction = ''): Promise<AutoEditResult> {
+export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxSeconds: number, direction = '', brand: BrandKit | null = null): Promise<AutoEditResult> {
   const byScene = project.scenes.map((s, i) => ({
     cena: i + 1,
     sceneId: s.id,
@@ -79,14 +91,28 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
     duracaoMaximaSegundos: maxSeconds,
     cenas: byScene,
     clipesSemCena: soltos,
+    idVisual: brand ? {
+      nome: brand.name,
+      cores: brand.colors,
+      fonteDoTexto: BRAND_FONTS.find(f => f.id === brand.textStyle.fontId)?.label,
+      letterings: brand.letterings.map(l => ({ id: l.id, nome: l.name, funcao: LETTERING_ROLES.find(r => r.id === l.role)?.label, texto: l.text || null, proporcao: Math.round((l.width / l.height) * 100) / 100 })),
+    } : null,
   };
+
+  // Cada lettering vai como imagem, precedido do id: o Claude escolhe olhando a arte, não só o nome.
+  const content: Anthropic.ContentBlockParam[] = [];
+  for (const l of brand?.letterings || []) {
+    content.push({ type: 'text', text: `Lettering ${l.id}:` });
+    content.push({ type: 'image', source: { type: 'url', url: l.url } });
+  }
+  content.push({ type: 'text', text: `Projeto:\n${JSON.stringify(payload, null, 1)}` });
 
   const response = await anthropicClient().messages.create({
     model: AI_MODELS.anthropicMain,
     max_tokens: 4000,
     output_config: { effort: 'low', format: { type: 'json_schema', schema: SCHEMA } },
     system: SYSTEM,
-    messages: [{ role: 'user', content: `Projeto:\n${JSON.stringify(payload, null, 1)}` }],
+    messages: [{ role: 'user', content }],
   });
   const text = response.content.find(b => b.type === 'text');
   if (response.stop_reason === 'refusal' || !text || text.type !== 'text') {
@@ -102,6 +128,9 @@ export async function autoEdit(project: VideoProject, clips: ProjectClip[], maxS
       text: c.texto || '',
       textPosition: c.posicaoTexto,
       muted: true,
+      letteringId: String(c.letteringId || ''),
+      letteringPosition: c.posicaoLettering,
+      letteringSize: c.tamanhoLettering,
     })),
     endCard: out.endCard,
     resumo: String(out.resumo || ''),

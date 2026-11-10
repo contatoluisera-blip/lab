@@ -1,9 +1,11 @@
 import React from 'react';
-import { AbsoluteFill, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
+import { AbsoluteFill, Img, OffthreadVideo, interpolate, spring, useCurrentFrame, useVideoConfig } from 'remotion';
 import { TransitionSeries, linearTiming } from '@remotion/transitions';
 import { fade } from '@remotion/transitions/fade';
 import { slide } from '@remotion/transitions/slide';
-import { END_CARD_FRAMES, Edl, EdlClip, TextPosition, clipFrames, transitionFramesAt } from '../lib/montagem';
+import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, letteringPlace, letteringSourceKey, transitionFramesAt } from '../lib/montagem';
+import type { EdlStyle } from '../lib/brand';
+import { FONTS } from './fonts';
 
 // Composição da Montagem: o único código que desenha o vídeo final.
 // A prévia (@remotion/player) e o render (AWS Lambda) usam esta mesma composição com os mesmos dados.
@@ -16,21 +18,39 @@ export interface MontagemProps {
 }
 
 const BRAND = { bg: '#050807', accent: '#34d399', text: '#ffffff' };
+const LETTERING_WIDTH: Record<LetteringSize, number> = { s: 0.34, m: 0.62, l: 0.86 };
 
-function Caption({ text, position }: { text: string; position: TextPosition }) {
+const fontOf = (style?: EdlStyle | null) => (style ? FONTS[style.fontId] : null) || { family: 'Inter, Helvetica, Arial, sans-serif', weight: 800 };
+
+function Lettering({ src, position, size }: { src: string; position: TextPosition; size: LetteringSize }) {
+  const frame = useCurrentFrame();
+  const { fps, width, height } = useVideoConfig();
+  const enter = spring({ frame, fps, config: { damping: 200 } });
+  const justify = position === 'top' ? 'flex-start' : position === 'center' ? 'center' : 'flex-end';
+  return (
+    <AbsoluteFill style={{ justifyContent: justify, alignItems: 'center', padding: width * 0.07, paddingTop: position === 'top' ? height * 0.1 : width * 0.07, paddingBottom: position === 'bottom' ? width * 0.22 : width * 0.07 }}>
+      <Img src={src} style={{ width: width * LETTERING_WIDTH[size], maxHeight: height * 0.36, objectFit: 'contain', opacity: enter, transform: `scale(${interpolate(enter, [0, 1], [0.9, 1])})` }} />
+    </AbsoluteFill>
+  );
+}
+
+function Caption({ text, position, style }: { text: string; position: TextPosition; style?: EdlStyle | null }) {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 200 } });
   const justify = position === 'top' ? 'flex-start' : position === 'center' ? 'center' : 'flex-end';
+  const font = fontOf(style);
+  const box = style ? style.boxColor : 'rgba(0,0,0,0.55)';
   return (
     <AbsoluteFill style={{ justifyContent: justify, alignItems: 'center', padding: width * 0.07, paddingBottom: position === 'bottom' ? width * 0.22 : width * 0.07 }}>
       <div style={{
         opacity: enter,
         transform: `translateY(${interpolate(enter, [0, 1], [24, 0])}px)`,
-        background: 'rgba(0,0,0,0.55)',
-        color: BRAND.text,
-        fontFamily: 'Inter, Helvetica, Arial, sans-serif',
-        fontWeight: 800,
+        background: box || 'transparent',
+        color: style?.textColor || BRAND.text,
+        fontFamily: font.family,
+        fontWeight: font.weight,
+        textShadow: box ? undefined : `0 ${width * 0.003}px ${width * 0.016}px rgba(0,0,0,0.75)`,
         fontSize: width * 0.056,
         lineHeight: 1.18,
         textAlign: 'center',
@@ -44,7 +64,7 @@ function Caption({ text, position }: { text: string; position: TextPosition }) {
   );
 }
 
-function Clip({ clip, src }: { clip: EdlClip; src?: string }) {
+function Clip({ clip, src, letteringSrc, style }: { clip: EdlClip; src?: string; letteringSrc?: string; style?: EdlStyle | null }) {
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       {src ? (
@@ -55,21 +75,26 @@ function Clip({ clip, src }: { clip: EdlClip; src?: string }) {
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
         />
       ) : null}
-      {clip.text ? <Caption text={clip.text} position={clip.textPosition} /> : null}
+      {letteringSrc ? <Lettering src={letteringSrc} position={letteringPlace(clip)} size={clip.letteringSize || 'm'} /> : null}
+      {clip.text ? <Caption text={clip.text} position={clip.textPosition} style={style} /> : null}
     </AbsoluteFill>
   );
 }
 
-function EndCard({ title, subtitle }: { title: string; subtitle: string }) {
+function EndCard({ title, subtitle, letteringSrc, style }: { title: string; subtitle: string; letteringSrc?: string; style?: EdlStyle | null }) {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
   const enter = spring({ frame, fps, config: { damping: 200 } });
+  const font = fontOf(style);
+  const accent = style?.endAccent || BRAND.accent;
   return (
-    <AbsoluteFill style={{ backgroundColor: BRAND.bg, justifyContent: 'center', alignItems: 'center', padding: width * 0.08 }}>
-      <div style={{ opacity: enter, transform: `scale(${interpolate(enter, [0, 1], [0.94, 1])})`, textAlign: 'center', fontFamily: 'Inter, Helvetica, Arial, sans-serif' }}>
-        <div style={{ width: width * 0.12, height: width * 0.012, background: BRAND.accent, borderRadius: 99, margin: '0 auto', marginBottom: width * 0.05 }} />
-        <div style={{ color: BRAND.text, fontWeight: 900, fontSize: width * 0.075, lineHeight: 1.1 }}>{title}</div>
-        {subtitle ? <div style={{ color: BRAND.accent, fontWeight: 600, fontSize: width * 0.042, marginTop: width * 0.035 }}>{subtitle}</div> : null}
+    <AbsoluteFill style={{ backgroundColor: style?.background || BRAND.bg, justifyContent: 'center', alignItems: 'center', padding: width * 0.08 }}>
+      <div style={{ opacity: enter, transform: `scale(${interpolate(enter, [0, 1], [0.94, 1])})`, textAlign: 'center', fontFamily: font.family }}>
+        {letteringSrc
+          ? <Img src={letteringSrc} style={{ width: width * 0.62, maxHeight: width * 0.5, objectFit: 'contain', display: 'block', margin: '0 auto', marginBottom: title.trim() ? width * 0.06 : 0 }} />
+          : <div style={{ width: width * 0.12, height: width * 0.012, background: accent, borderRadius: 99, margin: '0 auto', marginBottom: width * 0.05 }} />}
+        <div style={{ color: style?.endText || BRAND.text, fontWeight: style ? font.weight : 900, fontSize: width * 0.075, lineHeight: 1.1 }}>{title}</div>
+        {subtitle ? <div style={{ color: accent, fontWeight: style ? font.weight : 600, fontSize: width * 0.042, marginTop: width * 0.035 }}>{subtitle}</div> : null}
       </div>
     </AbsoluteFill>
   );
@@ -90,14 +115,14 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
     }
     items.push(
       <TransitionSeries.Sequence key={clip.id} durationInFrames={clipFrames(clip)}>
-        <Clip clip={clip} src={sources[clip.jobId]} />
+        <Clip clip={clip} src={sources[clip.jobId]} letteringSrc={clip.letteringId ? sources[letteringSourceKey(clip.letteringId)] : undefined} style={edl.style} />
       </TransitionSeries.Sequence>
     );
   });
   if (edl.endCard.enabled) {
     items.push(
       <TransitionSeries.Sequence key="end" durationInFrames={END_CARD_FRAMES}>
-        <EndCard title={edl.endCard.title || ' '} subtitle={edl.endCard.subtitle} />
+        <EndCard title={edl.endCard.title || ' '} subtitle={edl.endCard.subtitle} letteringSrc={edl.endCard.letteringId ? sources[letteringSourceKey(edl.endCard.letteringId)] : undefined} style={edl.style} />
       </TransitionSeries.Sequence>
     );
   }

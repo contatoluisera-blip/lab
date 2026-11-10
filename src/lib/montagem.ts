@@ -11,6 +11,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import type { PlanId } from './planConfig';
+import { BrandKit, EdlStyle, edlStyleFor } from './brand';
 
 export const MONTAGEM_FPS = 30;
 export const TRANSITION_FRAMES = 12;
@@ -69,6 +70,10 @@ export interface VideoProject {
   editDirection?: string;
   /** Personagens, cenário e estilo fixos, levados ao Gerador de Prompts para manter as cenas coerentes. */
   styleBible?: string;
+  /** ID Visual da biblioteca da conta escolhida para este vídeo. */
+  brandKitId?: string | null;
+  /** Paleta da ID Visual em texto, levada ao Gerador de Prompts junto com a cena. */
+  brandPromptNote?: string;
   /** Documento de onde o agente de roteiro tirou as cenas. */
   scriptSource?: { name: string; kind: 'pdf' | 'text' } | null;
   /** Observações do agente sobre o fatiamento (cortes, decisões). */
@@ -121,6 +126,15 @@ export const TRANSITIONS: { id: TransitionKind; label: string }[] = [
   { id: 'slide', label: 'Deslizar' },
 ];
 export type TextPosition = 'top' | 'center' | 'bottom';
+export type LetteringSize = 's' | 'm' | 'l';
+export const LETTERING_SIZES: { id: LetteringSize; label: string }[] = [
+  { id: 's', label: 'Pequeno' },
+  { id: 'm', label: 'Médio' },
+  { id: 'l', label: 'Grande' },
+];
+
+/** Chave do lettering em `sources` e em `sourcePaths` (ao lado dos clipes). */
+export const letteringSourceKey = (id: string) => `lettering:${id}`;
 
 export interface EdlClip {
   /** Id único dentro do plano (o mesmo clipe pode entrar duas vezes). */
@@ -138,6 +152,10 @@ export interface EdlClip {
   transition: TransitionKind;
   text: string;
   textPosition: TextPosition;
+  /** Lettering da ID Visual desenhado por cima do clipe. */
+  letteringId?: string | null;
+  letteringPosition?: TextPosition;
+  letteringSize?: LetteringSize;
 }
 
 export interface Edl {
@@ -145,11 +163,20 @@ export interface Edl {
   format: MontagemFormat;
   fps: typeof MONTAGEM_FPS;
   clips: EdlClip[];
-  endCard: { enabled: boolean; title: string; subtitle: string };
+  endCard: { enabled: boolean; title: string; subtitle: string; letteringId?: string | null };
+  /** Fonte e cores da ID Visual. Sem ela, vale o visual padrão. */
+  style?: EdlStyle | null;
 }
 
 export function emptyEdl(format: MontagemFormat): Edl {
   return { version: 1, format, fps: MONTAGEM_FPS, clips: [], endCard: { enabled: false, title: '', subtitle: '' } };
+}
+
+/** Lettering e texto nunca dividem a mesma faixa: o lettering muda de lugar (igual na prévia e no render). */
+export function letteringPlace(clip: Pick<EdlClip, 'text' | 'textPosition' | 'letteringPosition'>): TextPosition {
+  const wanted = clip.letteringPosition || 'top';
+  if (!clip.text || wanted !== clip.textPosition) return wanted;
+  return clip.textPosition === 'top' ? 'center' : 'top';
 }
 
 export const clipFrames = (c: EdlClip) => c.trimEnd - c.trimStart;
@@ -185,9 +212,11 @@ const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/\s+/g, ' '
 /**
  * Valida e normaliza um plano vindo do navegador ou do Claude.
  * Só aceita clipes da lista permitida (gerações concluídas do próprio projeto);
- * cortes ficam dentro da duração do arquivo. Lança Error com mensagem em português.
+ * cortes ficam dentro da duração do arquivo. Letterings e estilo vêm só da ID Visual do projeto.
+ * Lança Error com mensagem em português.
  */
-export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number): Edl {
+export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null): Edl {
+  const validLettering = (v: unknown) => (typeof v === 'string' && brand?.letterings.some(l => l.id === v) ? v : null);
   const list: any[] = Array.isArray(raw?.clips) ? raw.clips : [];
   if (!list.length) throw new Error('Coloque pelo menos uma cena na linha do tempo.');
   if (list.length > MAX_CLIPS) throw new Error(`A montagem aceita até ${MAX_CLIPS} clipes.`);
@@ -206,14 +235,18 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
     return {
       id, jobId, sceneId: source.sceneId, sourceFrames: source.sourceFrames,
       trimStart, trimEnd, muted: c?.muted !== false, transition, text: cleanText(c?.text), textPosition,
+      letteringId: validLettering(c?.letteringId),
+      letteringPosition: ['top', 'center', 'bottom'].includes(c?.letteringPosition) ? c.letteringPosition : 'top',
+      letteringSize: LETTERING_SIZES.some(s => s.id === c?.letteringSize) ? c.letteringSize : 'm',
     };
   });
   const endCard = {
     enabled: !!raw?.endCard?.enabled,
     title: cleanText(raw?.endCard?.title),
     subtitle: cleanText(raw?.endCard?.subtitle),
+    letteringId: validLettering(raw?.endCard?.letteringId),
   };
-  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard };
+  const edl: Edl = { version: 1, format, fps: MONTAGEM_FPS, clips, endCard, style: brand ? edlStyleFor(brand) : null };
   const frames = edlDurationFrames(edl);
   if (frames > maxFrames) {
     throw new Error(`O vídeo tem ${Math.ceil(frames / MONTAGEM_FPS)} s e o seu plano permite até ${Math.floor(maxFrames / MONTAGEM_FPS)} s. Corte algumas cenas.`);
@@ -222,6 +255,12 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
 }
 
 /** Textos do plano, para passar pela moderação. */
+/** Letterings usados no plano: id → caminho no Storage, para o render assinar. */
+export function edlLetteringPaths(edl: Edl, brand: BrandKit | null) {
+  const used = new Set([...edl.clips.map(c => c.letteringId), edl.endCard.letteringId].filter(Boolean));
+  return Object.fromEntries((brand?.letterings || []).filter(l => used.has(l.id)).map(l => [letteringSourceKey(l.id), l.path]));
+}
+
 export const edlTexts = (edl: Edl) => [...edl.clips.map(c => c.text), edl.endCard.title, edl.endCard.subtitle].filter(Boolean).join('\n');
 
 // ── Render ───────────────────────────────────────────────────────────────────

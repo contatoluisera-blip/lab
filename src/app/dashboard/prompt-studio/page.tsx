@@ -153,6 +153,7 @@ export default function PromptStudioPage() {
       `Cena "${scene.title}" do vídeo "${project.title}"${project.goal ? ` (objetivo: ${project.goal})` : ''}. ${scene.text}`,
       scene.brief ? `Papel da cena: ${scene.brief}` : '',
       project.styleBible ? `Personagens e estilo do vídeo: ${project.styleBible}` : '',
+      project.brandPromptNote || '',
     ].filter(Boolean).join('\n').slice(0, 2000));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneKey]);
