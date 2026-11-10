@@ -8,11 +8,12 @@ import { HttpError } from '@/lib/server/auth';
 import { anthropicClient, openaiClient } from '@/lib/server/ai';
 import { claudeCostUsd } from '@/lib/server/aiCost';
 import { Edl, MONTAGEM_FPS, VideoProject, clipFrames, uploadFolder } from '@/lib/montagem';
+import { UNIT_COST_USD } from '@/lib/platformCosts';
 import { ProjectVoice, VOICE_TEXT_MAX, VoiceProvider, VoiceWord, WORDS_PER_SECOND } from '@/lib/voice';
 
 const ELEVEN_MODEL = 'eleven_multilingual_v2';
-/** Custo de referência por mil caracteres (plano Creator da ElevenLabs ≈ US$ 0,22; OpenAI TTS ≈ US$ 0,015/min + Whisper). */
-const ELEVEN_USD_PER_1K = 0.22;
+/** Custo de referência por mil caracteres e por minuto (src/lib/platformCosts.ts). */
+const ELEVEN_USD_PER_1K = UNIT_COST_USD.elevenlabsPer1kChars;
 
 // ── Texto da locução ─────────────────────────────────────────────────────────
 const SCRIPT_SCHEMA = {
@@ -123,7 +124,7 @@ async function openai(voiceId: string, text: string, style: string) {
   });
   const words: VoiceWord[] = (tr.words || []).map((w: any) => ({ w: String(w.word), s: Math.round(w.start * 1000) / 1000, e: Math.round(w.end * 1000) / 1000 }));
   const seconds = Number(tr.duration) || (words.length ? words[words.length - 1].e + 0.15 : text.length / 14);
-  return { audio, words, seconds, usd: (seconds / 60) * (0.015 + 0.006) };
+  return { audio, words, seconds, usd: (seconds / 60) * UNIT_COST_USD.openaiVoicePerMinute };
 }
 
 export async function synthesize(provider: VoiceProvider, voiceId: string, text: string, style: string) {
