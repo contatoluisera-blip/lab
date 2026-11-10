@@ -11,7 +11,8 @@ import {
 import { db } from '@/lib/firebase';
 import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
-import { callTool } from '@/lib/client/api';
+import { callTool, streamTool } from '@/lib/client/api';
+import { makeClipSheet } from '@/lib/client/clipSheet';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { STATUS_LABEL } from '@/lib/generation';
 import { Job, Pipeline, Storyboard, BatchGenerate, sceneMedia } from './ProductionPanel';
@@ -21,7 +22,7 @@ import { MusicPanel } from './MusicPanel';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
   DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
-  ProjectUpload, TRANSITIONS, assetLetterings, musicSourceKey, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
+  ProjectUpload, SCRIPT_DONE_MARK, TRANSITIONS, CLIP_MOTIONS, ClipMotion, TEXT_ANIMS, TextAnim, assetLetterings, musicSourceKey, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
 
@@ -66,6 +67,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   const [error, setError] = useState('');
   const [aiBusy, setAiBusy] = useState(false);
   const [aiNote, setAiNote] = useState('');
+  const [aiStage, setAiStage] = useState('');
   const [directionText, setDirection] = useState('');
   const [exporting, setExporting] = useState(false);
   const [kits, setKits] = useState<BrandKit[] | null>(null);
@@ -218,6 +220,33 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     router.push(projectHref('/dashboard/videos', project.id, scene.id, { from: 'montagem' }));
   };
 
+  /**
+   * O Claude vê cada clipe por uma folha de 6 quadros. Gera as que faltam (versão escolhida ou mais nova de
+   * cada cena, vídeos enviados e o que já está na linha do tempo), uma vez só por clipe.
+   */
+  const ensureSheets = async () => {
+    if (!user) return;
+    const have = project.clipSheets || {};
+    const wanted = new Map<string, string>();
+    for (const scene of project.scenes) {
+      const { chosenClip } = sceneMedia(scene, jobs);
+      if (chosenClip) wanted.set(chosenClip.id, chosenClip.outputs[0].url);
+    }
+    for (const u of uploads) wanted.set(u.id, u.url);
+    for (const c of edl.clips) if (sources[c.jobId]) wanted.set(c.jobId, sources[c.jobId]);
+    const missing = [...wanted].filter(([id]) => !have[id]).slice(0, 30);
+    for (let i = 0; i < missing.length; i++) {
+      const [id, url] = missing[i];
+      setAiStage(`Preparando os quadros dos clipes (${i + 1} de ${missing.length})`);
+      try {
+        const sheet = await makeClipSheet(user.uid, id, url);
+        await updateDoc(doc(db, 'video_projects', project.id), { [`clipSheets.${id}`]: sheet });
+      } catch (e) {
+        console.warn('[montagem] folha de quadros', id, e);
+      }
+    }
+  };
+
   const autoEdit = async () => {
     if (edl.clips.length && !confirm('Substituir a linha do tempo atual pela montagem do Claude?')) return;
     setAiBusy(true);
@@ -226,7 +255,16 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     try {
       const direction = directionText.trim().slice(0, DIRECTION_MAX);
       if (direction !== (project.editDirection || '')) saveProject({ editDirection: direction });
-      const res = await callTool<{ edl: Edl; resumo: string }>('/api/montagem/auto', { projectId: project.id, direction });
+      await ensureSheets();
+      setAiStage('Enviando para o Claude');
+      // Duas passadas (rascunho e revisão) em streaming: as etapas chegam como linhas antes do resultado.
+      const full = await streamTool('/api/montagem/auto', { projectId: project.id, direction }, partial => {
+        const stages = partial.split('\n').map(l => l.trim()).filter(l => l.endsWith('...'));
+        if (stages.length) setAiStage(stages[stages.length - 1].replace(/\.\.\.$/, ''));
+      });
+      const mark = full.indexOf(SCRIPT_DONE_MARK);
+      if (mark < 0) throw new Error('A montagem foi interrompida. Tente de novo.');
+      const res = { data: JSON.parse(full.slice(mark + SCRIPT_DONE_MARK.length)) as { edl: Edl; resumo: string } };
       // Marca d'água, vinheta e trilha são escolhas da pessoa: a montagem com IA não mexe nelas.
       changeEdl({ ...res.data.edl, watermark: edl.watermark || null, outro: edl.outro || null, music: edl.music || null });
       setAiNote(res.data.resumo);
@@ -234,6 +272,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       setError(e.message || 'Não foi possível montar com IA agora.');
     } finally {
       setAiBusy(false);
+      setAiStage('');
     }
   };
 
@@ -415,7 +454,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
           <h2 className="text-sm font-semibold uppercase tracking-wide text-white">{step.edit}. Montagem</h2>
           <button type="button" onClick={autoEdit} disabled={aiBusy || !hasMaterial}
             className="flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-black bg-gradient-to-b from-[#34d399] to-[#10b981] disabled:opacity-50">
-            {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? 'Montando…' : 'Montar com IA'}
+            {aiBusy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sparkles className="w-3.5 h-3.5" />} {aiBusy ? `${aiStage || 'Montando'}…` : 'Montar com IA'}
           </button>
         </div>
         <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
@@ -515,6 +554,16 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
                   <select value={c.transition} disabled={i === 0} onChange={e => patchClip(c.id, { transition: e.target.value as TransitionKind })} aria-label="Transição de entrada"
                     className="sm:col-span-3 px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-40">
                     {TRANSITIONS.map(t => <option key={t.id} value={t.id}>{t.label}</option>)}
+                  </select>
+                </div>
+                <div className="grid grid-cols-2 gap-2">
+                  <select value={c.motion || 'none'} onChange={e => patchClip(c.id, { motion: e.target.value as ClipMotion })} aria-label="Movimento de câmera"
+                    className="px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white">
+                    {CLIP_MOTIONS.map(m => <option key={m.id} value={m.id}>{m.label}</option>)}
+                  </select>
+                  <select value={c.textAnim || 'rise'} disabled={!c.text} onChange={e => patchClip(c.id, { textAnim: e.target.value as TextAnim })} aria-label="Animação do texto"
+                    className="px-2 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white disabled:opacity-40">
+                    {TEXT_ANIMS.map(a => <option key={a.id} value={a.id}>Texto: {a.label}</option>)}
                   </select>
                 </div>
                 {letterings.length > 0 && (

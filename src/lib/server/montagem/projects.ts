@@ -24,6 +24,8 @@ export interface ProjectClip extends AllowedClip {
   createdAt: string;
   /** Vídeo enviado pela pessoa (não gerado): nome e miniaturas para o Claude. */
   upload?: { name: string; thumbs: string[] };
+  /** Folha de quadros (6 quadros com o tempo de cada um): como o Claude vê o clipe. */
+  sheet?: string;
 }
 
 /** Cenas de vídeo concluídas e guardadas do projeto: as únicas que podem entrar na montagem. */
@@ -74,7 +76,15 @@ export function uploadClips(uid: string, project: VideoProject): ProjectClip[] {
 
 /** Tudo que pode entrar na montagem: cenas geradas do projeto e vídeos enviados. */
 export async function allProjectClips(uid: string, project: VideoProject): Promise<ProjectClip[]> {
-  return [...await projectClips(uid, project.id), ...uploadClips(uid, project)];
+  const folder = uploadFolder(uid);
+  const sheets = project.clipSheets || {};
+  // O navegador grava as folhas: só valem arquivos na pasta da pessoa com link do nosso Storage.
+  const sheetOf = (id: string) => {
+    const s = sheets[id];
+    return s && typeof s.path === 'string' && s.path.startsWith(folder) && typeof s.url === 'string'
+      && s.url.startsWith('https://firebasestorage.googleapis.com/') && s.url.includes(encodeURIComponent(s.path)) ? s.url : undefined;
+  };
+  return [...await projectClips(uid, project.id), ...uploadClips(uid, project)].map(c => ({ ...c, sheet: sheetOf(c.jobId) }));
 }
 
 /**

@@ -3,7 +3,11 @@ import { AbsoluteFill, Audio, Img, Loop, OffthreadVideo, Sequence, interpolate, 
 import { TransitionSeries, linearTiming } from '@remotion/transitions';
 import { fade } from '@remotion/transitions/fade';
 import { slide } from '@remotion/transitions/slide';
-import { END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextPosition, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
+import { wipe } from '@remotion/transitions/wipe';
+import { pushCut } from '@remotion/transitions/push-cut';
+import { flip } from '@remotion/transitions/flip';
+import { iris } from '@remotion/transitions/iris';
+import { ClipMotion, END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextAnim, TextPosition, TransitionKind, clipFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
 import type { EdlStyle } from '../lib/brand';
 import { FONTS } from './fonts';
 
@@ -34,18 +38,36 @@ function Lettering({ src, position, size }: { src: string; position: TextPositio
   );
 }
 
-function Caption({ text, position, style }: { text: string; position: TextPosition; style?: EdlStyle | null }) {
+/** Quanto do texto aparece no quadro atual (palavra por palavra e máquina de escrever). */
+function revealed(text: string, anim: TextAnim, frame: number, fps: number, frames: number) {
+  if (anim === 'words') {
+    const words = text.split(' ');
+    const per = Math.max(3, Math.min(fps * 0.35, (frames * 0.6) / words.length));
+    return words.slice(0, Math.min(words.length, Math.floor(frame / per) + 1)).join(' ');
+  }
+  if (anim === 'typewriter') {
+    const per = Math.max(1, Math.min(3, (frames * 0.5) / text.length));
+    return text.slice(0, Math.min(text.length, Math.floor(frame / per) + 1));
+  }
+  return text;
+}
+
+function Caption({ text, position, style, anim = 'rise', frames }: { text: string; position: TextPosition; style?: EdlStyle | null; anim?: TextAnim; frames: number }) {
   const frame = useCurrentFrame();
   const { fps, width } = useVideoConfig();
-  const enter = spring({ frame, fps, config: { damping: 200 } });
+  const enter = spring({ frame, fps, config: anim === 'pop' ? { damping: 9, stiffness: 160 } : { damping: 200 } });
+  const shown = revealed(text, anim, frame, fps, frames);
+  const motion = anim === 'pop'
+    ? `scale(${interpolate(enter, [0, 1], [0.6, 1])})`
+    : anim === 'rise' ? `translateY(${interpolate(enter, [0, 1], [24, 0])}px)` : 'none';
   const justify = position === 'top' ? 'flex-start' : position === 'center' ? 'center' : 'flex-end';
   const font = fontOf(style);
   const box = style ? style.boxColor : 'rgba(0,0,0,0.55)';
   return (
     <AbsoluteFill style={{ justifyContent: justify, alignItems: 'center', padding: width * 0.07, paddingBottom: position === 'bottom' ? width * 0.22 : width * 0.07 }}>
       <div style={{
-        opacity: enter,
-        transform: `translateY(${interpolate(enter, [0, 1], [24, 0])}px)`,
+        opacity: anim === 'words' || anim === 'typewriter' ? 1 : Math.min(1, enter * 1.4),
+        transform: motion,
         background: box || 'transparent',
         color: style?.textColor || BRAND.text,
         fontFamily: font.family,
@@ -58,25 +80,47 @@ function Caption({ text, position, style }: { text: string; position: TextPositi
         borderRadius: width * 0.025,
         maxWidth: '100%',
       }}>
-        {text}
+        {/* Texto completo invisível reserva o espaço: a caixa não muda de tamanho enquanto as palavras entram. */}
+        {shown === text ? text : <><span>{shown}</span><span style={{ visibility: 'hidden' }}>{text.slice(shown.length)}</span></>}
       </div>
     </AbsoluteFill>
   );
 }
 
+/** Zoom e pan sobre o vídeo, ao longo do clipe (o "Ken Burns" dos editores). */
+function motionTransform(motion: ClipMotion | undefined, frame: number, frames: number, fps: number) {
+  const t = Math.min(1, frame / Math.max(1, frames - 1));
+  switch (motion) {
+    case 'zoom-in': return `scale(${interpolate(t, [0, 1], [1, 1.14])})`;
+    case 'zoom-out': return `scale(${interpolate(t, [0, 1], [1.14, 1])})`;
+    case 'pan-left': return `scale(1.12) translateX(${interpolate(t, [0, 1], [4, -4])}%)`;
+    case 'pan-right': return `scale(1.12) translateX(${interpolate(t, [0, 1], [-4, 4])}%)`;
+    case 'punch-in': {
+      const hit = spring({ frame: frame - Math.floor(frames * 0.45), fps, config: { damping: 14, stiffness: 220 } });
+      return `scale(${interpolate(hit, [0, 1], [1, 1.22])})`;
+    }
+    default: return undefined;
+  }
+}
+
 function Clip({ clip, src, letteringSrc, style }: { clip: EdlClip; src?: string; letteringSrc?: string; style?: EdlStyle | null }) {
+  const frame = useCurrentFrame();
+  const { fps } = useVideoConfig();
+  const transform = motionTransform(clip.motion, frame, clipFrames(clip), fps);
   return (
-    <AbsoluteFill style={{ backgroundColor: '#000' }}>
+    <AbsoluteFill style={{ backgroundColor: '#000', overflow: 'hidden' }}>
       {src ? (
-        <OffthreadVideo
-          src={src}
-          trimBefore={clip.trimStart}
-          muted={clip.muted}
-          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-        />
+        <AbsoluteFill style={{ transform, transformOrigin: 'center center' }}>
+          <OffthreadVideo
+            src={src}
+            trimBefore={clip.trimStart}
+            muted={clip.muted}
+            style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          />
+        </AbsoluteFill>
       ) : null}
       {letteringSrc ? <Lettering src={letteringSrc} position={letteringPlace(clip)} size={clip.letteringSize || 'm'} /> : null}
-      {clip.text ? <Caption text={clip.text} position={clip.textPosition} style={style} /> : null}
+      {clip.text ? <Caption text={clip.text} position={clip.textPosition} style={style} anim={clip.textAnim} frames={clipFrames(clip)} /> : null}
     </AbsoluteFill>
   );
 }
@@ -143,7 +187,19 @@ function Music({ src, volume }: { src: string; volume: number }) {
   );
 }
 
+function presentationFor(kind: TransitionKind, width: number, height: number) {
+  switch (kind) {
+    case 'slide': return slide({ direction: 'from-right' });
+    case 'wipe': return wipe({ direction: 'from-left' });
+    case 'push': return pushCut({ flashColor: '#ffffff', flashOpacity: 0.55 });
+    case 'flip': return flip({ direction: 'from-right' });
+    case 'iris': return iris({ width, height });
+    default: return fade();
+  }
+}
+
 export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
+  const { width, height } = useVideoConfig();
   const items: React.ReactNode[] = [];
   edl.clips.forEach((clip, i) => {
     const overlap = transitionFramesAt(edl, i);
@@ -151,7 +207,7 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
       items.push(
         <TransitionSeries.Transition
           key={`t-${clip.id}`}
-          presentation={clip.transition === 'slide' ? slide({ direction: 'from-right' }) : fade()}
+          presentation={presentationFor(clip.transition, width, height) as ReturnType<typeof fade>}
           timing={linearTiming({ durationInFrames: overlap })}
         />
       );

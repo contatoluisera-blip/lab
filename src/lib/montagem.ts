@@ -155,6 +155,8 @@ export interface VideoProject {
   uploads?: ProjectUpload[];
   /** Letterings, logos e vídeos auxiliares (marca d'água, vinheta) deste vídeo. */
   assets?: ProjectAsset[];
+  /** Folha de quadros de cada clipe (id da geração ou do vídeo enviado): o Claude vê o clipe por ela. */
+  clipSheets?: Record<string, { path: string; url: string }>;
   title: string;
   goal: string;
   format: MontagemFormat;
@@ -226,11 +228,36 @@ export function scenesFromScript(script: string): Pick<ProjectScene, 'title' | '
 }
 
 // ── Plano de edição ──────────────────────────────────────────────────────────
-export type TransitionKind = 'cut' | 'fade' | 'slide';
-export const TRANSITIONS: { id: TransitionKind; label: string }[] = [
-  { id: 'cut', label: 'Corte seco' },
-  { id: 'fade', label: 'Dissolver' },
-  { id: 'slide', label: 'Deslizar' },
+export type TransitionKind = 'cut' | 'fade' | 'slide' | 'wipe' | 'push' | 'flip' | 'iris';
+/** Só transições feitas em CSS (as de shader WebGL podem falhar ou pesar no render da AWS). */
+export const TRANSITIONS: { id: TransitionKind; label: string; hint: string }[] = [
+  { id: 'cut', label: 'Corte seco', hint: 'padrão de Reels' },
+  { id: 'push', label: 'Impacto', hint: 'corte com flash e zoom, para virada ou batida' },
+  { id: 'fade', label: 'Dissolver', hint: 'mudança de tempo ou lugar' },
+  { id: 'slide', label: 'Deslizar', hint: 'sequência, lista, passo a passo' },
+  { id: 'wipe', label: 'Cortina', hint: 'antes e depois, comparação' },
+  { id: 'iris', label: 'Círculo', hint: 'revelar um detalhe ou o produto' },
+  { id: 'flip', label: 'Girar', hint: 'troca de lado ou de assunto, com moderação' },
+];
+
+/** Movimento de câmera aplicado ao clipe (zoom/pan sobre o vídeo, como no editor). */
+export type ClipMotion = 'none' | 'zoom-in' | 'zoom-out' | 'pan-left' | 'pan-right' | 'punch-in';
+export const CLIP_MOTIONS: { id: ClipMotion; label: string; hint: string }[] = [
+  { id: 'none', label: 'Sem movimento', hint: 'o clipe como veio' },
+  { id: 'zoom-in', label: 'Aproximar lento', hint: 'tensão, foco, emoção' },
+  { id: 'zoom-out', label: 'Afastar lento', hint: 'revelar o contexto, encerrar' },
+  { id: 'pan-left', label: 'Pan para a esquerda', hint: 'dar vida a plano parado' },
+  { id: 'pan-right', label: 'Pan para a direita', hint: 'dar vida a plano parado' },
+  { id: 'punch-in', label: 'Punch-in', hint: 'zoom rápido no meio, para ênfase' },
+];
+
+/** Animação do texto na tela. */
+export type TextAnim = 'rise' | 'pop' | 'words' | 'typewriter';
+export const TEXT_ANIMS: { id: TextAnim; label: string; hint: string }[] = [
+  { id: 'rise', label: 'Subir', hint: 'discreto, informativo' },
+  { id: 'pop', label: 'Pop', hint: 'gancho, número, impacto' },
+  { id: 'words', label: 'Palavra por palavra', hint: 'frase de efeito, ritmo de fala' },
+  { id: 'typewriter', label: 'Máquina de escrever', hint: 'pergunta, curiosidade' },
 ];
 export type TextPosition = 'top' | 'center' | 'bottom';
 export type LetteringSize = 's' | 'm' | 'l';
@@ -259,6 +286,9 @@ export interface EdlClip {
   transition: TransitionKind;
   text: string;
   textPosition: TextPosition;
+  /** Movimento de câmera e animação do texto. */
+  motion?: ClipMotion;
+  textAnim?: TextAnim;
   /** Lettering da ID Visual desenhado por cima do clipe. */
   letteringId?: string | null;
   letteringPosition?: TextPosition;
@@ -303,7 +333,8 @@ export function transitionFramesAt(edl: Edl, i: number) {
   if (i === 0) return 0;
   const c = edl.clips[i];
   if (c.transition === 'cut') return 0;
-  return Math.min(TRANSITION_FRAMES, Math.floor(clipFrames(c) / 2), Math.floor(clipFrames(edl.clips[i - 1]) / 2));
+  // O "Impacto" é um corte com flash: rápido.
+  return Math.min(c.transition === 'push' ? 8 : TRANSITION_FRAMES, Math.floor(clipFrames(c) / 2), Math.floor(clipFrames(edl.clips[i - 1]) / 2));
 }
 
 /** Frames só das cenas (com as transições): é onde a marca d'água aparece. */
@@ -360,6 +391,8 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
     return {
       id, jobId, sceneId: source.sceneId, sourceFrames: source.sourceFrames,
       trimStart, trimEnd, muted: c?.muted !== false, transition, text: cleanText(c?.text), textPosition,
+      motion: CLIP_MOTIONS.some(m => m.id === c?.motion) ? c.motion : 'none',
+      textAnim: TEXT_ANIMS.some(a => a.id === c?.textAnim) ? c.textAnim : 'rise',
       letteringId: validLettering(c?.letteringId),
       letteringPosition: ['top', 'center', 'bottom'].includes(c?.letteringPosition) ? c.letteringPosition : 'top',
       letteringSize: LETTERING_SIZES.some(s => s.id === c?.letteringSize) ? c.letteringSize : 'm',

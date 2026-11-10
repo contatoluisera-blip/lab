@@ -1,18 +1,22 @@
 import * as admin from 'firebase-admin';
-import { withTool } from '@/lib/server/tool';
+import { withTool, describeProviderError } from '@/lib/server/tool';
 import { HttpError } from '@/lib/server/auth';
 import { adminDb } from '@/lib/firebase/admin';
-import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, sanitizeEdl } from '@/lib/montagem';
+import { textStreamResponse } from '@/lib/server/stream';
+import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, SCRIPT_DONE_MARK, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
 import { allProjectClips, loadOwnedProject, projectAssets, projects } from '@/lib/server/montagem/projects';
 import { autoEdit } from '@/lib/server/montagem/claude';
 import { loadProjectBrand } from '@/lib/server/montagem/brand';
+import { logAiCost } from '@/lib/server/aiCost';
 
 const DAILY_LIMIT = 30;
 
 /**
- * Primeiro corte com o Claude. Não cobra crédito (o custo entra na exportação),
- * mas tem limite diário por projeto. O plano devolvido já passou pela mesma validação do render.
+ * Montagem com o Claude (rascunho e revisão, vendo os quadros de cada clipe). Não cobra crédito
+ * (o custo entra na exportação), mas tem limite diário por projeto. Responde em streaming: as duas
+ * passadas passam do limite de tempo de uma resposta comum. No fim vem a marca de conclusão com o plano,
+ * já validado pelas mesmas regras do render.
  */
 export const POST = withTool('montagem', async ({ user, body }) => {
   const project = await loadOwnedProject(user.uid, body?.projectId);
@@ -34,13 +38,33 @@ export const POST = withTool('montagem', async ({ user, body }) => {
   const direction = typeof body?.direction === 'string' ? body.direction.replace(/\s+/g, ' ').trim().slice(0, DIRECTION_MAX) : '';
   const brand = await loadProjectBrand(user.uid, project.brandKitId);
   const assets = projectAssets(user.uid, project);
-  const result = await autoEdit(project, clips, maxSeconds, direction, brand, assets);
-  const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
-  let edl;
-  try {
-    edl = sanitizeEdl({ clips: result.clips.map((c, i) => ({ ...c, id: `ai${i}` })), endCard: result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS, brand, assets);
-  } catch (e: any) {
-    throw new HttpError(502, 'auto_edit_invalid', `A montagem com IA saiu fora das regras (${e.message}). Tente de novo.`);
-  }
-  return { edl, resumo: result.resumo };
-}, { charge: false, logDescription: () => 'Montagem com IA (primeiro corte)' });
+
+  return textStreamResponse(
+    async (write) => {
+      // Mantém a conexão viva enquanto o Claude pensa (o navegador ignora tudo antes da marca de conclusão).
+      const keepAlive = setInterval(() => write(' '), 4000);
+      try {
+        const run = await autoEdit(project, clips, maxSeconds, direction, brand, assets, stage => write(`\n${stage}...`));
+        const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
+        let edl;
+        try {
+          edl = sanitizeEdl({ clips: run.result.clips.map((c, i) => ({ ...c, id: `ai${i}` })), endCard: run.result.endCard }, project.format, allowed, maxSeconds * MONTAGEM_FPS, brand, assets);
+        } catch (e: any) {
+          throw new HttpError(502, 'auto_edit_invalid', `A montagem com IA saiu fora das regras (${e.message}). Tente de novo.`);
+        }
+        await logAiCost({
+          uid: user.uid, projectId: project.id, step: 'montagem_ia', provider: 'anthropic', model: run.model, usd: run.usd, ms: run.ms,
+          units: { inputTokens: run.usage.input, outputTokens: run.usage.output, cacheRead: run.usage.cacheRead, cacheWrite: run.usage.cacheWrite, images: run.images, clips: edl.clips.length },
+        });
+        write(SCRIPT_DONE_MARK + JSON.stringify({ edl, resumo: run.result.resumo }));
+      } finally {
+        clearInterval(keepAlive);
+      }
+    },
+    async (err) => {
+      if (err instanceof HttpError) return { error: err.message, code: err.code };
+      const e = describeProviderError(err, 'Anthropic');
+      return { error: e.message, code: e.code };
+    }
+  );
+}, { charge: false, logDescription: () => 'Montagem com IA (rascunho e revisão)' });
