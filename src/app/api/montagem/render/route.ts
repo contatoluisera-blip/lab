@@ -71,6 +71,7 @@ export async function POST(req: Request) {
       active: true,
       credits,
       chargedCredits: charge.charged,
+      chargedExtra: charge.fromExtra,
       refunded: false,
       durationFrames,
       format: project.format,

@@ -1,3 +1,4 @@
+import { refundFields } from '@/lib/server/credits';
 import { NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
@@ -15,7 +16,7 @@ async function refundJob(jobRef: admin.firestore.DocumentReference, job: any, re
   if (job.refunded || !job.chargedCredits) return;
   const batch = adminDb.batch();
   const userRef = adminDb.collection('users').doc(job.userId);
-  batch.update(userRef, { credits: admin.firestore.FieldValue.increment(job.chargedCredits), updatedAt: new Date().toISOString() });
+  batch.update(userRef, { ...refundFields(job.chargedCredits, job.chargedExtra), updatedAt: new Date().toISOString() });
   batch.set(userRef.collection('credit_ledger').doc(), { tool: 'diagnosis', delta: job.chargedCredits, reason, jobId: jobRef.id, createdAt: new Date().toISOString() });
   batch.update(jobRef, { refunded: true });
   await batch.commit();

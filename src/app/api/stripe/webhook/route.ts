@@ -4,10 +4,10 @@ import { Resend } from 'resend';
 import React from 'react';
 import { adminDb } from '@/lib/firebase/admin';
 import { PlatformWelcome } from '@/emails/PlatformWelcome';
-import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
-import { grantCredits } from '@/lib/server/credits';
+import { BILLING_CYCLES, PLAN_CONFIGS, isPaidPlan } from '@/lib/planConfig';
+import { addExtraCredits, addMonth, grantCredits } from '@/lib/server/credits';
 import { sendMetaEvent } from '@/lib/server/meta';
-import { currentPeriod, productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
+import { currentPeriod, planForProduct, productIdFromInvoiceLine, productIdFromSubscription, stripeClient, subscriptionIdFromInvoice } from '@/lib/server/stripe';
 
 export const dynamic = 'force-dynamic';
 
@@ -28,6 +28,14 @@ async function claimEvent(event: Stripe.Event): Promise<boolean> {
   } catch {
     return false; // já existe
   }
+}
+
+/** Recarga avulsa paga: soma os créditos ao saldo avulso (uma vez por sessão). */
+async function creditTopup(session: Stripe.Checkout.Session) {
+  const userId = session.client_reference_id;
+  const credits = Number(session.metadata?.credits);
+  if (!userId || !Number.isFinite(credits) || credits <= 0 || session.payment_status !== 'paid') return;
+  await addExtraCredits(userId, credits, session.id, { amountTotal: (session.amount_total ?? 0) / 100 });
 }
 
 async function sendWelcome(userId: string, planId: string) {
@@ -77,6 +85,11 @@ export async function POST(req: Request) {
         const session = event.data.object as Stripe.Checkout.Session;
         const userId = session.client_reference_id;
         if (!userId) break;
+        // Recarga avulsa: não mexe na assinatura.
+        if (session.metadata?.kind === 'topup') {
+          await creditTopup(session);
+          break;
+        }
         // Plano vem do metadata do checkout; se não for um plano conhecido, o evento de assinatura define.
         const metaPlan = session.metadata?.planName?.toLowerCase();
         const planId = isPaidPlan(metaPlan) ? metaPlan : null;
@@ -109,7 +122,8 @@ export async function POST(req: Request) {
         const userDoc = await findUserByCustomer(sub.customer as string);
         if (!userDoc) break;
         const ended = sub.status === 'canceled' || sub.status === 'incomplete_expired';
-        const plan = ended ? 'free' : planFromStripeProduct(productIdFromSubscription(sub));
+        const mapped = ended ? null : await planForProduct(productIdFromSubscription(sub));
+        const plan = ended ? 'free' : mapped?.plan ?? null;
         const { end } = currentPeriod(sub);
         const updates: Record<string, unknown> = {
           stripeSubscriptionId: sub.id,
@@ -118,7 +132,8 @@ export async function POST(req: Request) {
           updatedAt: new Date().toISOString(),
         };
         if (plan) updates.plan = plan;
-        if (ended) updates.credits = 0;
+        if (mapped) updates.billingCycle = mapped.cycle;
+        if (ended) { updates.credits = 0; updates.nextRefillAt = null; }
         await userDoc.ref.update(updates);
         break;
       }
@@ -135,20 +150,33 @@ export async function POST(req: Request) {
         if (!userDoc) break;
 
         const productId = productIdFromInvoiceLine(invoice.lines?.data?.[0]);
-        const plan = planFromStripeProduct(productId);
-        if (!plan) {
+        const mapped = await planForProduct(productId);
+        if (!mapped) {
           console.error('[stripe] invoice.paid com produto desconhecido:', productId);
           break;
         }
+        const { plan, cycle } = mapped;
         const periodEnd = invoice.lines?.data?.[0]?.period?.end;
+        // Trimestral e anual: a fatura cobre vários meses, a cota recarrega todo mês (/api/billing/refill).
+        const months = BILLING_CYCLES[cycle].months;
         await grantCredits(userDoc.id, PLAN_CONFIGS[plan].credits, `invoice_${reason}`, {
           plan,
+          billingCycle: cycle,
+          nextRefillAt: months > 1 ? addMonth(new Date()).toISOString() : null,
+          refillsLeft: months - 1,
           stripeSubscriptionId: subscriptionId,
           stripeSubscriptionStatus: 'active',
           ...(periodEnd ? { currentPeriodEnd: new Date(periodEnd * 1000).toISOString() } : {}),
           creditsResetAt: new Date().toISOString(),
           lastInvoiceId: invoice.id,
         });
+        break;
+      }
+
+      // Pagamento por boleto/Pix confirmado depois do checkout (recarga).
+      case 'checkout.session.async_payment_succeeded': {
+        const session = event.data.object as Stripe.Checkout.Session;
+        if (session.metadata?.kind === 'topup') await creditTopup(session);
         break;
       }
 
@@ -160,6 +188,7 @@ export async function POST(req: Request) {
         await userDoc.ref.update({
           plan: 'free',
           credits: 0,
+          nextRefillAt: null,
           stripeSubscriptionStatus: 'canceled',
           currentPeriodEnd: null,
           updatedAt: new Date().toISOString(),

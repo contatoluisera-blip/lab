@@ -26,6 +26,13 @@ export interface AccountProfile {
   /** Fim do período pago atual na Stripe (ISO). Gravado pelo webhook. */
   currentPeriodEnd?: string | null;
   manualGrant?: { by?: string; at?: string } | null;
+  /** Créditos avulsos (recarga): saldo à parte, usado depois da cota do mês, com validade. */
+  extraCredits?: number | null;
+  extraCreditsExpireAt?: string | null;
+  /** Ciclo de cobrança da assinatura (o crédito é sempre mensal). */
+  billingCycle?: string | null;
+  /** Trimestral e anual: data da próxima recarga mensal de créditos (ISO). */
+  nextRefillAt?: string | null;
 }
 
 export interface AccountState {
@@ -34,8 +41,13 @@ export interface AccountState {
   planLabel: string | null;
   /** Rótulo da situação, já pronto para a tela. */
   statusLabel: string;
-  /** Saldo real gravado no perfil (ausente = 0). */
+  /** Saldo disponível: cota do mês + créditos avulsos válidos. */
   credits: number;
+  /** Cota do mês (zera e recarrega a cada mês). */
+  monthlyCredits: number;
+  /** Créditos avulsos válidos e a validade deles. */
+  extraCredits: number;
+  extraExpiresAt: string | null;
   /** Créditos que o plano concede a cada renovação. */
   planCredits: number;
   /** Data da próxima renovação (ISO), só quando a Stripe informou. */
@@ -51,20 +63,30 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
+/** Créditos avulsos ainda dentro da validade (vencidos contam como 0). */
+export function validExtraCredits(profile: AccountProfile | null | undefined, now = Date.now()) {
+  const amount = Math.max(0, Number(profile?.extraCredits ?? 0) || 0);
+  const exp = profile?.extraCreditsExpireAt ? Date.parse(profile.extraCreditsExpireAt) : 0;
+  return amount > 0 && exp > now ? amount : 0;
+}
+
 export function getAccountState(profile: AccountProfile | null | undefined): AccountState {
   const plan = isPaidPlan(profile?.plan) ? profile!.plan as PlanId : null;
-  const credits = Math.max(0, Number(profile?.credits ?? 0) || 0);
+  const monthlyCredits = Math.max(0, Number(profile?.credits ?? 0) || 0);
+  const extraCredits = validExtraCredits(profile);
+  const credits = monthlyCredits + extraCredits;
+  const extra = { monthlyCredits, extraCredits, extraExpiresAt: extraCredits ? profile!.extraCreditsExpireAt! : null };
   const subStatus = profile?.stripeSubscriptionStatus ?? null;
 
   if (!plan) {
     return {
       status: 'none', plan: null, planLabel: null, statusLabel: 'Sem assinatura ativa',
-      credits, planCredits: 0, renewsAt: null, renewalLabel: 'Sem renovação automática',
+      credits, ...extra, planCredits: 0, renewsAt: null, renewalLabel: 'Sem renovação automática',
     };
   }
 
   const cfg = PLAN_CONFIGS[plan];
-  const base = { plan, planLabel: cfg.label, credits, planCredits: cfg.credits };
+  const base = { plan, planLabel: cfg.label, credits, ...extra, planCredits: cfg.credits };
 
   if (subStatus && PAYMENT_ISSUE.has(subStatus)) {
     return {
@@ -74,13 +96,17 @@ export function getAccountState(profile: AccountProfile | null | undefined): Acc
   }
 
   if (subStatus && ACTIVE.has(subStatus)) {
-    const renewsAt = profile?.currentPeriodEnd ?? null;
+    // Trimestral e anual: a fatura vem a cada 3 ou 12 meses, mas a cota recarrega todo mês.
+    const longCycle = profile?.billingCycle === 'quarterly' || profile?.billingCycle === 'annual';
+    const refillAt = longCycle && profile?.nextRefillAt && (!profile.currentPeriodEnd || profile.nextRefillAt < profile.currentPeriodEnd)
+      ? profile.nextRefillAt : null;
+    const renewsAt = refillAt ?? profile?.currentPeriodEnd ?? null;
     return {
       ...base, status: 'active',
       statusLabel: credits > 0 ? 'Ativo' : 'Créditos esgotados',
       renewsAt,
       renewalLabel: renewsAt
-        ? `Renova em ${formatDate(renewsAt)} com ${cfg.credits} créditos`
+        ? `${refillAt ? 'Créditos recarregam' : 'Renova'} em ${formatDate(renewsAt)} com ${cfg.credits} créditos`
         : 'Renovação automática (data ainda não sincronizada)',
     };
   }
@@ -124,9 +150,10 @@ export function checkTool(state: AccountState, trialUsed: AccountProfile['trialU
     const when = state.renewsAt
       ? `Eles renovam em ${formatDate(state.renewsAt)}.`
       : state.status === 'active' ? 'Eles renovam na próxima fatura.' : 'Sua conta não tem renovação automática.';
+    const topup = state.status === 'active' ? ' Se precisar antes, faça uma recarga em Planos e Faturamento.' : '';
     const message = state.credits > 0
-      ? `Este uso consome ${charge} créditos e seu saldo é ${state.credits}. ${when}`
-      : `Seus créditos acabaram (saldo: 0). ${when}`;
+      ? `Este uso consome ${charge} créditos e seu saldo é ${state.credits}. ${when}${topup}`
+      : `Seus créditos acabaram (saldo: 0). ${when}${topup}`;
     return { ok: false, reason: 'no_credits', cost, trial, message };
   }
   return { ok: true, cost, trial };

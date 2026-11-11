@@ -1,7 +1,8 @@
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
 import { ToolId } from '@/lib/planConfig';
-import { checkTool, getAccountState } from '@/lib/accountState';
+import { checkTool, getAccountState, validExtraCredits } from '@/lib/accountState';
+import { TOPUP_VALID_DAYS } from '@/lib/planConfig';
 import { HttpError } from './auth';
 
 export interface ChargeResult {
@@ -9,9 +10,26 @@ export interface ChargeResult {
   charged: number;
   /** Se este uso foi o teste gratuito da ferramenta. */
   trial: boolean;
-  /** Saldo após a cobrança. */
+  /** Saldo após a cobrança (cota do mês + avulso). */
   credits: number;
+  /** Quanto da cobrança saiu dos créditos avulsos (o resto saiu da cota do mês). */
+  fromExtra: number;
+  /** Saldos separados após a cobrança, para a tela atualizar sem contar o avulso duas vezes. */
+  monthly: number;
+  extra: number;
   plan: string;
+}
+
+/**
+ * Campos para devolver créditos: a parte que saiu do avulso volta para o avulso, o resto para a cota.
+ * Use em todo estorno (o documento do uso guarda `chargedCredits` e `chargedExtra`).
+ */
+export function refundFields(total: number, fromExtra = 0) {
+  const extra = Math.min(Math.max(0, fromExtra || 0), total);
+  return {
+    ...(total - extra > 0 ? { credits: admin.firestore.FieldValue.increment(total - extra) } : {}),
+    ...(extra > 0 ? { extraCredits: admin.firestore.FieldValue.increment(extra) } : {}),
+  };
 }
 
 /**
@@ -40,10 +58,14 @@ export async function chargeCredit(uid: string, tool: ToolId, costOverride?: num
     const credits = state.credits;
     const isTrial = check.trial;
     const charged = isTrial ? 0 : check.cost;
+    // Primeiro a cota do mês; o que faltar sai dos créditos avulsos válidos.
+    const fromMonthly = Math.min(charged, state.monthlyCredits);
+    const fromExtra = charged - fromMonthly;
 
     const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
     if (isTrial) updates[`trialUsed.${tool}`] = true;
-    if (charged > 0) updates.credits = admin.firestore.FieldValue.increment(-charged);
+    if (fromMonthly > 0) updates.credits = admin.firestore.FieldValue.increment(-fromMonthly);
+    if (fromExtra > 0) updates.extraCredits = validExtraCredits(data) - fromExtra;
     tx.update(userRef, updates);
 
     if (charged > 0 || isTrial) {
@@ -52,11 +74,15 @@ export async function chargeCredit(uid: string, tool: ToolId, costOverride?: num
         delta: -charged,
         reason: isTrial ? 'trial' : 'use',
         balanceAfter: credits - charged,
+        ...(fromExtra > 0 ? { fromExtra } : {}),
         createdAt: new Date().toISOString(),
       });
     }
 
-    return { charged, trial: isTrial, credits: credits - charged, plan };
+    return {
+      charged, trial: isTrial, credits: credits - charged, fromExtra, plan,
+      monthly: state.monthlyCredits - fromMonthly, extra: state.extraCredits - fromExtra,
+    };
   });
 }
 
@@ -66,10 +92,7 @@ export async function refundCredit(uid: string, tool: ToolId, charge: ChargeResu
   try {
     const userRef = adminDb.collection('users').doc(uid);
     const batch = adminDb.batch();
-    batch.update(userRef, {
-      credits: admin.firestore.FieldValue.increment(charge.charged),
-      updatedAt: new Date().toISOString(),
-    });
+    batch.update(userRef, { ...refundFields(charge.charged, charge.fromExtra), updatedAt: new Date().toISOString() });
     batch.set(userRef.collection('credit_ledger').doc(), {
       tool,
       delta: charge.charged,
@@ -95,4 +118,35 @@ export async function grantCredits(uid: string, amount: number, reason: string, 
     ...meta,
   });
   await batch.commit();
+}
+
+/**
+ * Soma créditos avulsos (recarga paga). O saldo avulso ainda válido continua; a validade passa a
+ * ser de TOPUP_VALID_DAYS a partir desta compra para o saldo todo. Idempotente pela `ref` (sessão da Stripe).
+ */
+export async function addExtraCredits(uid: string, amount: number, ref: string, meta: Record<string, unknown> = {}) {
+  const userRef = adminDb.collection('users').doc(uid) as admin.firestore.DocumentReference;
+  const markRef = userRef.collection('credit_ledger').doc(`topup_${ref}`);
+  return adminDb.runTransaction(async (tx: admin.firestore.Transaction) => {
+    const [snap, mark] = await Promise.all([tx.get(userRef), tx.get(markRef)]);
+    if (mark.exists) return false;
+    const data = snap.data() || {};
+    const now = new Date();
+    const total = validExtraCredits(data, now.getTime()) + amount;
+    const expireAt = new Date(now.getTime() + TOPUP_VALID_DAYS * 86_400_000).toISOString();
+    tx.set(userRef, { extraCredits: total, extraCreditsExpireAt: expireAt, updatedAt: now.toISOString() }, { merge: true });
+    tx.set(markRef, { delta: amount, reason: 'topup', extraAfter: total, expiresAt: expireAt, createdAt: now.toISOString(), ...meta });
+    return true;
+  });
+}
+
+/** Mesmo dia do mês seguinte (31/01 → 28 ou 29/02): data da próxima recarga mensal de créditos. */
+export function addMonth(from: Date) {
+  const d = new Date(from.getTime());
+  const day = d.getUTCDate();
+  d.setUTCDate(1);
+  d.setUTCMonth(d.getUTCMonth() + 1);
+  const last = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth() + 1, 0)).getUTCDate();
+  d.setUTCDate(Math.min(day, last));
+  return d;
 }

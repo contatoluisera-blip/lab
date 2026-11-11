@@ -14,6 +14,7 @@ import { randomUUID } from 'crypto';
 import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { Edl, RenderJob } from '@/lib/montagem';
 import { lambdaConfig, lambdaProgress, signedLambdaOutput, startLambdaRender } from './lambda';
+import { refundFields } from '@/lib/server/credits';
 
 export const RENDER_CONCURRENCY = 5;
 const STARTING_STALE_MS = 2 * 60_000;
@@ -25,6 +26,7 @@ export interface StoredRender extends RenderJob {
   /** Caminhos no Storage de cada geração usada (jobId → path). */
   sourcePaths: Record<string, string>;
   chargedCredits: number;
+  chargedExtra?: number;
   refunded: boolean;
   renderId?: string | null;
   bucketName?: string | null;
@@ -49,7 +51,7 @@ export async function failRender(jobId: string, error: string, extra: Record<str
     const updates: Record<string, unknown> = { status: 'failed', active: false, error, completedAt: now(), ...extra };
     if (!job.refunded && job.chargedCredits > 0) {
       const userRef = adminDb.collection('users').doc(job.uid);
-      tx.update(userRef, { credits: admin.firestore.FieldValue.increment(job.chargedCredits), updatedAt: now() });
+      tx.update(userRef, { ...refundFields(job.chargedCredits, job.chargedExtra), updatedAt: now() });
       tx.set(userRef.collection('credit_ledger').doc(), {
         tool: 'montagem', delta: job.chargedCredits, reason: 'render_failed', jobId, createdAt: now(),
       });

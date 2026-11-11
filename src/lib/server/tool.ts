@@ -58,7 +58,7 @@ export function withTool<T>(
 
       const ctx: ToolContext = {
         user,
-        charge: charge ?? { charged: 0, trial: false, credits: 0, plan: '' },
+        charge: charge ?? { charged: 0, trial: false, credits: 0, fromExtra: 0, monthly: 0, extra: 0, plan: '' },
         body,
         refund: (reason) => refundCredit(user.uid, tool, charge, reason),
       };
@@ -73,7 +73,7 @@ export function withTool<T>(
       return NextResponse.json({
         success: true,
         data: result,
-        credits: charge ? { charged: charge.charged, trial: charge.trial, remaining: charge.credits } : undefined,
+        credits: charge ? { charged: charge.charged, trial: charge.trial, remaining: charge.credits, monthly: charge.monthly, extra: charge.extra } : undefined,
       });
     } catch (err) {
       // A cobrança só existe se passou pela transação; qualquer erro depois dela devolve o crédito.

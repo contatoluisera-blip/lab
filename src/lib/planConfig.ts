@@ -4,7 +4,7 @@
 // pelo webhook do Stripe e pelas rotas de faturamento.
 // ─────────────────────────────────────────────────────────────
 
-export type PlanId = 'start' | 'pro' | 'elite';
+export type PlanId = 'start' | 'pro' | 'elite' | 'agency';
 /** Plano gravado no perfil pode ser um dos pagos ou 'free' (conta sem assinatura ativa). */
 export type StoredPlan = PlanId | 'free';
 
@@ -60,7 +60,50 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     tools: 'all',
     courses: true,
   },
+  // Empresas e agências: volume alto de produção (R$ 1,50 por crédito, 24% abaixo do Elite).
+  agency: {
+    id: 'agency',
+    label: 'Agência',
+    price: 'R$ 1.497/mês',
+    credits: 1000,
+    tools: 'all',
+    courses: true,
+  },
 };
+
+// ── Ciclos de cobrança ───────────────────────────────────────────────────────
+// Os créditos são sempre mensais: trimestral e anual recebem a cota do plano todo mês
+// (recarga agendada em /api/billing/refill). Estudo: docs/projecao-planos.md.
+export type BillingCycle = 'monthly' | 'quarterly' | 'annual';
+export const BILLING_CYCLES: Record<BillingCycle, { label: string; months: number; discount: number }> = {
+  monthly: { label: 'Mensal', months: 1, discount: 0 },
+  quarterly: { label: 'Trimestral', months: 3, discount: 0.10 },
+  annual: { label: 'Anual', months: 12, discount: 0.20 },
+};
+
+/** Preço por mês em cada ciclo (vitrine); o total do ciclo é este valor × meses. Precisa bater com a Stripe. */
+export const PLAN_PRICES: Record<PlanId, Record<BillingCycle, number>> = {
+  start: { monthly: 67, quarterly: 59.9, annual: 53 },
+  pro: { monthly: 117, quarterly: 104.9, annual: 93 },
+  elite: { monthly: 197, quarterly: 177, annual: 157 },
+  agency: { monthly: 1497, quarterly: 1347, annual: 1197 },
+};
+
+export const cycleTotal = (plan: PlanId, cycle: BillingCycle) =>
+  Math.round(PLAN_PRICES[plan][cycle] * BILLING_CYCLES[cycle].months * 100) / 100;
+
+export const formatBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: v % 1 ? 2 : 0 });
+
+// ── Recarga avulsa ───────────────────────────────────────────────────────────
+/**
+ * Preço do crédito avulso: o mesmo do plano em que o crédito sai mais caro no mensal (hoje o Start, R$ 3,35),
+ * para a recarga não competir com subir de plano.
+ */
+export const TOPUP_PRICE_PER_CREDIT = Math.max(...(Object.keys(PLAN_PRICES) as PlanId[]).map(p => PLAN_PRICES[p].monthly / PLAN_CONFIGS[p].credits));
+export const TOPUP_PACKS = [10, 25, 50, 100, 250, 500, 1000];
+/** Créditos avulsos valem 90 dias, num saldo à parte, usados depois da cota do mês. */
+export const TOPUP_VALID_DAYS = 90;
+export const topupPrice = (credits: number) => Math.round(credits * TOPUP_PRICE_PER_CREDIT * 100) / 100;
 
 /**
  * Custo em créditos de cada uso. Para mudar o preço de uma ferramenta, altere só aqui.
@@ -111,13 +154,15 @@ export function planFromStripeProduct(productId: string | null | undefined): Pla
     [process.env.STRIPE_PRODUCT_START_ANNUAL, 'start'],
     [process.env.STRIPE_PRODUCT_PRO_ANNUAL, 'pro'],
     [process.env.STRIPE_PRODUCT_ELITE_ANNUAL, 'elite'],
+    [process.env.STRIPE_PRODUCT_AGENCY, 'agency'],
+    [process.env.STRIPE_PRODUCT_AGENCY_ANNUAL, 'agency'],
   ];
   for (const [id, plan] of pairs) if (id) map[id] = plan;
   return map[productId] ?? null;
 }
 
 export function isPaidPlan(plan: string | null | undefined): plan is PlanId {
-  return plan === 'start' || plan === 'pro' || plan === 'elite';
+  return plan === 'start' || plan === 'pro' || plan === 'elite' || plan === 'agency';
 }
 
 /** Retorna true se o plano tem acesso à ferramenta */

@@ -28,6 +28,11 @@ export interface UserProfile {
   stripeSubscriptionStatus?: string;
   currentPeriodEnd?: string | null;
   manualGrant?: { by?: string; at?: string } | null;
+  /** Créditos avulsos (recarga), validade, ciclo de cobrança e próxima recarga mensal. */
+  extraCredits?: number | null;
+  extraCreditsExpireAt?: string | null;
+  billingCycle?: string | null;
+  nextRefillAt?: string | null;
   /** Aceite dos termos de uso da geração de imagem e vídeo (versão vigente em src/lib/generation.ts). */
   genTerms?: { version: string; acceptedAt: string } | null;
   /** Bloqueio de geração por mau uso (gravado pelo admin). */
@@ -52,7 +57,7 @@ interface UserProfileContextType {
   /** Recarrega o perfil do Firestore (chame após usar uma ferramenta). */
   refreshProfile: () => Promise<void>;
   /** Atualiza o saldo local a partir da resposta de uma ferramenta, sem ida ao banco. */
-  applyCredits: (credits?: { remaining: number; trial: boolean }, tool?: ToolId) => void;
+  applyCredits: (credits?: { remaining: number; trial: boolean; monthly?: number; extra?: number }, tool?: ToolId) => void;
   saveCalculatorPresets: (presets: UserProfile['calculator_presets']) => Promise<void>;
 }
 
@@ -139,11 +144,13 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
     return { cost, trial };
   }, [canUseTool]);
 
-  const applyCredits = useCallback((credits?: { remaining: number; trial: boolean }, tool?: ToolId) => {
+  const applyCredits = useCallback((credits?: { remaining: number; trial: boolean; monthly?: number; extra?: number }, tool?: ToolId) => {
     if (!credits) return;
+    // Cota do mês e avulso vêm separados: o estado da conta soma os dois.
     setUserProfile(prev => prev ? {
       ...prev,
-      credits: credits.remaining,
+      credits: credits.monthly ?? credits.remaining,
+      ...(credits.extra !== undefined ? { extraCredits: credits.extra } : {}),
       trialUsed: tool && credits.trial ? { ...prev.trialUsed, [tool]: true } : prev.trialUsed,
     } : prev);
   }, []);

@@ -32,7 +32,7 @@ export const FORMATS: { id: MontagemFormat; label: string; hint: string; width: 
 export const formatSize = (f: MontagemFormat) => FORMATS.find(x => x.id === f) || FORMATS[0];
 
 /** Duração máxima do vídeo final por plano. */
-export const MONTAGEM_MAX_SECONDS: Record<PlanId, number> = { start: 60, pro: 120, elite: 180 };
+export const MONTAGEM_MAX_SECONDS: Record<PlanId, number> = { start: 60, pro: 120, elite: 180, agency: 300 };
 
 /** 2 créditos até 60 s, +1 a cada 30 s (custo real estimado: US$ 0,10 a 0,25 por minuto). */
 export function montagemCost(frames: number) {

@@ -1,3 +1,4 @@
+import { refundFields } from '@/lib/server/credits';
 import { NextResponse } from 'next/server';
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
@@ -11,7 +12,7 @@ async function refundTask(taskRef: admin.firestore.DocumentReference, task: any,
   if (task.refunded || !task.chargedCredits) return;
   const batch = adminDb.batch();
   const userRef = adminDb.collection('users').doc(task.userId);
-  batch.update(userRef, { credits: admin.firestore.FieldValue.increment(task.chargedCredits), updatedAt: new Date().toISOString() });
+  batch.update(userRef, { ...refundFields(task.chargedCredits, task.chargedExtra), updatedAt: new Date().toISOString() });
   batch.set(userRef.collection('credit_ledger').doc(), { tool: 'estudia', delta: task.chargedCredits, reason, taskId: task.taskId, createdAt: new Date().toISOString() });
   batch.update(taskRef, { refunded: true });
   await batch.commit();

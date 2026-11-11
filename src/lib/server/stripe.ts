@@ -1,5 +1,6 @@
 import Stripe from 'stripe';
 import { HttpError } from './auth';
+import type { BillingCycle, PlanId } from '@/lib/planConfig';
 
 let cached: Stripe | null = null;
 
@@ -57,4 +58,50 @@ export function currentPeriod(sub: any): { start: number | null; end: number | n
 export function billingInterval(sub: any): 'month' | 'year' | null {
   const interval = sub?.items?.data?.[0]?.price?.recurring?.interval;
   return interval === 'year' || interval === 'month' ? interval : null;
+}
+
+// ── Plano e ciclo de um produto da Stripe ────────────────────────────────────
+
+const CYCLES: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
+const PLANS: PlanId[] = ['start', 'pro', 'elite', 'agency'];
+const productCache = new Map<string, { plan: PlanId; cycle: BillingCycle } | null>();
+
+/**
+ * Plano e ciclo de um produto. Os produtos antigos vêm das variáveis STRIPE_PRODUCT_*;
+ * os novos trazem `metadata.plan` e `metadata.cycle` (criados por scripts/stripe-setup.ts).
+ */
+export async function planForProduct(productId: string | null | undefined): Promise<{ plan: PlanId; cycle: BillingCycle } | null> {
+  if (!productId) return null;
+  for (const plan of PLANS) {
+    const key = `STRIPE_PRODUCT_${plan.toUpperCase()}`;
+    if (process.env[key] === productId) return { plan, cycle: 'monthly' };
+    if (process.env[`${key}_QUARTERLY`] === productId) return { plan, cycle: 'quarterly' };
+    if (process.env[`${key}_ANNUAL`] === productId) return { plan, cycle: 'annual' };
+  }
+  if (productCache.has(productId)) return productCache.get(productId)!;
+  let found: { plan: PlanId; cycle: BillingCycle } | null = null;
+  try {
+    const product = await stripeClient().products.retrieve(productId);
+    const plan = product.metadata?.plan as PlanId;
+    const cycle = product.metadata?.cycle as BillingCycle;
+    if (PLANS.includes(plan) && CYCLES.includes(cycle)) found = { plan, cycle };
+  } catch (e: any) {
+    console.error('[stripe] produto não encontrado', productId, e?.message);
+  }
+  productCache.set(productId, found);
+  return found;
+}
+
+/** Produto ativo da Stripe para um plano e ciclo (metadados), com o preço padrão dele. */
+export async function productForPlan(plan: PlanId, cycle: BillingCycle): Promise<{ productId: string; priceId: string } | null> {
+  const stripe = stripeClient();
+  const envId = process.env[`STRIPE_PRODUCT_${plan.toUpperCase()}${cycle === 'monthly' ? '' : cycle === 'quarterly' ? '_QUARTERLY' : '_ANNUAL'}`];
+  let product: Stripe.Product | null = null;
+  if (envId) product = await stripe.products.retrieve(envId).catch(() => null);
+  if (!product) {
+    const res = await stripe.products.search({ query: `active:'true' AND metadata['plan']:'${plan}' AND metadata['cycle']:'${cycle}'`, limit: 1 });
+    product = res.data[0] || null;
+  }
+  const priceId = product && (typeof product.default_price === 'string' ? product.default_price : product.default_price?.id);
+  return product && priceId ? { productId: product.id, priceId } : null;
 }

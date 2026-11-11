@@ -551,6 +551,7 @@ export const POST = withTool('estudia', async ({ body, user, charge }) => {
     sourceUrl: publicUrl,
     resultUrl: null,
     chargedCredits: charge.charged,
+      chargedExtra: charge.fromExtra,
     refunded: false,
     createdAt: new Date().toISOString(),
   });

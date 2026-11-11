@@ -3,8 +3,8 @@ import { adminDb } from '@/lib/firebase/admin';
 import { HttpError, requireAdmin } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
 import { grantCredits } from '@/lib/server/credits';
-import { currentPeriod, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
-import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
+import { currentPeriod, planForProduct, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
+import { PLAN_CONFIGS, isPaidPlan } from '@/lib/planConfig';
 import { getAccountState } from '@/lib/accountState';
 
 export const dynamic = 'force-dynamic';
@@ -74,7 +74,7 @@ async function syncFromStripe(uid: string) {
   if (!sub) throw new HttpError(404, 'no_subscription', 'Nenhuma assinatura desta conta foi encontrada na Stripe.');
 
   const ended = sub.status === 'canceled' || sub.status === 'incomplete_expired';
-  const plan = ended ? 'free' : planFromStripeProduct(productIdFromSubscription(sub));
+  const plan = ended ? 'free' : (await planForProduct(productIdFromSubscription(sub)))?.plan ?? null;
   const { end } = currentPeriod(sub);
   await ref.update({
     stripeSubscriptionId: sub.id,

@@ -1,5 +1,7 @@
 'use client';
 
+import { BillingCycle, cycleTotal, isPaidPlan } from '@/lib/planConfig';
+
 // ─────────────────────────────────────────────────────────────
 // Medição de marketing: consentimento (LGPD), origem do visitante (UTM)
 // e eventos para o Pixel da Meta e o GA4. Nada é enviado sem consentimento.
@@ -115,7 +117,8 @@ export function track(event: keyof typeof GA4_EVENT, params: Record<string, unkn
 }
 
 /** Valor mensal de cada plano, para os eventos de checkout. */
-export function planValue(planName: string) {
-  const v: Record<string, number> = { start: 67, pro: 117, elite: 197 };
-  return v[String(planName || '').toLowerCase()] ?? 0;
+/** Valor da compra para o rastreamento: total cobrado no ciclo escolhido. */
+export function planValue(planName: string, cycle: BillingCycle = 'monthly') {
+  const plan = String(planName || '').toLowerCase();
+  return isPaidPlan(plan) ? cycleTotal(plan, cycle) : 0;
 }

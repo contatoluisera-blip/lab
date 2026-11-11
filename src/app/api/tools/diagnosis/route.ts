@@ -48,6 +48,7 @@ export const POST = withTool('diagnosis', async ({ body, user, charge }) => {
     profileRun,
     postsRun,
     chargedCredits: charge.charged,
+      chargedExtra: charge.fromExtra,
     reusedCollection: !!fresh,
     refunded: false,
     createdAt: new Date().toISOString(),

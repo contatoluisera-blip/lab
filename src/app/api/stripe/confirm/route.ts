@@ -2,9 +2,9 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireUser, HttpError } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { currentPeriod, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
-import { PLAN_CONFIGS, isPaidPlan, planFromStripeProduct } from '@/lib/planConfig';
-import { grantCredits } from '@/lib/server/credits';
+import { currentPeriod, planForProduct, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
+import { BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, isPaidPlan } from '@/lib/planConfig';
+import { addMonth, grantCredits } from '@/lib/server/credits';
 import { sendMetaEvent } from '@/lib/server/meta';
 
 export const dynamic = 'force-dynamic';
@@ -31,7 +31,10 @@ export async function POST(req: Request) {
     const sub: any = session.subscription;
     const subscriptionId = typeof sub === 'string' ? sub : sub?.id;
     const metaPlan = session.metadata?.planName?.toLowerCase();
-    const plan = planFromStripeProduct(productIdFromSubscription(sub)) || (isPaidPlan(metaPlan) ? metaPlan : null);
+    const mapped = await planForProduct(productIdFromSubscription(sub));
+    const plan = mapped?.plan || (isPaidPlan(metaPlan) ? metaPlan : null);
+    const metaCycle = session.metadata?.cycle as BillingCycle | undefined;
+    const cycle: BillingCycle = mapped?.cycle || (metaCycle && metaCycle in BILLING_CYCLES ? metaCycle : 'monthly');
     if (!plan) throw new HttpError(500, 'unknown_plan', 'Pagamento confirmado, mas o plano não foi reconhecido. Avise o suporte.');
     const { end } = currentPeriod(sub);
 
@@ -45,14 +48,19 @@ export async function POST(req: Request) {
       stripeSubscriptionStatus: 'active',
       currentPeriodEnd: end ? new Date(end).toISOString() : null,
       plan,
+      billingCycle: cycle,
       updatedAt: new Date().toISOString(),
     }, { merge: true });
 
     // Concede os créditos iniciais só se o webhook ainda não concedeu para esta assinatura.
     const alreadyGranted = current.stripeSubscriptionId === subscriptionId && current.creditsResetAt;
     if (!alreadyGranted) {
+      const months = BILLING_CYCLES[cycle].months;
       await grantCredits(user.uid, PLAN_CONFIGS[plan].credits, 'checkout_confirmed', {
         plan,
+        billingCycle: cycle,
+        nextRefillAt: months > 1 ? addMonth(new Date()).toISOString() : null,
+        refillsLeft: months - 1,
         stripeSubscriptionId: subscriptionId,
         creditsResetAt: new Date().toISOString(),
       });

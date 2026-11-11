@@ -110,6 +110,7 @@ export async function POST(req: Request) {
       negativePrompt: negativePrompt || null,
       credits: price.credits,
       chargedCredits: charge.charged,
+      chargedExtra: charge.fromExtra,
       tool,
       status: 'queued',
       active: true,

@@ -9,6 +9,9 @@ import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { getAttribution, marketingContext, planValue, track } from '@/lib/client/tracking';
+import { BILLING_CYCLES, BillingCycle, PLAN_PRICES, PlanId, cycleTotal, formatBRL } from '@/lib/planConfig';
+
+const CYCLE_ORDER: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
 
 export default function PricingSection() {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
@@ -20,11 +23,13 @@ export default function PricingSection() {
   const [customerEmail, setCustomerEmail] = useState('');
   const [customerPassword, setCustomerPassword] = useState('');
   const [termsAccepted, setTermsAccepted] = useState(false);
+  // O anual vem marcado: é o que mais rende para quem assina (estudo em docs/projecao-planos.md).
+  const [cycle, setCycle] = useState<BillingCycle>('annual');
 
   const plans = [
     {
+      id: 'start' as PlanId,
       name: 'Start',
-      price: 'R$ 67',
       description: 'Para quem está começando a profissionalizar sua criação e quer ter acesso às principais ferramentas para analisar, precificar e estruturar melhor seus serviços.',
       subText: 'Ideal para criadores que querem sair do improviso e começar a vender com mais clareza.',
       features: [
@@ -40,8 +45,8 @@ export default function PricingSection() {
       featured: false
     },
     {
+      id: 'elite' as PlanId,
       name: 'Elite',
-      price: 'R$ 197',
       description: 'Para quem quer acessar a Creator Lab no nível mais completo, com ferramentas, conteúdos, gestão e suporte estratégico para operar com mais profissionalismo, consistência e visão de crescimento.',
       subText: 'Ideal para criadores, social medias e profissionais que querem levar a criação mobile para outro patamar.',
       features: [
@@ -55,8 +60,8 @@ export default function PricingSection() {
       featured: true
     },
     {
+      id: 'pro' as PlanId,
       name: 'Pro',
-      price: 'R$ 117',
       description: 'Para quem já atende clientes ou quer acelerar sua evolução com mais recursos, mais estrutura e mais capacidade de transformar análises, ideias e orçamentos em propostas comerciais completas.',
       subText: 'Ideal para quem quer vender com mais autoridade e organizar melhor sua operação.',
       features: [
@@ -72,6 +77,9 @@ export default function PricingSection() {
       featured: false
     }
   ];
+
+  const agency = { id: 'agency' as PlanId, name: 'Agência' };
+  const cycleNote = (id: PlanId) => cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} · créditos todo mês`;
 
   const handleInitiatePayment = (plan: any) => {
     setSelectedPlan(plan);
@@ -118,7 +126,7 @@ export default function PricingSection() {
         acquisition: getAttribution(),
       });
       track('CompleteRegistration', { content_name: selectedPlan.name });
-      track('InitiateCheckout', { value: planValue(selectedPlan.name), currency: 'BRL', content_name: selectedPlan.name });
+      track('InitiateCheckout', { value: planValue(selectedPlan.id, cycle), currency: 'BRL', content_name: `${selectedPlan.id}_${cycle}` });
 
       const token = await user.getIdToken();
       const response = await fetch('/api/stripe/checkout', {
@@ -127,7 +135,7 @@ export default function PricingSection() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planName: selectedPlan.name, marketing: marketingContext() })
+        body: JSON.stringify({ planName: selectedPlan.id, cycle, marketing: marketingContext() })
       });
 
       const resData = await response.json();
@@ -152,6 +160,17 @@ export default function PricingSection() {
 
   return (
     <>
+      <div className="flex justify-center mb-8">
+        <div className="flex gap-1 p-1 rounded-full bg-black/40 border border-white/[0.08]" role="tablist" aria-label="Ciclo de cobrança">
+          {CYCLE_ORDER.map(c => (
+            <button key={c} type="button" role="tab" aria-selected={cycle === c} onClick={() => setCycle(c)}
+              className={cn('px-4 py-2 rounded-full text-xs font-semibold transition-colors', cycle === c ? 'bg-brand-emerald/20 text-white' : 'text-gray-400 hover:text-white')}>
+              {BILLING_CYCLES[c].label}
+              {c === 'annual' ? <span className="ml-1 text-brand-mint">2 meses grátis</span> : BILLING_CYCLES[c].discount ? <span className="ml-1 text-brand-mint">−{Math.round(BILLING_CYCLES[c].discount * 100)}%</span> : null}
+            </button>
+          ))}
+        </div>
+      </div>
       <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
         {plans.map((plan) => (
           <GlassCard 
@@ -170,10 +189,11 @@ export default function PricingSection() {
             
             <div className="mb-8">
               <h3 className="text-xl font-extrabold text-white mb-2">{plan.name}</h3>
-              <div className="flex items-baseline gap-1 mb-4">
-                <span className="text-4xl font-extrabold text-white">{plan.price}</span>
+              <div className="flex items-baseline gap-1">
+                <span className="text-4xl font-extrabold text-white">{formatBRL(PLAN_PRICES[plan.id][cycle])}</span>
                 <span className="text-gray-500 text-sm">/mês</span>
               </div>
+              <p className="text-[11px] text-gray-500 mt-1 mb-4">{cycleNote(plan.id)}</p>
               <p className="text-xs text-gray-400 leading-relaxed min-h-[48px]">{plan.description}</p>
             </div>
 
@@ -202,6 +222,27 @@ export default function PricingSection() {
         ))}
       </div>
 
+      {/* Agências e empresas: volume alto, fora da escolha principal */}
+      <GlassCard className="mt-6 p-6 md:p-8 border-white/5 flex flex-col md:flex-row md:items-center gap-6">
+        <div className="flex-1 space-y-2">
+          <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald">Para agências e empresas</span>
+          <h3 className="text-xl font-extrabold text-white">Plano Agência · 1.000 créditos por mês</h3>
+          <p className="text-xs text-gray-400 leading-relaxed max-w-2xl">
+            Tudo do Elite com volume para produzir para vários clientes: imagens, vídeos, montagens de até 5 minutos e o crédito 24% mais barato que no Elite.
+          </p>
+        </div>
+        <div className="md:text-right space-y-3 shrink-0">
+          <div>
+            <span className="text-3xl font-extrabold text-white">{formatBRL(PLAN_PRICES.agency[cycle])}</span>
+            <span className="text-gray-500 text-sm">/mês</span>
+            <p className="text-[11px] text-gray-500">{cycleNote('agency')}</p>
+          </div>
+          <Button onClick={() => handleInitiatePayment(agency)} variant="outline" className="h-11 px-6 uppercase font-bold text-xs tracking-wider">
+            Assinar o plano Agência
+          </Button>
+        </div>
+      </GlassCard>
+
       {isCheckoutOpen && selectedPlan && (
         <div className="fixed inset-0 bg-black/90 backdrop-blur-md z-50 flex items-center justify-center p-4 overflow-y-auto">
           <div className="relative bg-[#0d0d0d] border border-white/10 rounded-3xl p-6 md:p-8 max-w-lg w-full shadow-[0_20px_50px_rgba(0,0,0,0.9)] space-y-6 animate-in fade-in zoom-in-95 duration-200 my-8">
@@ -218,7 +259,8 @@ export default function PricingSection() {
                 <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald bg-brand-emerald/10 border border-brand-emerald/20 px-2 py-0.5 rounded">
                   Registro & Pagamento Seguro
                 </span>
-                <h3 className="text-2xl font-bold text-white mt-2">Assinar Plano {selectedPlan.name}</h3>
+                <h3 className="text-2xl font-bold text-white mt-2">Assinar Plano {selectedPlan.name} · {BILLING_CYCLES[cycle].label}</h3>
+                <p className="text-brand-mint text-sm mt-1">{formatBRL(PLAN_PRICES[selectedPlan.id as PlanId][cycle])}/mês · {cycleNote(selectedPlan.id)}</p>
                 <p className="text-gray-400 text-sm mt-1">
                   Crie sua conta para prosseguir com o pagamento seguro no Stripe.
                 </p>

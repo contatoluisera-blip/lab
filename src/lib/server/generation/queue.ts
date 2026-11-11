@@ -16,6 +16,7 @@ import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { GenConfig, GenJob, GenMode, GenOutput } from '@/lib/generation';
 import { ToolId } from '@/lib/planConfig';
 import { buildKiePayload, createKieTask, getKieRecord } from './kie';
+import { refundFields } from '@/lib/server/credits';
 
 const KIE_KEY = () => process.env.KIE_AI_API_KEY || '';
 export const GEN_RATE_LIMIT = 16;
@@ -37,6 +38,8 @@ export interface StoredJob extends GenJob {
   costMismatch?: boolean;
   refunded: boolean;
   chargedCredits: number;
+  /** Parte paga com créditos avulsos (volta para o avulso no estorno). */
+  chargedExtra?: number;
   tool: ToolId;
   lastCheckedAt?: string | null;
   attempts: number;
@@ -83,7 +86,7 @@ async function failJob(jobId: string, error: string, extra: Record<string, unkno
     const updates: Record<string, unknown> = { status: 'failed', active: false, error, completedAt: now(), ...extra };
     if (!job.refunded && job.chargedCredits > 0) {
       const userRef = adminDb.collection('users').doc(job.uid);
-      tx.update(userRef, { credits: admin.firestore.FieldValue.increment(job.chargedCredits), updatedAt: now() });
+      tx.update(userRef, { ...refundFields(job.chargedCredits, job.chargedExtra), updatedAt: now() });
       tx.set(userRef.collection('credit_ledger').doc(), {
         tool: job.tool, delta: job.chargedCredits, reason: 'generation_failed', jobId, createdAt: now(),
       });

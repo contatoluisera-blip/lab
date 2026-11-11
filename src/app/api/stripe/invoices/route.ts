@@ -2,8 +2,8 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { requireUser } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { billingInterval, currentPeriod, productIdFromInvoiceLine, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
-import { PLAN_CONFIGS, planFromStripeProduct } from '@/lib/planConfig';
+import { billingInterval, currentPeriod, planForProduct, productIdFromInvoiceLine, productIdFromSubscription, stripeClient } from '@/lib/server/stripe';
+import { PLAN_CONFIGS } from '@/lib/planConfig';
 import { grantCredits } from '@/lib/server/credits';
 
 export const dynamic = 'force-dynamic';
@@ -34,7 +34,7 @@ export async function GET(req: Request) {
 
         if ((sub.status === 'active' || sub.status === 'trialing') && period.start) {
           const lastReset = userData.creditsResetAt ? new Date(userData.creditsResetAt).getTime() : 0;
-          const plan = planFromStripeProduct(productIdFromSubscription(sub));
+          const plan = (await planForProduct(productIdFromSubscription(sub)))?.plan ?? null;
           if (plan && period.start > lastReset) {
             await grantCredits(user.uid, PLAN_CONFIGS[plan].credits, 'cycle_catchup', {
               plan,
@@ -48,8 +48,8 @@ export async function GET(req: Request) {
     }
 
     const invoices = await stripe.invoices.list({ customer: customerId, limit: 12 });
-    const formatted = invoices.data.map((invoice) => {
-      const plan = planFromStripeProduct(productIdFromInvoiceLine(invoice.lines?.data?.[0]));
+    const formatted = await Promise.all(invoices.data.map(async (invoice) => {
+      const plan = (await planForProduct(productIdFromInvoiceLine(invoice.lines?.data?.[0])))?.plan ?? null;
       const method = invoice.payment_settings?.payment_method_types?.[0];
       return {
         id: invoice.id,
@@ -60,7 +60,7 @@ export async function GET(req: Request) {
         plan: plan ? PLAN_CONFIGS[plan].label : 'Desconhecido',
         pdfUrl: invoice.invoice_pdf,
       };
-    });
+    }));
 
     return NextResponse.json({ invoices: formatted, nextBillingDate, interval });
   } catch (error) {
