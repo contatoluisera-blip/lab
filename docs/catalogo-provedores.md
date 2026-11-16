@@ -92,6 +92,17 @@ A KIE também revende Claude, GPT, Gemini, Grok, DeepSeek e Kimi. Os preços lis
 
 ## 7. Teste da OpenRouter (16/11/2026)
 
-- A chave é válida: a consulta de conta respondeu 200, com US$ 10 de saldo e US$ 0 de uso.
-- O catálogo responde: 469 modelos de texto e 22 do Claude, incluindo Sonnet, Opus e Haiku 5.5.
-- **Toda chamada de geração responde 401 "User not found"**, em qualquer modelo (Claude, OpenAI, Gemini, Llama). É um problema na conta da OpenRouter, não no nosso código. Os vídeos de teste não foram disparados, e nada foi cobrado.
+A primeira chave era de gerenciamento (management key): ela consulta a conta, mas não pode chamar modelos, e por isso dava 401 "User not found". Com uma chave de API comum, tudo funcionou.
+
+Mesmo prompt nos dois vídeos (barista fazendo latte art), 5 s, 9:16, sem áudio, gerados ao mesmo tempo.
+
+| Teste | Tempo | Custo cobrado | Mesmo pedido na KIE | Diferença (com a taxa de 5,5% na compra de créditos) |
+|---|---|---|---|---|
+| Claude Sonnet 5.5 (3 ideias de Reels, 79 + 192 tokens) | 3,4 s | US$ 0,0021 | — (direto na Anthropic: mesmo preço) | +5,5% sem BYOK |
+| Seedance 2.0 Fast, 480p, 5 s | 112 s | US$ 0,213 (R$ 1,22) | US$ 0,295 (R$ 1,69) | **−24%** |
+| Wan 2.7, 720p, 5 s | 100 s | US$ 0,50 (R$ 2,86) | US$ 0,40 (R$ 2,29) | **+32%** |
+
+- **Qualidade:** os dois vídeos saíram limpos, verticais e fiéis ao prompt. O Wan, em 720p, tem mais detalhe; o Seedance, em 480p, enquadrou a cena mais aberta. Falta a comparação lado a lado com o mesmo prompt na KIE.
+- **Claude:** o pedido foi atendido pela Anthropic via AWS ("Claude Platform on AWS"), com o português e o formato certos. Isso confirma que a reserva automática funciona.
+- **Wan 2.7 na OpenRouter:** cobra US$ 0,10/s em qualquer resolução. Em 720p sai mais caro que na KIE; em 1080p (US$ 0,50 contra US$ 0,60 na KIE) sai ~12% mais barato com a taxa. Corrige a seção 6 de `docs/provedores-ia.md`, que tratava o Wan como mais barato em geral.
+- **Conclusão:** a OpenRouter serve como reserva de vídeo e do Claude. Pode ser a principal só no Seedance 2 Fast e no Wan 2.7 em 1080p.
