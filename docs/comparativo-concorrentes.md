@@ -1,108 +1,162 @@
-# Comparativo: Creator Lab, Higgsfield e Magnific
+# Comparativo: Creator Lab, One Station, Higgsfield e Magnific
 
-Levantado em 16/11/2026, nas páginas oficiais: [higgsfield.ai/pricing](https://higgsfield.ai/pricing) (abas Individual e Business) e [magnific.com/pricing](https://www.magnific.com/pricing).
+Levantado em 16/11/2026, nas páginas oficiais:
+- [onestation.ai](https://onestation.ai/#precos): planos, tabela "Custo por Geração", pacotes extras e páginas "Assinatura de IA" e "Ferramentas de IA";
+- [higgsfield.ai/pricing](https://higgsfield.ai/pricing): abas Individual e Business;
+- [magnific.com/pricing](https://www.magnific.com/pricing).
 
-- **Dólar:** R$ 5,72, com IOF e taxas do cartão internacional, como no nosso estudo de custos. A Magnific cobra em reais, sem impostos locais.
-- **Creator Lab:** linhas com as regras novas, ainda não publicadas na plataforma: imagem a 1 crédito, prompts das cenas grátis na Montagem e os preços de agência da seção 8 de `docs/plano-agencia.md`.
-- **Higgsfield:** estava em promoção de Black Friday, com até 65% de desconto no anual. As tabelas usam o preço mensal cheio; a promoção aparece à parte.
-- **Revisão:** os concorrentes mudaram preços várias vezes em 2026. Vale refazer este levantamento a cada trimestre.
+- **Dólar:** R$ 5,72, com IOF e taxas do cartão internacional, como no nosso estudo de custos. One Station e Magnific cobram em reais.
+- **Creator Lab:** preços em produção desde 16/11/2026: crédito ×10 (forma B de `docs/creditos-multiplos.md`) e planos Corporativo.
+- **One Station:**
+  - a tabela pública diz quantos créditos cada geração custa, mas **não diz a duração nem a resolução** dos vídeos. Comparamos como está publicado;
+  - o AutoFilm (roteiro → filme) não tem preço público;
+  - há o cupom STATION, com 30% nos 3 primeiros meses, que não entra nas tabelas.
+- **Higgsfield:** estava em promoção de Black Friday, com até 65% de desconto no anual. As tabelas usam o preço mensal cheio.
+- **Revisão:** os concorrentes mudam preços com frequência. Vale refazer este levantamento a cada trimestre.
 
-Estudos ligados: `docs/custos-plataforma.md` (nossos custos), `docs/projecao-planos.md` (ciclos) e `docs/plano-agencia.md` (planos de agência).
+Estudos ligados: `docs/custos-plataforma.md`, `docs/projecao-planos.md`, `docs/plano-agencia.md`, `docs/creditos-multiplos.md` e `docs/pitch-creator-lab.md`, que é o pitch montado a partir deste comparativo.
 
 ## 1. Planos
 
-| Plataforma | Plano | Preço mensal | Anual (por mês) | Créditos/mês | Pessoas |
+| Plataforma | Plano | Mensal | Anual (por mês) | Créditos/mês | Para quem |
 |---|---|---|---|---|---|
-| Creator Lab | Start | R$ 67 | R$ 53 | 20 | 1 |
-| Creator Lab | Pro | R$ 117 | R$ 93 | 50 | 1 |
-| Creator Lab | Elite | R$ 197 | R$ 157 | 100 | 1 |
-| Creator Lab | Agência | R$ 1.247 | R$ 1.060 | 1.000 | 1 (equipe em breve) |
-| Creator Lab | Agência Plus | R$ 2.747 | R$ 2.335 | 2.500 | 1 (equipe em breve) |
-| Creator Lab | Agência Max | R$ 4.997 | R$ 4.247 | 5.000 | 1 (equipe em breve) |
-| Higgsfield | Starter | — | US$ 15 | 200 | 1 |
-| Higgsfield | Plus | US$ 49 | US$ 27 (promoção) | 1.000 | 1 |
-| Higgsfield | Ultra | US$ 129 | US$ 50 (promoção) | 3.000 (até 9 mil) | 1 |
-| Higgsfield | Team | US$ 79 por pessoa | US$ 45 por pessoa (promoção) | 1.000 por pessoa | 2 a 9, saldo compartilhado |
-| Higgsfield | Scale | US$ 215 por pessoa | US$ 80 por pessoa (promoção) | 2.500 por pessoa | 5 a 15, saldo compartilhado |
-| Magnific | Premium | R$ 80 | R$ 59 | 20 mil | 1 |
-| Magnific | Plus | R$ 180 | R$ 135 | 50 mil | 1 |
-| Magnific | Pro | R$ 440 | R$ 330 | 125 mil | 1 |
-| Magnific | Business | não publicado | não publicado | — | equipes |
+| Creator Lab | Start | R$ 67 | R$ 53 | 200 | criador começando |
+| Creator Lab | Pro | R$ 117 | R$ 93 | 500 | criador que já atende clientes |
+| Creator Lab | Elite | R$ 197 | R$ 157 | 1.000 | criador completo (com cursos) |
+| Creator Lab | Corporativo | R$ 1.247 | R$ 1.060 | 10.000 | agência ou empresa, ~6 clientes |
+| Creator Lab | Corporativo Plus | R$ 2.747 | R$ 2.335 | 25.000 | ~16 clientes |
+| Creator Lab | Corporativo Max | R$ 4.997 | R$ 4.247 | 50.000 | ~32 clientes |
+| One Station | Free | R$ 0 | — | 100 (uma vez) | testar; compra pacotes avulsos |
+| One Station | Starter | R$ 99,90 | ~R$ 82,90 (−17%) | 600 | só Chat, imagem, vídeo, áudio e música; os outros módulos ficam bloqueados |
+| One Station | Essential | R$ 229,90 | ~R$ 190,80 | 1.400 | módulo Produção completo (AutoFilm, PPM, Avatar...) |
+| One Station | Creator | R$ 339,90 | ~R$ 282,10 | 2.100 | + painel de projetos, casting e WhatsApp |
+| One Station | Scale | R$ 890,90 | ~R$ 739,40 | 5.500 | pequenas produtoras (financeiro, orçamentos, equipe) |
+| One Station | Pro | R$ 2.229,90 | ~R$ 1.850,80 | 14.000 | produtoras e agências (+ Drive, jurídico, CRM) |
+| One Station | Enterprise | R$ 2.459,90 | ~R$ 2.041,70 | 16.000 | + banco digital, contabilidade, WhatsApp |
+| Higgsfield | Starter / Plus / Ultra | — / US$ 49 / US$ 129 | US$ 15 / 27 / 50 (promoção) | 200 / 1.000 / 3.000 | individual |
+| Higgsfield | Team / Scale | US$ 79 / 215 por pessoa | US$ 45 / 80 por pessoa (promoção) | 1.000 / 2.500 por pessoa | equipes, saldo compartilhado |
+| Magnific | Premium / Plus / Pro | R$ 80 / 180 / 440 | R$ 59 / 135 / 330 | 20 mil / 50 mil / 125 mil | individual |
+
+**Pacotes avulsos:**
+- **Creator Lab:**
+  - R$ 0,335 por crédito nos planos individuais (100 a 10.000 créditos);
+  - R$ 0,125 nos Corporativo (2.500 a 50.000);
+  - os créditos valem 90 dias.
+- **One Station:**
+  - 500 por R$ 55 (R$ 0,11 por crédito) até 57.500 por R$ 5.500 (R$ 0,096);
+  - **não expiram e podem ser comprados no plano Free, sem assinatura.**
 
 ## 2. Quanto vale 1 crédito
 
-| Plataforma | Plano | R$ por crédito (mensal) |
-|---|---|---|
-| Creator Lab | Start / Pro / Elite | R$ 3,35 / R$ 2,34 / R$ 1,97 |
-| Creator Lab | Agência / Plus / Max | R$ 1,25 / R$ 1,10 / R$ 1,00 |
-| Higgsfield | Plus / Ultra | R$ 0,28 / R$ 0,25 |
-| Higgsfield | Team / Scale | R$ 0,45 / R$ 0,49 |
-| Magnific | Premium / Plus / Pro | R$ 4,00 / R$ 3,60 / R$ 3,52 por mil créditos |
+| Plataforma | R$ por crédito (mensal) |
+|---|---|
+| Creator Lab Start / Pro / Elite | R$ 0,335 / 0,234 / 0,197 |
+| Creator Lab Corporativo / Plus / Max | R$ 0,125 / 0,110 / 0,100 |
+| One Station Starter / Essential / Creator / Scale / Pro / Enterprise | R$ 0,167 / 0,164 / 0,162 / 0,162 / 0,159 / 0,154 |
+| One Station pacotes avulsos | R$ 0,110 a 0,096 |
+| Higgsfield Plus / Ultra / Team / Scale | R$ 0,28 / 0,25 / 0,45 / 0,49 |
+| Magnific Premium / Plus / Pro | R$ 4,00 / 3,60 / 3,52 por mil créditos |
 
-O crédito não se compara direto: cada plataforma cobra uma quantidade diferente pelo mesmo modelo. A comparação justa é por entrega, na tabela 3.
+O crédito não se compara direto: cada plataforma cobra uma quantidade diferente pelo mesmo modelo. A comparação justa é por entrega (tabela 3).
 
 ## 3. Preço por entrega (plano mensal)
 
-| Plataforma e plano | Kling 3, 1080p, 5 s | Veo 3.1 Fast, 1080p, 8 s | Seedance 2 Fast, 720p, 5 s | Imagem Nano Banana 2 | Imagem Nano Banana Pro | Trilha | **Reel de 30 s pronto** |
+| Plataforma e plano | Kling 3 (5 s) | Veo 3.1 Fast (8 s) | Seedance 2 Fast (5 s) | Imagem Nano Banana 2 | Imagem Nano Banana Pro | Trilha | **Reel de 30 s pronto** |
 |---|---|---|---|---|---|---|---|
-| Creator Lab Start | R$ 13,40 | R$ 13,40 | R$ 20,10 | R$ 3,35 | R$ 3,35 | R$ 3,35 | R$ 120,60 |
-| Creator Lab Pro | R$ 9,36 | R$ 9,36 | R$ 14,04 | R$ 2,34 | R$ 2,34 | R$ 2,34 | R$ 84,24 |
-| Creator Lab Elite | R$ 7,88 | R$ 7,88 | R$ 11,82 | R$ 1,97 | R$ 1,97 | R$ 1,97 | R$ 70,92 |
-| Creator Lab Agência | R$ 4,99 | R$ 4,99 | R$ 7,48 | R$ 1,25 | R$ 1,25 | R$ 1,25 | **R$ 44,89** |
-| Creator Lab Agência Plus | R$ 4,40 | R$ 4,40 | R$ 6,59 | R$ 1,10 | R$ 1,10 | R$ 1,10 | **R$ 39,56** |
-| Creator Lab Agência Max | R$ 4,00 | R$ 4,00 | R$ 6,00 | R$ 1,00 | R$ 1,00 | R$ 1,00 | **R$ 35,98** |
-| Higgsfield Starter | R$ 3,43 | R$ 13,73 | R$ 5,15 | R$ 0,86 | R$ 0,86 | — | não faz |
+| Creator Lab Start | R$ 13,40 | R$ 10,05 | R$ 18,43 | R$ 2,68 | R$ 2,68 | R$ 2,68 | R$ 113,57 |
+| Creator Lab Pro | R$ 9,36 | R$ 7,02 | R$ 12,87 | R$ 1,87 | R$ 1,87 | R$ 1,87 | R$ 79,33 |
+| Creator Lab Elite | R$ 7,88 | R$ 5,91 | R$ 10,84 | R$ 1,58 | R$ 1,58 | R$ 1,58 | R$ 66,78 |
+| Creator Lab Corporativo | R$ 4,99 | R$ 3,74 | R$ 6,86 | R$ 1,00 | R$ 1,00 | R$ 1,00 | **R$ 42,27** |
+| Creator Lab Corporativo Plus | R$ 4,40 | R$ 3,30 | R$ 6,04 | R$ 0,88 | R$ 0,88 | R$ 0,88 | **R$ 37,25** |
+| Creator Lab Corporativo Max | R$ 4,00 | R$ 3,00 | R$ 5,50 | R$ 0,80 | R$ 0,80 | R$ 0,80 | **R$ 33,88** |
+| One Station Essential | R$ 8,21 | R$ 5,91 | R$ 6,57 | R$ 0,33 | R$ 1,64 | não publicado | sem preço público (AutoFilm) |
+| One Station Creator | R$ 8,09 | R$ 5,83 | R$ 6,47 | R$ 0,32 | R$ 1,62 | não publicado | idem |
+| One Station Pro | R$ 7,96 | R$ 5,73 | R$ 6,37 | R$ 0,32 | R$ 1,59 | não publicado | idem |
+| One Station pacote 57.500 | R$ 4,78 | R$ 3,44 | R$ 3,83 | R$ 0,19 | R$ 0,96 | não publicado | idem |
 | Higgsfield Plus | R$ 2,24 | R$ 8,97 | R$ 3,36 | R$ 0,56 | R$ 0,56 | — | não faz |
-| Higgsfield Ultra | R$ 1,97 | R$ 7,87 | R$ 2,95 | R$ 0,49 | R$ 0,49 | — | não faz |
 | Higgsfield Team | R$ 3,62 | R$ 14,46 | R$ 5,42 | R$ 0,90 | R$ 0,90 | — | não faz |
 | Higgsfield Scale | R$ 3,94 | R$ 15,74 | R$ 5,90 | R$ 0,98 | R$ 0,98 | — | não faz |
-| Magnific Premium | R$ 1,80 | não oferece | R$ 4,70 | R$ 0,30 | R$ 0,30 | R$ 0,64 | não faz |
-| Magnific Plus | R$ 1,62 | não oferece | R$ 4,23 | R$ 0,27 | R$ 0,27 | R$ 0,58 | não faz |
 | Magnific Pro | R$ 1,58 | não oferece | R$ 4,14 | R$ 0,26 | R$ 0,26 | R$ 0,56 | não faz |
 
 **Créditos usados em cada coluna:**
 
-| Entrega | Creator Lab | Higgsfield | Magnific |
-|---|---|---|---|
-| Kling 3, 1080p, 5 s | 4 | ~8 | 450 (Kling 3.0 Pro) |
-| Veo 3.1 Fast, 1080p, 8 s | 4 | ~32 (16 por 4 s) | só o Veo 3.1 em 4K (2.080 por 4 s) |
-| Seedance 2 Fast, 720p, 5 s | 6 | ~12 | 1.175 (940 por 4 s) |
-| Imagem Nano Banana 2 ou Pro | 1 | 2 | 75 (ilimitada no Plus e no Pro) |
-| Trilha | 1 (Suno, 2 versões) | — | 160 (Lyria 3) |
-| Reel pronto | 36 | não faz | não faz |
+| Entrega | Creator Lab | One Station | Higgsfield | Magnific |
+|---|---|---|---|---|
+| Kling 3 | 40 (Pro, 1080p, 5 s) | 50 (duração e resolução não informadas) | ~8 | 450 |
+| Veo 3.1 Fast | 30 (1080p, 8 s) | 36 (não informado) | ~32 | só o Veo 3.1 em 4K |
+| Seedance 2 Fast | 55 (720p, 5 s) | 40 (não informado) | ~12 | 1.175 |
+| Nano Banana 2 / Pro | 8 / 8 (2K) | 2 / 10 | 2 / 2 | 75 |
+| Trilha | 8 (Suno, 2 versões) | Suno sem preço na tabela | — | 160 |
+| Reel pronto | 339 | AutoFilm sem preço | não faz | não faz |
 
-O **Reel de 30 s pronto** inclui roteiro, prompts das cenas, 6 frames, 6 animações (Kling), montagem com o Claude, locução em PT-BR, trilha e exportação. Nas outras duas, a geração termina nos clipes. Roteiro, edição, voz e trilha ficam em outras ferramentas e no tempo de um editor. Gerar só os clipes de um Reel (6 imagens + 6 vídeos Kling) custa R$ 27,11 na Higgsfield Team e R$ 11,09 na Magnific Pro.
+**O Reel de 30 s pronto na Creator Lab** inclui:
+- roteiro;
+- prompts das cenas (grátis na Montagem);
+- 6 frames e 6 animações em Kling 3 Pro 1080p;
+- montagem com o Claude (3 rodadas grátis);
+- locução em PT-BR, trilha e legenda palavra por palavra;
+- ID Visual e exportação.
 
-**Nosso custo real** nas mesmas entregas: Kling 3 5 s R$ 2,57 · Veo 3.1 Fast 8 s R$ 1,86 · Seedance 2 Fast 720p 5 s R$ 3,55 · Nano Banana 2 2K R$ 0,34 · Reel pronto R$ 25,44.
+**Na One Station**, somando só o que tem preço público (6 imagens Nano Banana 2 + 6 Kling 3 + 1 locução ElevenLabs), dá 328 créditos: **R$ 52,24 no Pro** e R$ 31,37 com o maior pacote avulso. Roteiro, storyboard, edição e trilha ficam fora dessa conta.
+
+**Nosso custo real:**
+
+| Entrega | Custo |
+|---|---|
+| Kling 3 Pro 5 s | R$ 2,57 |
+| Veo 3.1 Fast 8 s | R$ 1,86 |
+| Seedance 2 Fast 720p 5 s | R$ 3,55 |
+| Nano Banana 2 2K | R$ 0,34 |
+| Reel pronto | ~R$ 25,44 |
 
 ## 4. Recursos
 
-| Recurso | Creator Lab | Higgsfield | Magnific |
-|---|---|---|---|
-| Interface e suporte em português | ✅ | parcial (site traduzido) | parcial (preço em reais) |
-| Roteiro → cenas com IA | ✅ agente de roteiro | — | — |
-| Prompts técnicos por cena | ✅ Gerador de Prompts (Claude) | — | — |
-| Montagem automática do vídeo | ✅ Claude + Remotion | — | editor manual |
-| Locução com vozes brasileiras | ✅ ElevenLabs / OpenAI | módulo de áudio | geração de voz |
-| Trilha | ✅ Suno | — | Lyria, ElevenLabs Music |
-| Legenda palavra por palavra | ✅ | — | — |
-| ID Visual da marca (letterings, cores, logo) | ✅ | — | Brand Kit |
-| Ferramentas de negócio (diagnóstico, proposta, calculadora) | ✅ | — | — |
-| Cursos e lives | ✅ Elite e Agência | Academy | — |
-| Equipe com saldo compartilhado | em breve | ✅ Team e Scale | ✅ Business |
-| Controle de gasto, SSO, painel de equipe | em breve | ✅ | ✅ (Business) |
-| Modelos ilimitados | — | alguns, por 7 dias | Nano Banana e Kling 2.5 no Plus e no Pro |
-| Upscale de imagem e vídeo | — | — | ✅ (o forte da Magnific) |
-| API | — | ✅ | ✅ |
-| Validade dos créditos | cota mensal; avulsos 90 dias | mensal | 1 ano no plano anual |
+| Recurso | Creator Lab | One Station | Higgsfield | Magnific |
+|---|---|---|---|---|
+| Foco | criador e social media que vendem conteúdo; agências | produtoras audiovisuais e agências (estúdio + gestão da empresa) | geração de imagem e vídeo | geração e upscale |
+| Português e preço em reais | ✅ | ✅ | parcial | parcial (preço em reais) |
+| Roteiro → cenas com IA | ✅ agente de roteiro | ✅ Roteiro, Storyboard, PPM | — | — |
+| Prompts técnicos por cena (Claude) | ✅ grátis na Montagem | não informado | — | — |
+| Vídeo final montado automaticamente | ✅ Claude Opus + Remotion, 2 passadas vendo os quadros | ✅ AutoFilm (sem preço público) | — | editor manual |
+| Legenda palavra por palavra em PT-BR | ✅ | não informado | — | — |
+| ID Visual aplicada no vídeo (lettering, marca d'água, vinheta) | ✅ | Brand ID (gera logo e manual) | — | Brand Kit |
+| Locução com vozes brasileiras | ✅ ElevenLabs e OpenAI | ✅ ElevenLabs, Gemini Audio, clonagem | módulo de áudio | geração de voz |
+| Trilha / música | ✅ Suno instrumental | ✅ Suno com letra, ElevenLabs Music | — | Lyria, ElevenLabs Music |
+| Avatar falante / lip sync | — | ✅ OmniHuman, InfiniteTalk, Higgsfield Speak, Veed | — | — |
+| Sora 2 | — | ✅ | — | — |
+| Kling 4.0, Hailuo, PixVerse, Grok, Runway | ✅ | Kling até 3.0; os outros não aparecem | parcial | parcial |
+| Diagnóstico de perfil do Instagram | ✅ | — | — | — |
+| Calculadora de orçamento, propostas e gestão de clientes do criador | ✅ | orçamentos e CRM (Scale/Pro, para produtora) | — | — |
+| Gerador de ideias e legendas | ✅ | chat multi-LLM | — | — |
+| Cursos e lives | ✅ Elite e Corporativo (com Luisera) | workshop presencial e notícias | Academy | — |
+| WhatsApp (gerar pelo chat) | — | ✅ | — | — |
+| Gestão da empresa (financeiro, jurídico, banco, agenda) | — | ✅ (Scale em diante) | — | — |
+| Equipe com saldo compartilhado | em breve | ✅ equipe ilimitada no Scale | ✅ Team e Scale | ✅ Business |
+| Plano grátis | primeiro uso de cada ferramenta grátis | ✅ 100 créditos, sem cartão | — | — |
+| Validade dos créditos | cota mensal; avulsos 90 dias | cota mensal; **avulsos não expiram** | mensal | 1 ano no anual |
+| Estorno automático se a geração falhar | ✅ | não informado | — | — |
+| Indicação com comissão | — | ✅ até 5 níveis (17% no 1º) | — | — |
 
 ## 5. Leitura
 
-1. **Geração pura nos planos de agência:**
-   - No Kling e na imagem ficamos **1,1 a 1,4 vez acima da Higgsfield Team**, e de 2,5 a 3 vezes (Kling) a 4 a 5 vezes (imagem) acima da Magnific.
-   - No Kling, a Magnific cobra abaixo do nosso custo na KIE, então não dá para disputar esse preço.
-2. **Veo 3.1 Fast:** somos **mais baratos que a Higgsfield** em todos os planos de agência (R$ 4,00 a R$ 4,99, contra R$ 14,46 na Team). A Magnific não oferece o Veo Fast.
-3. **Seedance 2 Fast:** nos planos de agência ficamos próximos da Higgsfield Team (R$ 6,00 a R$ 7,48, contra R$ 5,42).
-4. **Reel pronto:** só nós entregamos. A R$ 36 a R$ 45 nos planos de agência, ele fica perto do preço de gerar só os clipes na Higgsfield Team (R$ 27), sem a edição, a voz e a trilha.
-5. **Equipe:** é o principal ponto em que perdemos para agências. Higgsfield e Magnific vendem por pessoa, com saldo compartilhado e controle de gasto.
-6. **Start, Pro e Elite:** com o crédito a R$ 1,97 a R$ 3,35, o preço por entrega fica de 2 vezes (Elite contra Higgsfield Team) a 13 vezes (imagem no Start contra Magnific) acima dos concorrentes. Esses planos competem pelo pacote (ferramentas de negócio, cursos, Montagem), não pela geração avulsa.
+1. **Contra a One Station, o concorrente mais parecido (BR, em reais, roteiro → vídeo):**
+   - **Kling e Veo saem mais baratos na Creator Lab** em qualquer plano Corporativo, quando comparados aos planos da One Station:
+     - Kling: R$ 4,99 contra R$ 7,96 no Pro dela (−37%);
+     - Veo 3.1 Fast: R$ 3,74 contra R$ 5,73 (−35%).
+   - No Elite contra o Essential, empatamos no Veo (R$ 5,91 nos dois) e ficamos 4% abaixo no Kling, com R$ 33 a menos de mensalidade.
+   - **Na imagem e no Seedance a One Station é mais barata:**
+     - Nano Banana 2: R$ 0,32 contra R$ 1,00 a 1,58;
+     - Seedance: R$ 6,47 contra R$ 6,86 a 10,84.
+     - Não vale disputar preço de imagem; vale mostrar que a imagem na Creator Lab já vem com o prompt técnico grátis dentro da Montagem.
+   - **Pacotes avulsos da One Station** (R$ 0,096 a 0,11, sem validade, sem assinatura) ficam perto do nosso Corporativo Max e abaixo dos nossos planos individuais. É a objeção mais forte de preço.
+   - **O vídeo pronto é a nossa vantagem clara:**
+     - o Reel completo sai por R$ 42 no Corporativo;
+     - na One Station, só os clipes e a voz já custam R$ 52 no plano Pro, e o AutoFilm não tem preço público para comparar.
+   - **A One Station é mais larga:** gestão da empresa, avatar, Sora, WhatsApp. **Nós somos mais fundos no negócio do criador:** diagnóstico, orçamento, proposta, ideias, cursos e Reel em PT-BR com legenda.
+2. **Higgsfield:**
+   - no Kling e na imagem, ela segue mais barata que os nossos planos individuais;
+   - no Corporativo ficamos próximos da Team (Kling R$ 4,99 contra R$ 3,62);
+   - **no Veo 3.1 Fast somos de 2,4 a 4,8 vezes mais baratos que a Team** (R$ 3,00 a 5,91 contra R$ 14,46).
+3. **Magnific:** é a mais barata em Kling e imagem, abaixo do nosso custo na KIE. Não dá para disputar preço de geração pura; ela não monta vídeo nem tem Veo Fast.
+4. **Reel pronto:** só Creator Lab e One Station (AutoFilm) entregam. Higgsfield e Magnific param nos clipes.
+5. **Equipe** segue sendo o principal ponto em que perdemos para agências: os três concorrentes já vendem saldo compartilhado.
