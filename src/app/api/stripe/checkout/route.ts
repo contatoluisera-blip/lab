@@ -33,6 +33,8 @@ export async function POST(req: Request) {
       }
       const session = await stripe.checkout.sessions.create({
         mode: 'payment',
+        // Recarga só no cartão: crédito na hora, sem boleto (que leva dias e exige o evento assíncrono).
+        payment_method_types: ['card'],
         ...customer,
         client_reference_id: user.uid,
         metadata: { kind: 'topup', credits: String(toStored(credits)), units: String(credits) },
