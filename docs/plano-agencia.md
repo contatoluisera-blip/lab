@@ -117,4 +117,9 @@ Nosso custo real para comparar: Kling 3 5 s R$ 2,57 · Nano Banana 2 2K R$ 0,34 
 5. **Vender por entrega, não por crédito:** a vitrine das agências deve mostrar "X Reels prontos por mês", não só "N créditos".
 6. **Vídeo com modelos de melhor custo:** sugerir Veo Lite e Hailuo como padrão para agências (R$ 0,33 a R$ 0,50 por crédito de custo), deixando o Kling como opção premium.
 
-Com os ajustes 1 e 2, o consumo por cliente cai de 278 para cerca de 220 créditos, e cada plano atende ~25% mais clientes. A margem realista continua acima de 60%, porque o custo real por cliente não muda.
+**Efeito dos ajustes 1 e 2 juntos:**
+- O Reel com IA cai de 54 para **36 créditos**: R$ 41,76 no Max e R$ 54 no Agência.
+- O consumo por cliente cai de 278 para **188 créditos**, e cada plano atende **~48% mais clientes**: Agência ~5, Plus ~13, Max ~27.
+- O custo real por cliente não muda (R$ 104), então o custo por crédito sobe de R$ 0,37 para R$ 0,55.
+- A margem realista (80% de uso) fica em 66% / 62% / 58% no mensal e 60% / 56% / 51% no anual (−15%), para Agência / Plus / Max. É uma margem menor, mas com uma oferta muito mais competitiva por entrega.
+- O pior caso continua limitado pelo teto de R$ 0,67 por crédito: nenhum uso passa disso.
