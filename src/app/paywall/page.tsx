@@ -12,45 +12,24 @@ import {
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { useRouter } from 'next/navigation';
+import { BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, PLAN_PRICES, cycleDiscount, cycleTotal, formatBRL, isAgencyPlan } from '@/lib/planConfig';
+import { PLAN_CARDS, PlanCard } from '@/lib/planCards';
+import { marketingContext, planValue, track } from '@/lib/client/tracking';
+
+const CYCLE_ORDER: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
 
 export default function PaywallPage() {
   const { user, signOut } = useAuth();
   const router = useRouter();
   const [isProcessing, setIsProcessing] = useState(false);
 
-  const plans = [
-    {
-      name: 'Start',
-      price: 'R$ 67',
-      tier: 1,
-      description: 'Ideal para criadores que querem sair do improviso e vender com mais clareza.',
-      features: ['200 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias'],
-      buttonText: 'Contratar Plano',
-      featured: false
-    },
-    {
-      name: 'Pro',
-      price: 'R$ 117',
-      tier: 2,
-      description: 'Para quem quer vender com mais autoridade e organizar melhor sua operação.',
-      features: ['500 créditos de IA/mês', 'Acesso completo a todas as ferramentas', 'Gerador de Ideias & Propostas', 'Gestão de Clientes', 'Suporte via e-mail'],
-      buttonText: 'Contratar Plano',
-      featured: true
-    },
-    {
-      name: 'Elite',
-      price: 'R$ 197',
-      tier: 3,
-      description: 'Para criadores que querem levar a criação mobile para outro patamar.',
-      features: ['1.000 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'],
-      buttonText: 'Contratar Plano',
-      featured: false
-    }
-  ];
+  // O anual vem marcado, como na página inicial (estudo em docs/projecao-planos.md).
+  const [cycle, setCycle] = useState<BillingCycle>('annual');
 
-  const handleInitiatePayment = async (plan: any) => {
+  const handleInitiatePayment = async (plan: PlanCard) => {
     setIsProcessing(true);
     try {
+      track('InitiateCheckout', { value: planValue(plan.id, cycle), currency: 'BRL', content_name: `${plan.id}_${cycle}` });
       const token = await user?.getIdToken();
       const res = await fetch('/api/stripe/checkout', {
         method: 'POST',
@@ -58,7 +37,7 @@ export default function PaywallPage() {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${token}`
         },
-        body: JSON.stringify({ planName: plan.name })
+        body: JSON.stringify({ planName: plan.id, cycle, marketing: marketingContext() })
       });
       const data = await res.json();
       if (data.url) {
@@ -105,17 +84,31 @@ export default function PaywallPage() {
 
         {/* Plans Section */}
         <div className="space-y-6">
-          <div className="flex items-center justify-between">
+          <div className="flex flex-wrap items-center justify-between gap-3">
             <h2 className="text-xl font-bold text-white flex items-center gap-2">
               <Zap className="w-5 h-5 text-brand-neon" />
               Opções de Assinatura
             </h2>
+            <div className="flex gap-1 p-1 rounded-full bg-black/40 border border-white/[0.08]" role="tablist" aria-label="Ciclo de cobrança">
+              {CYCLE_ORDER.map(c => (
+                <button key={c} type="button" role="tab" aria-selected={cycle === c} onClick={() => setCycle(c)}
+                  className={cn('px-4 py-2 rounded-full text-xs font-semibold transition-colors', cycle === c ? 'bg-brand-emerald/20 text-white' : 'text-gray-400 hover:text-white')}>
+                  {BILLING_CYCLES[c].label}{BILLING_CYCLES[c].discount ? <span className="ml-1 text-brand-mint">{c === 'annual' ? 'até ' : ''}−{Math.round(BILLING_CYCLES[c].discount * 100)}%</span> : null}
+                </button>
+              ))}
+            </div>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {plans.map((plan) => (
-              <GlassCard 
-                key={plan.name}
+
+          {[
+            { title: 'Criadores', cards: PLAN_CARDS.filter(p => !isAgencyPlan(p.id)) },
+            { title: 'Corporativo: agências e empresas', cards: PLAN_CARDS.filter(p => isAgencyPlan(p.id)) },
+          ].map(group => (
+          <div key={group.title} className="space-y-3">
+          <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">{group.title}</h3>
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+            {group.cards.map((plan) => (
+              <GlassCard
+                key={plan.id}
                 glow={plan.featured}
                 className={cn(
                   "p-8 flex flex-col h-full relative group transition-all duration-500 hover:scale-[1.02]",
@@ -127,13 +120,16 @@ export default function PaywallPage() {
                     Melhor Valor
                   </div>
                 )}
-                
+
                 <div className="mb-8">
-                  <h3 className="text-xl font-bold text-white mb-2">{plan.name}</h3>
-                  <div className="flex items-baseline gap-1 mb-4">
-                    <span className="text-4xl font-bold text-white">{plan.price}</span>
+                  <h3 className="text-xl font-bold text-white mb-2">{PLAN_CONFIGS[plan.id].label}</h3>
+                  <div className="flex items-baseline gap-1">
+                    <span className="text-4xl font-bold text-white">{formatBRL(PLAN_PRICES[plan.id][cycle])}</span>
                     <span className="text-gray-500 text-sm">/mês</span>
                   </div>
+                  <p className="text-xs text-gray-500 mt-1 mb-4 min-h-[16px]">
+                    {cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(plan.id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} (−${Math.round(cycleDiscount(plan.id, cycle) * 100)}%) · créditos todo mês`}
+                  </p>
                   <p className="text-sm text-gray-400 leading-relaxed min-h-[40px]">{plan.description}</p>
                 </div>
 
@@ -148,18 +144,20 @@ export default function PaywallPage() {
                   ))}
                 </div>
 
-                <Button 
+                <Button
                   variant="primary"
                   className="w-full transition-all duration-300"
                   disabled={isProcessing}
                   onClick={() => handleInitiatePayment(plan)}
                 >
                   {isProcessing ? <Loader2 className="w-4 h-4 animate-spin mr-2" /> : null}
-                  {plan.buttonText}
+                  Contratar Plano
                 </Button>
               </GlassCard>
             ))}
           </div>
+          </div>
+          ))}
         </div>
 
       </div>

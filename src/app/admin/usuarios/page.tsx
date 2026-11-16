@@ -1,13 +1,14 @@
 'use client';
 
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
 import { useAuth } from '@/context/AuthContext';
 import { Users, RefreshCcw, Search, AlertTriangle, CalendarClock, CheckCircle2, RotateCw, X } from 'lucide-react';
 
 type Issue = 'pagamento_pendente' | 'renovacao_atrasada' | 'assinatura_encerrada' | 'sem_assinatura_vinculada' | 'creditos_esgotados';
 type AdminUser = {
   uid: string; name: string; email: string; createdAt: string | null;
-  plan: 'start' | 'pro' | 'elite' | null; planLabel: string | null;
+  plan: PlanId | null; planLabel: string | null;
   status: 'active' | 'manual' | 'payment_issue' | 'none'; statusLabel: string;
   credits: number; planCredits: number; renewsAt: string | null; daysToRenewal: number | null;
   stripeStatus: string | null; hasStripe: boolean; manualGrant: { by?: string; at?: string } | null;
@@ -220,7 +221,7 @@ export default function AdminUsersPage() {
                           <p className="text-xs font-bold text-white">Definir plano e créditos</p>
                           <div className="flex gap-2">
                             <select value={form.plan} onChange={e => setForm({ ...form, plan: e.target.value })} className={`${input} flex-1`}>
-                              <option value="start">Start (20)</option><option value="pro">Pro (50)</option><option value="elite">Elite (100)</option>
+                              {(Object.keys(PLAN_CONFIGS) as PlanId[]).map(id => <option key={id} value={id}>{PLAN_CONFIGS[id].label} ({PLAN_CONFIGS[id].credits.toLocaleString('pt-BR')})</option>)}
                             </select>
                             <input type="number" min={0} placeholder="padrão" value={form.credits} onChange={e => setForm({ ...form, credits: e.target.value })} className={`${input} w-24`} />
                           </div>

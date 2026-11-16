@@ -5,7 +5,7 @@
 // ─────────────────────────────────────────────────────────────
 
 export type PlanId = 'start' | 'pro' | 'elite' | 'agency' | 'agency_plus' | 'agency_max';
-/** Planos de agência: volume alto, limites maiores e recarga com preço próprio. */
+/** Planos Corporativo (ids `agency*`, para agências e empresas): volume alto, limites maiores e recarga com preço próprio. */
 export const AGENCY_PLANS: PlanId[] = ['agency', 'agency_plus', 'agency_max'];
 export const isAgencyPlan = (plan: string | null | undefined) => AGENCY_PLANS.includes(plan as PlanId);
 /** Plano gravado no perfil pode ser um dos pagos ou 'free' (conta sem assinatura ativa). */
@@ -66,7 +66,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   // Empresas e agências (docs/plano-agencia.md, seção 8): três tamanhos, crédito de R$ 0,125 a R$ 0,10.
   agency: {
     id: 'agency',
-    label: 'Agência',
+    label: 'Corporativo',
     price: 'R$ 1.247/mês',
     credits: 10000,
     tools: 'all',
@@ -74,7 +74,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   },
   agency_plus: {
     id: 'agency_plus',
-    label: 'Agência Plus',
+    label: 'Corporativo Plus',
     price: 'R$ 2.747/mês',
     credits: 25000,
     tools: 'all',
@@ -82,7 +82,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
   },
   agency_max: {
     id: 'agency_max',
-    label: 'Agência Max',
+    label: 'Corporativo Max',
     price: 'R$ 4.997/mês',
     credits: 50000,
     tools: 'all',

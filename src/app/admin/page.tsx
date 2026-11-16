@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useState } from 'react';
+import { PLAN_CONFIGS, PlanId } from '@/lib/planConfig';
 import Link from 'next/link';
 import { useAuth } from '@/context/AuthContext';
 import { Users, UserPlus, Activity, Database, RefreshCcw, Camera, MessageCircle, Clock, Trash2, Plus, Lock, Gift } from 'lucide-react';
@@ -499,9 +500,9 @@ function GrantPanel({ onDone }: { onDone: () => void }) {
         </label>
         <label className="text-xs text-gray-400">Plano
           <select value={plan} onChange={e => setPlan(e.target.value)} className="mt-1 w-full bg-black/40 border border-white/10 rounded-lg px-3 py-2 text-white text-sm">
-            <option value="start">Start (20)</option>
-            <option value="pro">Pro (50)</option>
-            <option value="elite">Elite (100)</option>
+            {(Object.keys(PLAN_CONFIGS) as PlanId[]).map(id => (
+              <option key={id} value={id}>{PLAN_CONFIGS[id].label} ({PLAN_CONFIGS[id].credits.toLocaleString('pt-BR')})</option>
+            ))}
             <option value="free">Sem plano (remover)</option>
           </select>
         </label>

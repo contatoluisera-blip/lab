@@ -226,7 +226,7 @@ export default function PricingSection() {
       <GlassCard className="mt-6 p-6 md:p-8 border-white/5 space-y-5">
         <div className="space-y-2">
           <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald">Para agências e empresas</span>
-          <h3 className="text-xl font-extrabold text-white">Planos Agência · de 10.000 a 50.000 créditos por mês</h3>
+          <h3 className="text-xl font-extrabold text-white">Planos Corporativo · de 10.000 a 50.000 créditos por mês</h3>
           <p className="text-xs text-gray-400 leading-relaxed max-w-2xl">
             Tudo do Elite com volume para produzir para vários clientes: mais gerações ao mesmo tempo, montagens de até 5 minutos e prompts das cenas grátis na Montagem.
           </p>
