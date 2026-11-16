@@ -309,6 +309,8 @@ export default function PromptStudioPage() {
       );
       const text = await streamTool('/api/tools/prompt-studio', {
         mode, description, choices: relevantChoices, images,
+        // Cena da Montagem: os primeiros prompts de cada cena saem grátis.
+        ...(sceneCtx?.scene ? { projectId: sceneCtx.project.id, sceneId: sceneCtx.scene.id } : {}),
         ...(mode === 'v2v' && video ? { videoFrames: video.frames, videoMeta: { duration: video.duration, width: video.width, height: video.height } } : {}),
       }, (partial) => {
         if (partial.trim()) setProgress(`Escrevendo o prompt... (${partial.trim().length} caracteres)`);

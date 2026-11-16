@@ -24,8 +24,8 @@ export async function POST(req: Request) {
     const amount = credits === undefined || credits === '' || credits === null
       ? (isPaidPlan(plan) ? PLAN_CONFIGS[plan].credits : 0)
       : Number(credits);
-    if (!Number.isInteger(amount) || amount < 0 || amount > 10000) {
-      throw new HttpError(400, 'invalid_credits', 'Créditos devem ser um número inteiro entre 0 e 10000.');
+    if (!Number.isInteger(amount) || amount < 0 || amount > 100000) {
+      throw new HttpError(400, 'invalid_credits', 'Créditos devem ser um número inteiro entre 0 e 100.000.');
     }
 
     let uid: string;

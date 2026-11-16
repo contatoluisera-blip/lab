@@ -7,7 +7,7 @@ import { db } from '@/lib/firebase';
 import { callTool, streamTool } from '@/lib/client/api';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { Edl, EdlClip, MONTAGEM_FPS, SCRIPT_DONE_MARK, VideoProject, clipFrames } from '@/lib/montagem';
-import { ProjectVoice, VOICES, VOICE_CREDITS, VOICE_LEAD_FRAMES, VOICE_TEXT_MAX, VoiceProvider, VoiceSegment, WORDS_PER_SECOND, segmentReady } from '@/lib/voice';
+import { ProjectVoice, VOICES, VOICE_LEAD_FRAMES, VOICE_TEXT_MAX, VoiceProvider, VoiceSegment, WORDS_PER_SECOND, segmentReady, voiceCredits } from '@/lib/voice';
 
 const field = 'px-2.5 py-2 rounded-lg bg-black/40 border border-white/[0.06] text-xs text-white outline-none focus:border-brand-emerald/40';
 const DEFAULT_VOICE: ProjectVoice = { provider: 'elevenlabs', voiceId: VOICES[0].id, style: '', segments: [] };
@@ -43,7 +43,9 @@ export function VoicePanel({ project, edl, label, onEdl, flushEdl, onError }: {
   const options = VOICES.filter(v => v.provider === voice.provider);
   const segOf = (clipId: string) => voice.segments.find(s => s.clipId === clipId);
   const withText = edl.clips.filter(c => segOf(c.id)?.text.trim());
-  const pending = withText.filter(c => !segmentReady(segOf(c.id)!, voice)).length;
+  const pendingClips = withText.filter(c => !segmentReady(segOf(c.id)!, voice));
+  const pending = pendingClips.length;
+  const voiceCost = voiceCredits(voice.provider, pendingClips.reduce((n, c) => n + (segOf(c.id)?.text.trim().length || 0), 0));
 
   const save = (change: (v: ProjectVoice) => ProjectVoice) => changeVoice(project.id, change).catch(() => onError('Não foi possível salvar a locução.'));
   const setText = (clipId: string, text: string) => save(v => {
@@ -81,7 +83,7 @@ export function VoicePanel({ project, edl, label, onEdl, flushEdl, onError }: {
   };
 
   const generate = async () => {
-    const check = canUseTool('montagem', VOICE_CREDITS);
+    const check = canUseTool('montagem', voiceCost);
     if (!check.ok) { onError(check.message || 'Sem créditos para gerar a locução.'); return; }
     setBusy('Gerando a voz');
     try {
@@ -132,7 +134,7 @@ export function VoicePanel({ project, edl, label, onEdl, flushEdl, onError }: {
         <button type="button" onClick={generate} disabled={!!busy || !pending}
           className="flex items-center gap-1.5 px-4 py-2 rounded-full text-xs font-bold text-black bg-gradient-to-b from-[#34d399] to-[#10b981] disabled:opacity-40">
           {busy ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Mic className="w-3.5 h-3.5" />}
-          {busy || (pending ? `Gerar voz (${pending} trecho${pending > 1 ? 's' : ''}) · ${VOICE_CREDITS} crédito` : withText.length ? 'Voz pronta' : 'Gerar voz')}
+          {busy || (pending ? `Gerar voz (${pending} trecho${pending > 1 ? 's' : ''}) · ${voiceCost} créditos` : withText.length ? 'Voz pronta' : 'Gerar voz')}
         </button>
       </div>
       {note && <p className="text-[11px] text-gray-400">{note}</p>}

@@ -17,7 +17,7 @@ import { collection, getDocs, query, where, addDoc, doc, getDoc, updateDoc } fro
 import { addNotification } from '@/lib/notifications';
 import { streamTool, parseModelJson, callTool } from '@/lib/client/api';
 import { AUTO, IDEA_FIELDS, IDEA_GROUPS, IdeaV2, IdeasResultV2 } from '@/lib/ideaStudio';
-import { IDEAS_MAX, ideasCost } from '@/lib/planConfig';
+import { IDEAS_MAX, TOOL_COSTS, ideasCost } from '@/lib/planConfig';
 import { HubItem, formatCount, hubSearchText, normalizeText } from '@/lib/hub';
 
 type Choices = Record<string, string>;
@@ -487,7 +487,7 @@ export default function IdeaGeneratorPage() {
                     className={`h-9 rounded-lg text-sm font-bold border transition-colors ${quantidade === n ? 'bg-brand-neon text-black border-brand-neon' : 'bg-black/20 border-white/10 text-gray-400 hover:text-white'}`}>{n}</button>
                 ))}
               </div>
-              <p className="text-[10px] text-gray-500">Até 5 ideias: 1 crédito · de 6 a 10: 2 créditos.</p>
+              <p className="text-[10px] text-gray-500">Até 5 ideias: 5 créditos · de 6 a 10: 10 créditos.</p>
             </div>
 
             <div>
@@ -648,7 +648,7 @@ export default function IdeaGeneratorPage() {
                     {!idea.legenda && !loading && (
                       <button onClick={() => generateCaption(i)} disabled={captionBusy !== null}
                         className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-semibold bg-white/5 border border-white/10 text-white hover:bg-white/10 disabled:opacity-50">
-                        <MessageSquareText className="w-3.5 h-3.5" /> {captionBusy === i ? 'Escrevendo legenda...' : 'Gerar legenda · 1 crédito'}
+                        <MessageSquareText className="w-3.5 h-3.5" /> {captionBusy === i ? 'Escrevendo legenda...' : `Gerar legenda · ${TOOL_COSTS.caption} créditos`}
                       </button>
                     )}
                     {savedId && (

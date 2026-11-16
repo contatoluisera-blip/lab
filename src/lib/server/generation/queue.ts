@@ -40,6 +40,8 @@ export interface StoredJob extends GenJob {
   chargedCredits: number;
   /** Parte paga com créditos avulsos (volta para o avulso no estorno). */
   chargedExtra?: number;
+  /** 10 = `credits` na escala nova; `chargedCredits` e `chargedExtra` ficam sempre na unidade do banco. */
+  creditScale?: number;
   tool: ToolId;
   lastCheckedAt?: string | null;
   attempts: number;

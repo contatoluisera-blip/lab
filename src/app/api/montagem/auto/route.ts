@@ -3,7 +3,7 @@ import { withTool, describeProviderError } from '@/lib/server/tool';
 import { HttpError } from '@/lib/server/auth';
 import { adminDb } from '@/lib/firebase/admin';
 import { textStreamResponse } from '@/lib/server/stream';
-import { DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, SCRIPT_DONE_MARK, sanitizeEdl } from '@/lib/montagem';
+import { AUTO_EDIT_CREDITS, AUTO_EDIT_FREE, DIRECTION_MAX, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, SCRIPT_DONE_MARK, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
 import { allProjectClips, loadOwnedProject, projectAssets, projects } from '@/lib/server/montagem/projects';
 import { autoEdit } from '@/lib/server/montagem/claude';
@@ -13,12 +13,13 @@ import { logAiCost } from '@/lib/server/aiCost';
 const DAILY_LIMIT = 30;
 
 /**
- * Montagem com o Claude (rascunho e revisão, vendo os quadros de cada clipe). Não cobra crédito
- * (o custo entra na exportação), mas tem limite diário por projeto. Responde em streaming: as duas
+ * Montagem com o Claude (rascunho e revisão, vendo os quadros de cada clipe). As primeiras
+ * AUTO_EDIT_FREE rodadas de cada projeto são grátis; depois, cada uma cobra AUTO_EDIT_CREDITS
+ * (custo real de R$ 0,50 a 0,86). Também tem limite diário por projeto. Responde em streaming: as duas
  * passadas passam do limite de tempo de uma resposta comum. No fim vem a marca de conclusão com o plano,
  * já validado pelas mesmas regras do render.
  */
-export const POST = withTool('montagem', async ({ user, body }) => {
+export const POST = withTool('montagem', async ({ user, body, refund }) => {
   const project = await loadOwnedProject(user.uid, body?.projectId);
   const clips = await allProjectClips(user.uid, project);
   if (!clips.length) throw new HttpError(400, 'no_clips', 'Gere ou envie pelo menos um vídeo neste projeto antes de montar.');
@@ -29,7 +30,7 @@ export const POST = withTool('montagem', async ({ user, body }) => {
     const usage = (await tx.get(ref)).data()?.aiUsage || {};
     const count = usage.day === today ? usage.count || 0 : 0;
     if (count >= DAILY_LIMIT) throw new HttpError(429, 'ai_limit', `Você usou as ${DAILY_LIMIT} montagens com IA de hoje neste projeto. Ajuste à mão ou volte amanhã.`);
-    tx.update(ref, { 'aiUsage.day': today, 'aiUsage.count': count + 1 });
+    tx.update(ref, { 'aiUsage.day': today, 'aiUsage.count': count + 1, 'aiUsage.total': admin.firestore.FieldValue.increment(1) });
   });
 
   const profile = (await adminDb.collection('users').doc(user.uid).get()).data() || {};
@@ -64,9 +65,19 @@ export const POST = withTool('montagem', async ({ user, body }) => {
       }
     },
     async (err) => {
+      await refund('provider_failure');
       if (err instanceof HttpError) return { error: err.message, code: err.code };
       const e = describeProviderError(err, 'Anthropic');
       return { error: e.message, code: e.code };
     }
   );
-}, { charge: false, logDescription: () => 'Montagem com IA (rascunho e revisão)' });
+}, {
+  // Cobra pelo total de rodadas já feitas no projeto (as que deram erro antes de começar não contam).
+  costAsync: async (body, user) => {
+    const doc = typeof body?.projectId === 'string' ? await projects().doc(body.projectId).get() : null;
+    const data = doc?.exists ? doc.data() : null;
+    if (!data || data.uid !== user.uid) return 0; // a rota recusa o projeto logo em seguida
+    return (data.aiUsage?.total || 0) < AUTO_EDIT_FREE ? 0 : AUTO_EDIT_CREDITS;
+  },
+  logDescription: () => 'Montagem com IA (rascunho e revisão)',
+});

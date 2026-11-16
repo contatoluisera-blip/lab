@@ -2,10 +2,10 @@ import { NextResponse } from 'next/server';
 import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { HttpError, requireUser } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { chargeCredit, refundCredit, ChargeResult } from '@/lib/server/credits';
+import { chargeCredit, refundCredit, ChargeResult, chargeFields } from '@/lib/server/credits';
 import { logPlatformAction } from '@/lib/firebase/logAction';
 import { GEN_LIMITS, GEN_TERMS_VERSION, GenMode, getModel, normalizeConfig, quote } from '@/lib/generation';
-import { ToolId } from '@/lib/planConfig';
+import { ToolId, genActiveLimit } from '@/lib/planConfig';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
 import { StoredJob, dispatchQueue, newJobId, queuePositions } from '@/lib/server/generation/queue';
 import { loadOwnedProject } from '@/lib/server/montagem/projects';
@@ -81,7 +81,8 @@ export async function POST(req: Request) {
 
     // Limite por pessoa: evita que uma conta ocupe a fila inteira.
     const active = await adminDb.collection('gen_jobs').where('uid', '==', uid).where('active', '==', true).get();
-    if (active.size >= GEN_LIMITS.activePerUser) {
+    const activeLimit = genActiveLimit(profile.plan);
+    if (active.size >= activeLimit) {
       throw new HttpError(429, 'too_many_active', `Você já tem ${active.size} gerações em andamento. Espere uma terminar para pedir outra.`);
     }
 
@@ -109,8 +110,7 @@ export async function POST(req: Request) {
       prompt,
       negativePrompt: negativePrompt || null,
       credits: price.credits,
-      chargedCredits: charge.charged,
-      chargedExtra: charge.fromExtra,
+      ...chargeFields(charge),
       tool,
       status: 'queued',
       active: true,

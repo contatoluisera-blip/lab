@@ -23,7 +23,7 @@ import { VoicePanel } from './VoicePanel';
 import { voiceSourceKey } from '@/lib/voice';
 import { isPaidPlan } from '@/lib/planConfig';
 import {
-  DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
+  AUTO_EDIT_CREDITS, AUTO_EDIT_FREE, DIRECTION_MAX, Edl, EdlClip, LETTERING_SIZES, LetteringSize, MIN_CLIP_FRAMES, MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, MAX_SCENES, ProjectScene, RENDER_STATUS_LABEL, RenderJob,
   ProjectUpload, SCRIPT_DONE_MARK, TRANSITIONS, CLIP_MOTIONS, ClipMotion, TEXT_ANIMS, TextAnim, assetLetterings, musicSourceKey, voiceTrackFor, TextPosition, TransitionKind, VideoProject, clipFrames, isUploadId, edlDurationFrames, emptyEdl, letteringSourceKey, montagemCost, projectHref, sourceFramesFor,
 } from '@/lib/montagem';
 import { BrandKit, brandPromptNote, edlStyleFor } from '@/lib/brand';
@@ -257,7 +257,15 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
   };
 
   const autoEdit = async () => {
-    if (edl.clips.length && !confirm('Substituir a linha do tempo atual pela montagem do Claude?')) return;
+    const used = project.aiUsage?.total || 0;
+    const costNote = used < AUTO_EDIT_FREE
+      ? `Rodada grátis (${used + 1} de ${AUTO_EDIT_FREE} neste projeto).`
+      : `Esta rodada custa ${AUTO_EDIT_CREDITS} créditos (as ${AUTO_EDIT_FREE} grátis do projeto já foram usadas).`;
+    if (used >= AUTO_EDIT_FREE) {
+      const check = canUseTool('montagem', AUTO_EDIT_CREDITS);
+      if (!check.ok) { setError(check.message || 'Sem créditos para montar com IA.'); return; }
+    }
+    if (!confirm(`${edl.clips.length ? 'Substituir a linha do tempo atual pela montagem do Claude?' : 'Montar o vídeo com o Claude?'}\n${costNote}`)) return;
     setAiBusy(true);
     setError('');
     setAiNote('');
@@ -277,6 +285,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
       // Marca d'água, vinheta e trilha são escolhas da pessoa: a montagem com IA não mexe nelas.
       changeEdl({ ...res.data.edl, watermark: edl.watermark || null, outro: edl.outro || null, music: edl.music || null, voice: edl.voice || null });
       setAiNote(res.data.resumo);
+      refreshProfile();
     } catch (e: any) {
       setError(e.message || 'Não foi possível montar com IA agora.');
     } finally {
@@ -660,7 +669,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
             {renders.slice(0, 8).map(r => (
               <div key={r.id} className="flex items-center gap-3 p-3 rounded-xl bg-black/30 border border-white/[0.05]">
                 <div className="flex-1 min-w-0">
-                  <p className="text-xs text-white">{new Date(r.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {secs(r.durationFrames)} s · {r.credits} créditos</p>
+                  <p className="text-xs text-white">{new Date(r.createdAt).toLocaleString('pt-BR', { dateStyle: 'short', timeStyle: 'short' })} · {secs(r.durationFrames)} s · {r.creditScale === 10 ? r.credits : r.credits * 10} créditos</p>
                   {r.active && (
                     <div className="mt-1.5 h-1.5 rounded-full bg-white/10 overflow-hidden">
                       <div className="h-full bg-brand-emerald transition-all" style={{ width: `${Math.max(4, Math.round((r.progress || 0) * 100))}%` }} />

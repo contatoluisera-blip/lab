@@ -4,6 +4,12 @@ import { ToolId } from '@/lib/planConfig';
 import { checkTool, getAccountState, validExtraCredits } from '@/lib/accountState';
 import { TOPUP_VALID_DAYS } from '@/lib/planConfig';
 import { HttpError } from './auth';
+import { toStored } from '@/lib/creditUnits';
+
+/*
+ * Escala: as funções daqui recebem e devolvem créditos novos; o Firestore grava na unidade
+ * antiga (saldo, `chargedCredits`/`chargedExtra` dos pedidos e `delta` do extrato), ver src/lib/creditUnits.ts.
+ */
 
 export interface ChargeResult {
   /** Quantos créditos foram descontados de fato (0 no 1º uso grátis ou ferramenta sem custo). */
@@ -20,9 +26,14 @@ export interface ChargeResult {
   plan: string;
 }
 
+/** Campos de cobrança gravados no pedido (unidade do banco), lidos depois pelo estorno com `refundFields`. */
+export function chargeFields(charge: ChargeResult) {
+  return { chargedCredits: toStored(charge.charged), chargedExtra: toStored(charge.fromExtra), creditScale: 10 };
+}
+
 /**
  * Campos para devolver créditos: a parte que saiu do avulso volta para o avulso, o resto para a cota.
- * Use em todo estorno (o documento do uso guarda `chargedCredits` e `chargedExtra`).
+ * Use em todo estorno. Recebe os valores gravados no pedido (`chargedCredits` e `chargedExtra`), na unidade do banco.
  */
 export function refundFields(total: number, fromExtra = 0) {
   const extra = Math.min(Math.max(0, fromExtra || 0), total);
@@ -64,17 +75,18 @@ export async function chargeCredit(uid: string, tool: ToolId, costOverride?: num
 
     const updates: Record<string, any> = { updatedAt: new Date().toISOString() };
     if (isTrial) updates[`trialUsed.${tool}`] = true;
-    if (fromMonthly > 0) updates.credits = admin.firestore.FieldValue.increment(-fromMonthly);
-    if (fromExtra > 0) updates.extraCredits = validExtraCredits(data) - fromExtra;
+    if (fromMonthly > 0) updates.credits = admin.firestore.FieldValue.increment(-toStored(fromMonthly));
+    if (fromExtra > 0) updates.extraCredits = toStored(validExtraCredits(data) - fromExtra);
     tx.update(userRef, updates);
 
     if (charged > 0 || isTrial) {
       tx.set(userRef.collection('credit_ledger').doc(), {
         tool,
-        delta: -charged,
+        delta: -toStored(charged),
         reason: isTrial ? 'trial' : 'use',
-        balanceAfter: credits - charged,
-        ...(fromExtra > 0 ? { fromExtra } : {}),
+        balanceAfter: toStored(credits - charged),
+        ...(fromExtra > 0 ? { fromExtra: toStored(fromExtra) } : {}),
+        credits: -charged,
         createdAt: new Date().toISOString(),
       });
     }
@@ -86,16 +98,25 @@ export async function chargeCredit(uid: string, tool: ToolId, costOverride?: num
   });
 }
 
+/** Confere assinatura, pagamento e acesso do plano sem cobrar (usos grátis). Lança HttpError como `chargeCredit`. */
+export async function assertToolAccess(uid: string, tool: ToolId) {
+  const snap = await adminDb.collection('users').doc(uid).get();
+  if (!snap.exists) throw new HttpError(404, 'profile_missing', 'Perfil não encontrado. Saia e entre de novo.');
+  const check = checkTool(getAccountState(snap.data()), undefined, tool, 0);
+  if (!check.ok) throw new HttpError(check.reason === 'payment_issue' ? 402 : 403, check.reason!, check.message!);
+}
+
 /** Devolve créditos cobrados numa geração que falhou. Nunca lança. */
 export async function refundCredit(uid: string, tool: ToolId, charge: ChargeResult | null, reason = 'failure') {
   if (!charge || charge.charged <= 0) return;
   try {
     const userRef = adminDb.collection('users').doc(uid);
     const batch = adminDb.batch();
-    batch.update(userRef, { ...refundFields(charge.charged, charge.fromExtra), updatedAt: new Date().toISOString() });
+    batch.update(userRef, { ...refundFields(toStored(charge.charged), toStored(charge.fromExtra)), updatedAt: new Date().toISOString() });
     batch.set(userRef.collection('credit_ledger').doc(), {
       tool,
-      delta: charge.charged,
+      delta: toStored(charge.charged),
+      credits: charge.charged,
       reason,
       createdAt: new Date().toISOString(),
     });
@@ -105,13 +126,14 @@ export async function refundCredit(uid: string, tool: ToolId, charge: ChargeResu
   }
 }
 
-/** Concede créditos ao usuário (renovação, compra, ajuste manual), com registro. */
+/** Concede créditos ao usuário (renovação, compra, ajuste manual), com registro. `amount` em créditos novos. */
 export async function grantCredits(uid: string, amount: number, reason: string, meta: Record<string, unknown> = {}) {
   const userRef = adminDb.collection('users').doc(uid);
   const batch = adminDb.batch();
-  batch.update(userRef, { credits: amount, updatedAt: new Date().toISOString(), ...meta });
+  batch.update(userRef, { credits: toStored(amount), updatedAt: new Date().toISOString(), ...meta });
   batch.set(userRef.collection('credit_ledger').doc(), {
-    delta: amount,
+    delta: toStored(amount),
+    credits: amount,
     reason,
     reset: true,
     createdAt: new Date().toISOString(),
@@ -134,8 +156,8 @@ export async function addExtraCredits(uid: string, amount: number, ref: string, 
     const now = new Date();
     const total = validExtraCredits(data, now.getTime()) + amount;
     const expireAt = new Date(now.getTime() + TOPUP_VALID_DAYS * 86_400_000).toISOString();
-    tx.set(userRef, { extraCredits: total, extraCreditsExpireAt: expireAt, updatedAt: now.toISOString() }, { merge: true });
-    tx.set(markRef, { delta: amount, reason: 'topup', extraAfter: total, expiresAt: expireAt, createdAt: now.toISOString(), ...meta });
+    tx.set(userRef, { extraCredits: toStored(total), extraCreditsExpireAt: expireAt, updatedAt: now.toISOString() }, { merge: true });
+    tx.set(markRef, { delta: toStored(amount), credits: amount, reason: 'topup', extraAfter: toStored(total), expiresAt: expireAt, createdAt: now.toISOString(), ...meta });
     return true;
   });
 }

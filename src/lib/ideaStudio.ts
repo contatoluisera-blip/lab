@@ -80,7 +80,7 @@ export interface IdeaV2 {
   porqueFunciona: string;
   execucao: { dificuldade: string; tempoGravacao: string; riscos: string };
   referenciaUsada: string;
-  /** Gerada à parte, por 1 crédito. */
+  /** Gerada à parte (TOOL_COSTS.caption). */
   legenda?: { texto: string; palavrasChave: string[]; capa: string };
 }
 

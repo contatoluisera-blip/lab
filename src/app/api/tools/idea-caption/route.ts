@@ -22,7 +22,7 @@ const SCHEMA = {
   },
 };
 
-/** Legenda do post para uma ideia já gerada (1 crédito; custo de IA ~R$ 0,06). */
+/** Legenda do post para uma ideia já gerada (TOOL_COSTS.caption; custo de IA ~R$ 0,06). */
 export const POST = withTool('caption', async ({ body }) => {
   const idea = body.idea;
   if (!idea?.titulo || !Array.isArray(idea?.beats)) throw new HttpError(400, 'missing_idea', 'Gere as ideias antes de pedir a legenda.');

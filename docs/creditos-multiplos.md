@@ -1,6 +1,6 @@
 # Crédito em múltiplos (1 crédito atual = 10 créditos novos)
 
-Estudo de 16/11/2026. Custos de `src/lib/generation.ts` (câmbio R$ 5,72), perfil de cliente de agência e preços da seção 8 de `docs/plano-agencia.md`. Ainda não implementado.
+Estudo de 16/11/2026. Custos de `src/lib/generation.ts` (câmbio R$ 5,72), perfil de cliente de agência e preços da seção 8 de `docs/plano-agencia.md`. **Forma B implementada na branch `feat/planos-ciclos-recarga` (seção 6), só no preview.**
 
 ## 1. O problema do crédito unitário
 
@@ -113,3 +113,14 @@ Margem (realista com 80% dos créditos gastos · pior caso só com Reels em Klin
 4. Stripe: só os metadados de créditos dos produtos. Preços não mudam.
 5. Textos: landing, página de planos, e-mails e avisos de saldo. Um aviso no painel explica a troca ("seus 87 créditos agora são 870").
 6. Histórico antigo (`gen_jobs`, `montagem_costs`) fica como está, com um campo `creditScale` nos registros novos.
+
+## 6. Como foi implementado (16/11/2026)
+
+O desenho da seção 5 mudou num ponto: **não há migração de saldos**. Preview e produção usam o mesmo Firestore, então multiplicar os saldos daria 10× créditos a quem usa a versão atual.
+
+- O banco continua gravando na unidade antiga, com até 1 casa decimal: saldo (`credits`, `extraCredits`), cobrança dos pedidos (`chargedCredits`, `chargedExtra`) e `delta` do extrato. A conversão fica toda em `src/lib/creditUnits.ts` (`toStored` e `fromStored`).
+- Telas, regras de cobrança e Stripe falam só em créditos novos. Um pedido criado em qualquer versão é estornado certo nas duas.
+- Pedidos novos levam `creditScale: 10`; o extrato ganha o campo `credits` com o valor na escala nova.
+- Efeito colateral até a publicação: quem usar o preview e depois a produção pode ver saldo com decimal na versão atual (ex.: 81,4). Some quando esta versão for para a produção.
+
+Também entraram: os três planos de agência (`agency`, `agency_plus`, `agency_max`, trimestral −10%, anual −15%), recarga de agência a R$ 0,125 por crédito (pacotes de 2.500 a 50.000), gerações simultâneas por plano (3 / 6 / 10 / 15), prompts das cenas grátis até 3 por cena e tipo, Montar com IA com 3 rodadas grátis por projeto e depois 5 créditos, e locução ElevenLabs cobrada pelo tamanho do texto.

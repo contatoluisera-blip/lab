@@ -32,13 +32,19 @@ export const FORMATS: { id: MontagemFormat; label: string; hint: string; width: 
 export const formatSize = (f: MontagemFormat) => FORMATS.find(x => x.id === f) || FORMATS[0];
 
 /** Duração máxima do vídeo final por plano. */
-export const MONTAGEM_MAX_SECONDS: Record<PlanId, number> = { start: 60, pro: 120, elite: 180, agency: 300 };
+export const MONTAGEM_MAX_SECONDS: Record<PlanId, number> = { start: 60, pro: 120, elite: 180, agency: 300, agency_plus: 300, agency_max: 300 };
 
-/** 2 créditos até 60 s, +1 a cada 30 s (custo real estimado: US$ 0,10 a 0,25 por minuto). */
+/** 20 créditos até 60 s, +10 a cada 30 s (AWS + licença do Remotion: US$ 0,04 a 0,25 por minuto). */
 export function montagemCost(frames: number) {
   const seconds = Math.ceil(frames / MONTAGEM_FPS);
-  return seconds <= 60 ? 2 : 2 + Math.ceil((seconds - 60) / 30);
+  return seconds <= 60 ? 20 : 20 + 10 * Math.ceil((seconds - 60) / 30);
 }
+
+/** Montar com IA: as primeiras rodadas de cada projeto são grátis; depois, cada rodada cobra (custo R$ 0,50 a 0,86). */
+export const AUTO_EDIT_FREE = 3;
+export const AUTO_EDIT_CREDITS = 5;
+/** Prompts das cenas dentro da Montagem: grátis até 3 por cena em cada tipo (frame e movimento); depois, preço do Gerador. */
+export const SCENE_FREE_PROMPTS = 3;
 
 // ── Projeto ──────────────────────────────────────────────────────────────────
 export interface ProjectScene {
@@ -179,13 +185,17 @@ export interface VideoProject {
   scriptNotes?: string;
   /** Storyboard (frames em ordem) aprovado: libera a animação em lote. */
   storyboardApprovedAt?: string | null;
+  /** Rodadas de Montar com IA (o servidor grava; `total` decide as grátis). */
+  aiUsage?: { day?: string; count?: number; total?: number };
+  /** Prompts de cena já gerados dentro da cota grátis, por cena e tipo (o servidor grava). */
+  promptUsage?: Record<string, { frame?: number; motion?: number }>;
   createdAt: string;
   updatedAt: string;
 }
 
 // ── Agente de roteiro ────────────────────────────────────────────────────────
 /** Lê o documento e separa em cenas (sem prompts): custo real de ~R$ 0,30 a 0,70 por roteiro. */
-export const SCRIPT_AGENT_CREDITS = 2;
+export const SCRIPT_AGENT_CREDITS = 15;
 /** PDF de até ~3 MB (vai em base64 no corpo do pedido) e texto de até 60 mil caracteres. */
 export const SCRIPT_PDF_MAX_BYTES = 3 * 1024 * 1024;
 export const SCRIPT_TEXT_MAX = 60_000;
@@ -510,6 +520,8 @@ export interface RenderJob {
   status: RenderStatus;
   active: boolean;
   credits: number;
+  /** 10 = `credits` na escala nova; pedidos antigos (sem o campo) estão na escala antiga. */
+  creditScale?: number;
   durationFrames: number;
   format: MontagemFormat;
   progress?: number;

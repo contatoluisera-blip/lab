@@ -3,7 +3,7 @@ import { HttpError } from '@/lib/server/auth';
 import { adminDb } from '@/lib/firebase/admin';
 import { textStreamResponse } from '@/lib/server/stream';
 import { SCRIPT_DONE_MARK } from '@/lib/montagem';
-import { VOICE_CREDITS, VoiceSegment, segmentReady, voiceById } from '@/lib/voice';
+import { VoiceSegment, segmentReady, voiceById, voiceCredits } from '@/lib/voice';
 import { loadOwnedProject, projects } from '@/lib/server/montagem/projects';
 import { deleteVoiceFiles, projectVoice, storeVoice, synthesize } from '@/lib/server/montagem/voice';
 import { logAiCost } from '@/lib/server/aiCost';
@@ -11,7 +11,7 @@ import { moderatePrompt } from '@/lib/server/generation/moderation';
 
 /**
  * Gera a voz dos trechos que mudaram (texto ou voz), 3 por vez, com o tempo de cada palavra.
- * Cobra 1 crédito por geração; se falhar, devolve. Responde em streaming (vários trechos passam do
+ * Cobra pelo tamanho do texto gerado agora (voiceCredits); se falhar, devolve. Responde em streaming (vários trechos passam do
  * limite de uma resposta comum) e termina com a marca de conclusão.
  */
 export const POST = withTool('montagem', async ({ user, body, refund }) => {
@@ -76,4 +76,13 @@ export const POST = withTool('montagem', async ({ user, body, refund }) => {
       return { error: e.message, code: e.code };
     }
   );
-}, { cost: () => VOICE_CREDITS, logDescription: () => 'Montagem: gerou a locução' });
+}, {
+  costAsync: async (body, user) => {
+    const project = await loadOwnedProject(user.uid, body?.projectId).catch(() => null);
+    const voice = project ? projectVoice(user.uid, project) : null;
+    if (!voice) return undefined; // a rota recusa logo em seguida e devolve
+    const chars = voice.segments.filter(s => s.text.trim() && !segmentReady(s, voice)).reduce((n, s) => n + s.text.trim().length, 0);
+    return voiceCredits(voice.provider, chars);
+  },
+  logDescription: () => 'Montagem: gerou a locução',
+});

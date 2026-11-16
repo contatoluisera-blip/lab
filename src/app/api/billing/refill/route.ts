@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { toStored } from '@/lib/creditUnits';
 import { createHash } from 'crypto';
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
@@ -41,8 +42,8 @@ export async function POST(req: Request) {
       const credits = PLAN_CONFIGS[u.plan as keyof typeof PLAN_CONFIGS].credits;
       // Mantém o dia da assinatura (não acumula atraso da rotina).
       const next = left - 1 > 0 ? addMonth(new Date(u.nextRefillAt)).toISOString() : null;
-      tx.update(doc.ref, { credits, refillsLeft: left - 1, nextRefillAt: next, creditsResetAt: now.toISOString(), updatedAt: now.toISOString() });
-      tx.set(doc.ref.collection('credit_ledger').doc(), { delta: credits, reason: 'monthly_refill', reset: true, createdAt: now.toISOString() });
+      tx.update(doc.ref, { credits: toStored(credits), refillsLeft: left - 1, nextRefillAt: next, creditsResetAt: now.toISOString(), updatedAt: now.toISOString() });
+      tx.set(doc.ref.collection('credit_ledger').doc(), { delta: toStored(credits), credits, reason: 'monthly_refill', reset: true, createdAt: now.toISOString() });
       return true;
     });
     if (done) refilled++; else skipped++;

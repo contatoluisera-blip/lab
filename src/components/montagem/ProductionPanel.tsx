@@ -11,7 +11,8 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { GEN_LIMITS, GenJob, GenModel, STATUS_LABEL, modelsFor, normalizeConfig, quote } from '@/lib/generation';
 import { compactStoredImage } from '@/lib/client/imageInput';
 import { ensurePromptFits } from '@/lib/client/promptFit';
-import { Edl, PROMPT_ASPECT, ProjectScene, RenderJob, VideoProject, sceneDescription } from '@/lib/montagem';
+import { Edl, PROMPT_ASPECT, ProjectScene, RenderJob, SCENE_FREE_PROMPTS, VideoProject, sceneDescription } from '@/lib/montagem';
+import { TOOL_COSTS } from '@/lib/planConfig';
 
 export type Job = GenJob & { sceneId?: string | null };
 
@@ -98,7 +99,7 @@ const durationChoice = (seconds: number) => `${DURATION_CHOICES.find(d => d >= s
 
 /**
  * Prompts de movimento que faltam: o mesmo Gerador de Prompts, cena a cena, com o frame
- * aprovado e a descrição da cena. Cada prompt custa como no Gerador (1 crédito).
+ * aprovado e a descrição da cena. Grátis até SCENE_FREE_PROMPTS por cena; depois, custa como no Gerador.
  */
 function MotionPrompts({ project, scenes, onError }: {
   project: VideoProject;
@@ -113,16 +114,16 @@ function MotionPrompts({ project, scenes, onError }: {
   const number = (s: ProjectScene) => project.scenes.findIndex(x => x.id === s.id) + 1;
 
   const run = async () => {
-    const check = canUseTool('prompts', scenes.length);
-    if (!check.ok) { onError(check.message || 'Créditos insuficientes para criar os prompts.'); return; }
-    if (!confirm(`Criar o prompt de movimento das cenas ${scenes.map(x => number(x.scene)).join(', ')} a partir do frame e da descrição de cada uma?\nCusto: ${scenes.length} crédito(s). Deixe esta página aberta até terminar.`)) return;
+    const check = canUseTool('prompts', 0);
+    if (!check.ok) { onError(check.message || 'Seu plano não inclui o Gerador de Prompts.'); return; }
+    if (!confirm(`Criar o prompt de movimento das cenas ${scenes.map(x => number(x.scene)).join(', ')} a partir do frame e da descrição de cada uma?\nGrátis até ${SCENE_FREE_PROMPTS} prompts por cena; depois, ${TOOL_COSTS.prompts} créditos cada. Deixe esta página aberta até terminar.`)) return;
     for (let i = 0; i < scenes.length && alive.current; i++) {
       const { scene, frameUrl } = scenes[i];
       setProgress(`Prompt da cena ${number(scene)} (${i + 1} de ${scenes.length})...`);
       try {
         const description = sceneDescription(project, scene);
         const choices = { proporcao: PROMPT_ASPECT[project.format], duracao: durationChoice(scene.targetSeconds || 5) };
-        const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await frameForPrompt(frameUrl) } });
+        const text = await streamTool('/api/tools/prompt-studio', { mode: 'i2v', description, choices, images: { inicial: await frameForPrompt(frameUrl) }, projectId: project.id, sceneId: scene.id });
         const data = parseModelJson<{ prompt?: string; negativePrompt?: string }>(text);
         if (!data.prompt) throw new Error('A IA não devolveu o prompt.');
         data.prompt = await ensurePromptFits(data.prompt, data.negativePrompt || '');

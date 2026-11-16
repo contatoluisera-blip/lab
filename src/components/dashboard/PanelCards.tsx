@@ -26,8 +26,9 @@ export function CreditsCard() {
   const hasPlan = !!account.plan;
   const pct = account.planCredits > 0 ? Math.min(100, Math.round((account.credits / account.planCredits) * 100)) : 0;
   const used = Math.max(0, account.planCredits - account.credits);
-  const scenes = Math.floor(account.credits / 4);
-  const images = account.credits;
+  // Referência: cena de 5 s no Kling 3 Pro (40 créditos) e imagem 2K no Nano Banana 2 (8).
+  const scenes = Math.floor(account.credits / 40);
+  const images = Math.floor(account.credits / 8);
   const renewal = account.renewsAt
     ? new Date(account.renewsAt).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit' })
     : account.status === 'manual' ? 'Manual' : '—';

@@ -36,8 +36,18 @@ export const voiceById = (provider: VoiceProvider, id: string) => VOICES.find(v 
 /** Ritmo de fala de Reels em PT-BR: ~2,6 palavras por segundo. */
 export const WORDS_PER_SECOND = 2.6;
 export const VOICE_TEXT_MAX = 400;
-/** Locução gerada para o vídeo todo custa 1 crédito (US$ ~0,02 a 0,20 por minuto, conforme o provedor). */
-export const VOICE_CREDITS = 1;
+/**
+ * Preço da locução pelo tamanho do texto gerado agora:
+ * - OpenAI: 5 créditos (US$ ~0,02 por minuto);
+ * - ElevenLabs: pelo custo do plano Pro (US$ 0,165 por mil caracteres), ~8 por 30 s e ~15 por 60 s.
+ */
+export const VOICE_MIN_CREDITS = 5;
+const ELEVENLABS_USD_PER_CHAR = 0.165 / 1000;
+export function voiceCredits(provider: VoiceProvider, chars: number) {
+  if (provider !== 'elevenlabs') return VOICE_MIN_CREDITS;
+  const brl = Math.max(0, chars) * ELEVENLABS_USD_PER_CHAR * 5.72; // câmbio de src/lib/generation.ts (USD_TO_BRL)
+  return Math.max(VOICE_MIN_CREDITS, Math.ceil(brl / 0.067 - 1e-9));
+}
 
 export interface VoiceWord {
   /** Palavra, início e fim em segundos dentro do trecho. */

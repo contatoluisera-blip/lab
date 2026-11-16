@@ -47,7 +47,7 @@ const COURSES = [
 const FAQ = [
   { q: 'Já uso o ChatGPT de graça. Por que pagar?', a: 'Porque aqui o método do audiovisual já vem pronto. Você não precisa saber pedir: escolhe opções, a ferramenta escreve o roteiro, o prompt técnico ou a proposta. E a geração de imagem e vídeo já está dentro, sem outra assinatura.' },
   { q: 'Não tenho tempo para aprender uma plataforma nova.', a: 'Cada ferramenta entrega em minutos e foi feita para o celular. Você abre, preenche o essencial e sai com o resultado. Os cursos ficam para quando quiser evoluir a técnica.' },
-  { q: 'Como funcionam os créditos?', a: 'Cada plano traz créditos por mês. Ferramentas de texto custam 1 ou 2 créditos; imagens e vídeos a partir de 1, conforme o modelo e a qualidade. O custo aparece antes de você confirmar, e se a geração falhar por erro técnico, o crédito volta sozinho.' },
+  { q: 'Como funcionam os créditos?', a: 'Cada plano traz créditos por mês. Ferramentas de texto custam de 5 a 25 créditos; imagens a partir de 5 e vídeos a partir de 6, conforme o modelo e a qualidade. O custo aparece antes de você confirmar, e se a geração falhar por erro técnico, o crédito volta sozinho.' },
   { q: 'Serve para o meu nicho?', a: 'Sim. O Gerador de Ideias parte do seu nicho, o Hub mostra referências dele e o Diagnóstico analisa qualquer perfil. Creators, social medias, videomakers e agências usam a mesma base.' },
   { q: 'Os cursos estão em todos os planos?', a: 'Os cursos fazem parte do plano Elite. Start e Pro dão acesso às ferramentas, incluindo a geração de imagem e vídeo.' },
   { q: 'Posso cancelar quando quiser?', a: 'Pode. A assinatura é mensal, sem fidelidade. Você cancela pela própria área de planos.' },

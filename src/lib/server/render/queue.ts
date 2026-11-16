@@ -27,6 +27,8 @@ export interface StoredRender extends RenderJob {
   sourcePaths: Record<string, string>;
   chargedCredits: number;
   chargedExtra?: number;
+  /** 10 = `credits` na escala nova; `chargedCredits` e `chargedExtra` ficam sempre na unidade do banco. */
+  creditScale?: number;
   refunded: boolean;
   renderId?: string | null;
   bucketName?: string | null;

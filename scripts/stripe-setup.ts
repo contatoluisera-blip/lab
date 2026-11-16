@@ -15,7 +15,7 @@ import { BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, PlanId, cycleTotal } from '
 const apply = process.argv.includes('--apply');
 const fixPrices = apply && process.argv.includes('--fix-prices');
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!);
-const PLANS: PlanId[] = ['start', 'pro', 'elite', 'agency'];
+const PLANS: PlanId[] = ['start', 'pro', 'elite', 'agency', 'agency_plus', 'agency_max'];
 const CYCLES: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
 const envName = (p: PlanId, c: BillingCycle) => `STRIPE_PRODUCT_${p.toUpperCase()}${c === 'monthly' ? '' : c === 'quarterly' ? '_QUARTERLY' : '_ANNUAL'}`;
 const recurring = (c: BillingCycle) => (c === 'annual' ? { interval: 'year' as const, interval_count: 1 } : { interval: 'month' as const, interval_count: BILLING_CYCLES[c].months });

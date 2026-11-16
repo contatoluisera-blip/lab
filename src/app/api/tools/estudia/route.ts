@@ -1,4 +1,5 @@
 import { adminStorage, adminDb } from '@/lib/firebase/admin';
+import { chargeFields } from '@/lib/server/credits';
 import { withTool } from '@/lib/server/tool';
 import { HttpError } from '@/lib/server/auth';
 import { AI_MODELS } from '@/lib/server/ai';
@@ -550,8 +551,7 @@ export const POST = withTool('estudia', async ({ body, user, charge }) => {
     status: 'processing',
     sourceUrl: publicUrl,
     resultUrl: null,
-    chargedCredits: charge.charged,
-      chargedExtra: charge.fromExtra,
+    ...chargeFields(charge),
     refunded: false,
     createdAt: new Date().toISOString(),
   });

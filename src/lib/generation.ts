@@ -12,17 +12,23 @@ export type GenMode = 't2i' | 'i2i' | 't2v' | 'i2v' | 'v2v' | 't2a';
 export const GEN_TERMS_VERSION = '2026-11-04';
 
 /**
- * Regra de preço (estudo de viabilidade, 04/11/2026):
+ * Regra de preço (docs/creditos-multiplos.md, forma B):
  * - custo em reais = custo em dólar × câmbio com IOF e taxas do cartão internacional;
- * - cada crédito cobrado cobre no máximo R$ 0,67 de custo (40% do que um crédito rende no Elite).
+ * - cada crédito cobrado cobre no máximo R$ 0,067 de custo;
+ * - acima de 20 créditos, o preço sobe para o múltiplo de 5 seguinte (números fáceis de ler);
+ * - cada tipo tem um piso (imagem 8, vídeo 5, trilha 8), e alguns modelos têm piso próprio (`minCredits`).
  */
 export const USD_TO_BRL = 5.72;
-export const MAX_COST_PER_CREDIT_BRL = 0.67;
+export const MAX_COST_PER_CREDIT_BRL = 0.067;
+/** Piso por tipo: a imagem barata não cai abaixo de ~2× o custo; rascunhos têm piso próprio de 5. */
+export const KIND_MIN_CREDITS: Record<GenKind, number> = { image: 8, video: 5, audio: 8 };
 /** A KIE vende créditos a US$ 0,005 cada: serve para conferir o consumo real de cada geração. */
 export const KIE_USD_PER_CREDIT = 0.005;
 
-export function creditsForUsd(usd: number) {
-  return Math.max(1, Math.ceil((usd * USD_TO_BRL) / MAX_COST_PER_CREDIT_BRL - 1e-9));
+export function creditsForUsd(usd: number, floor = 5) {
+  let credits = Math.ceil((usd * USD_TO_BRL) / MAX_COST_PER_CREDIT_BRL - 1e-9);
+  if (credits > 20) credits = 5 * Math.ceil(credits / 5);
+  return Math.max(floor, credits);
 }
 
 export interface GenConfig {
@@ -60,10 +66,10 @@ export interface GenModel {
   /** Preço em dólar da configuração escolhida (tabela oficial da KIE). */
   priceUsd: (c: GenConfig) => number;
   /**
-   * Escada de preço por qualidade, em créditos: cada nível acima custa mais, mesmo quando
-   * o custo do provedor quase não muda. O cobrado é o maior entre isto e a regra de custo.
+   * Piso em créditos deste modelo, no lugar do piso do tipo (ex.: rascunhos a 5, Veo Lite a 20).
+   * O cobrado é o maior entre isto e a regra de custo.
    */
-  tierCredits?: (c: GenConfig) => number;
+  minCredits?: (c: GenConfig) => number;
   /** Empresa do modelo (agrupa a lista). */
   family?: string;
   /** Aparece entre os recomendados, antes de "ver todos". */
@@ -106,7 +112,6 @@ const BASE_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.04, '2K': 0.06, '4K': 0.09 } as Record<string, number>)[c.resolution || '2K'] ?? 0.09,
-    tierCredits: (c) => ({ '1K': 1, '2K': 2, '4K': 3 } as Record<string, number>)[c.resolution || '2K'] ?? 3,
   },
   {
     id: 'nano-banana-pro',
@@ -124,7 +129,7 @@ const BASE_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => (c.resolution === '4K' ? 0.12 : 0.09),
-    tierCredits: (c) => ({ '1K': 2, '2K': 3, '4K': 4 } as Record<string, number>)[c.resolution || '2K'] ?? 4,
+    minCredits: (c) => (c.resolution === '4K' ? 12 : 8),
   },
   {
     id: 'kling-3',
@@ -168,7 +173,6 @@ const BASE_MODELS: GenModel[] = [
     maxImages: { i2v: 2 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.30 : 0.325),
-    tierCredits: (c) => (c.resolution === '720p' ? 3 : 4),
   },
   {
     id: 'veo-quality',
@@ -187,7 +191,6 @@ const BASE_MODELS: GenModel[] = [
     maxImages: { i2v: 2 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 1.25 : 1.275),
-    tierCredits: (c) => (c.resolution === '720p' ? 11 : 12),
   },
   {
     id: 'wan-v2v',
@@ -235,7 +238,6 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.03, '2K': 0.05, '4K': 0.08 } as Record<string, number>)[c.resolution || '2K'] ?? 0.08,
-    tierCredits: (c) => ({ '1K': 1, '2K': 2, '4K': 3 } as Record<string, number>)[c.resolution || '2K'] ?? 3,
   },
   {
     id: 'seedream-5-pro', kind: 'image', family: 'ByteDance', featured: true,
@@ -249,7 +251,6 @@ const EXTRA_MODELS: GenModel[] = [
     defaults: { aspect: '9:16', resolution: '2K' },
     // + até 3 imagens extras de referência a US$ 0,0025 (a primeira é grátis)
     priceUsd: (c) => (c.resolution === '1K' ? 0.035 : 0.07) + 0.0075,
-    tierCredits: (c) => (c.resolution === '1K' ? 1 : 2),
   },
   {
     id: 'flux-3-klein', kind: 'image', family: 'Black Forest Labs', highlight: 'Mais barato',
@@ -262,7 +263,7 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2i: 4 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.008, '2K': 0.0125, '4K': 0.0325 } as Record<string, number>)[c.resolution || '2K'] ?? 0.0325,
-    tierCredits: (c) => (c.resolution === '4K' ? 2 : 1),
+    minCredits: () => 5, // rascunho
   },
   {
     id: 'ideogram-v3', kind: 'image', family: 'Ideogram',
@@ -277,7 +278,7 @@ const EXTRA_MODELS: GenModel[] = [
     qualities: [{ value: 'TURBO', label: 'Turbo', hint: 'Rápido' }, { value: 'BALANCED', label: 'Equilibrado' }, { value: 'QUALITY', label: 'Qualidade', hint: 'Final' }],
     defaults: { aspect: '9:16', quality: 'BALANCED' },
     priceUsd: (c) => ({ TURBO: 0.0175, BALANCED: 0.035, QUALITY: 0.05 } as Record<string, number>)[c.quality || 'BALANCED'] ?? 0.05,
-    tierCredits: (c) => (c.quality === 'QUALITY' ? 2 : 1),
+    minCredits: (c) => (c.quality === 'TURBO' ? 5 : 8), // Turbo é rascunho
   },
   {
     id: 'imagen4-fast', kind: 'image', family: 'Google',
@@ -291,6 +292,7 @@ const EXTRA_MODELS: GenModel[] = [
     ],
     defaults: { aspect: '9:16' },
     priceUsd: () => 0.02,
+    minCredits: () => 5, // rascunho
   },
 
   // ── Vídeo ─────────────────────────────────────────────────
@@ -307,7 +309,7 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2v: 2 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.15 : 0.175),
-    tierCredits: (c) => (c.resolution === '720p' ? 2 : 3),
+    minCredits: () => 20, // piso de modelo premium (Veo com áudio nativo)
   },
   {
     id: 'kling-turbo', kind: 'video', family: 'Kling', featured: true,
@@ -443,7 +445,6 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2v: 1 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 5 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.06 : 0.15),
-    tierCredits: (c) => (c.resolution === '720p' ? 1 : 2),
   },
 ];
 
@@ -471,7 +472,6 @@ const AUDIO_MODELS: GenModel[] = [
     durations: [15, 30, 45, 60, 90, 120, 180].map(v => ({ value: v, label: `${v} s` })),
     defaults: { duration: 30 },
     priceUsd: () => 0.06,
-    tierCredits: () => 1,
   },
 ];
 
@@ -527,7 +527,7 @@ export function normalizeConfig(model: GenModel, raw: GenConfig = {}): GenConfig
 export function quote(model: GenModel, config: GenConfig) {
   const c = normalizeConfig(model, config);
   const usd = model.priceUsd(c);
-  const credits = Math.max(creditsForUsd(usd), model.tierCredits?.(c) ?? 0);
+  const credits = creditsForUsd(usd, model.minCredits?.(c) ?? KIND_MIN_CREDITS[model.kind]);
   return { usd, credits, kieCredits: Math.round(usd / KIE_USD_PER_CREDIT) };
 }
 
@@ -599,6 +599,5 @@ export const GEN_LIMITS = {
   videoMaxBytes: 10 * 1024 * 1024,
   videoMinSeconds: 2,
   videoMaxSeconds: 10,
-  /** Gerações ativas (na fila ou gerando) por pessoa ao mesmo tempo. */
-  activePerUser: 3,
+  /** Gerações ativas por pessoa ao mesmo tempo: depende do plano (GEN_ACTIVE_LIMIT em planConfig.ts). */
 };

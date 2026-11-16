@@ -1,7 +1,7 @@
 import { NextResponse } from 'next/server';
 import { ToolId } from '@/lib/planConfig';
 import { AuthedUser, HttpError, requireUser } from './auth';
-import { ChargeResult, chargeCredit, refundCredit } from './credits';
+import { ChargeResult, assertToolAccess, chargeCredit, refundCredit } from './credits';
 import { logPlatformAction } from '@/lib/firebase/logAction';
 
 export interface ToolContext {
@@ -17,6 +17,8 @@ interface ToolOptions {
   charge?: boolean;
   /** Custo em créditos deste uso, quando depende do pedido. Padrão: TOOL_COSTS. */
   cost?: (body: any) => number;
+  /** Custo que depende de dados do banco (ex.: rodadas grátis do projeto). 0 = uso grátis. Tem prioridade sobre `cost`. */
+  costAsync?: (body: any, user: AuthedUser) => Promise<number | undefined>;
   /** Descrição curta para o registro em `platform_actions`. */
   logDescription?: (body: any) => string;
 }
@@ -54,7 +56,12 @@ export function withTool<T>(
       user = await requireUser(req);
       const body = await req.json().catch(() => ({}));
 
-      if (shouldCharge) charge = await chargeCredit(user.uid, tool, options.cost?.(body));
+      if (shouldCharge) {
+        const cost = options.costAsync ? await options.costAsync(body, user) : options.cost?.(body);
+        // Uso grátis (ex.: prompt de cena dentro da cota): só confere o acesso, sem cobrar nem gastar o teste.
+        charge = cost === 0 ? null : await chargeCredit(user.uid, tool, cost);
+        if (cost === 0) await assertToolAccess(user.uid, tool);
+      }
 
       const ctx: ToolContext = {
         user,

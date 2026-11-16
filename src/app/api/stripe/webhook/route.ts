@@ -1,4 +1,5 @@
 import { NextResponse } from 'next/server';
+import { fromStored } from '@/lib/creditUnits';
 import Stripe from 'stripe';
 import { Resend } from 'resend';
 import React from 'react';
@@ -33,7 +34,8 @@ async function claimEvent(event: Stripe.Event): Promise<boolean> {
 /** Recarga avulsa paga: soma os créditos ao saldo avulso (uma vez por sessão). */
 async function creditTopup(session: Stripe.Checkout.Session) {
   const userId = session.client_reference_id;
-  const credits = Number(session.metadata?.credits);
+  // `credits` vai na unidade do banco (compatível com qualquer versão do webhook); `units` em créditos novos.
+  const credits = Number(session.metadata?.units) || fromStored(session.metadata?.credits);
   if (!userId || !Number.isFinite(credits) || credits <= 0 || session.payment_status !== 'paid') return;
   await addExtraCredits(userId, credits, session.id, { amountTotal: (session.amount_total ?? 0) / 100 });
 }

@@ -37,7 +37,7 @@ export async function POST(req: Request) {
           return {
             id: d.id, uid: j.uid, email: users[j.uid]?.email || '', userBlocked: users[j.uid]?.blocked || false,
             kind: j.kind, mode: j.mode, modelName: j.modelName, status: j.status, prompt: j.prompt,
-            credits: j.credits, refunded: !!j.refunded, outputs: j.outputs || [], error: j.error || null,
+            credits: j.creditScale === 10 ? j.credits : (Number(j.credits) || 0) * 10, refunded: !!j.refunded, outputs: j.outputs || [], error: j.error || null,
             expectedBrl: Number((j.expectedKieCredits * KIE_USD_PER_CREDIT * USD_TO_BRL).toFixed(2)),
             realBrl: realUsd == null ? null : Number((realUsd * USD_TO_BRL).toFixed(2)),
             costMismatch: !!j.costMismatch, createdAt: j.createdAt,

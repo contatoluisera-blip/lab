@@ -9,7 +9,7 @@ import { auth, db } from '@/lib/firebase';
 import { createUserWithEmailAndPassword, updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { getAttribution, marketingContext, planValue, track } from '@/lib/client/tracking';
-import { BILLING_CYCLES, BillingCycle, PLAN_PRICES, PlanId, cycleTotal, formatBRL } from '@/lib/planConfig';
+import { AGENCY_PLANS, BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, PLAN_PRICES, PlanId, cycleDiscount, cycleTotal, formatBRL } from '@/lib/planConfig';
 
 const CYCLE_ORDER: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
 
@@ -78,8 +78,8 @@ export default function PricingSection() {
     }
   ];
 
-  const agency = { id: 'agency' as PlanId, name: 'Agência' };
-  const cycleNote = (id: PlanId) => cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} · créditos todo mês`;
+  const agencyClients: Record<string, string> = { agency: '~6 clientes por mês', agency_plus: '~16 clientes por mês', agency_max: '~32 clientes por mês' };
+  const cycleNote = (id: PlanId) => cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} (−${Math.round(cycleDiscount(id, cycle) * 100)}%) · créditos todo mês`;
 
   const handleInitiatePayment = (plan: any) => {
     setSelectedPlan(plan);
@@ -223,23 +223,31 @@ export default function PricingSection() {
       </div>
 
       {/* Agências e empresas: volume alto, fora da escolha principal */}
-      <GlassCard className="mt-6 p-6 md:p-8 border-white/5 flex flex-col md:flex-row md:items-center gap-6">
-        <div className="flex-1 space-y-2">
+      <GlassCard className="mt-6 p-6 md:p-8 border-white/5 space-y-5">
+        <div className="space-y-2">
           <span className="text-[10px] uppercase font-bold tracking-widest text-brand-emerald">Para agências e empresas</span>
-          <h3 className="text-xl font-extrabold text-white">Plano Agência · 1.000 créditos por mês</h3>
+          <h3 className="text-xl font-extrabold text-white">Planos Agência · de 10.000 a 50.000 créditos por mês</h3>
           <p className="text-xs text-gray-400 leading-relaxed max-w-2xl">
-            Tudo do Elite com volume para produzir para vários clientes: imagens, vídeos, montagens de até 5 minutos e o crédito 24% mais barato que no Elite.
+            Tudo do Elite com volume para produzir para vários clientes: mais gerações ao mesmo tempo, montagens de até 5 minutos e prompts das cenas grátis na Montagem.
           </p>
         </div>
-        <div className="md:text-right space-y-3 shrink-0">
-          <div>
-            <span className="text-3xl font-extrabold text-white">{formatBRL(PLAN_PRICES.agency[cycle])}</span>
-            <span className="text-gray-500 text-sm">/mês</span>
-            <p className="text-[11px] text-gray-500">{cycleNote('agency')}</p>
-          </div>
-          <Button onClick={() => handleInitiatePayment(agency)} variant="outline" className="h-11 px-6 uppercase font-bold text-xs tracking-wider">
-            Assinar o plano Agência
-          </Button>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {AGENCY_PLANS.map(id => (
+            <div key={id} className="rounded-2xl border border-white/[0.08] bg-black/30 p-5 flex flex-col gap-3">
+              <div>
+                <p className="text-sm font-bold text-white">{PLAN_CONFIGS[id].label}</p>
+                <p className="text-[11px] text-gray-500">{PLAN_CONFIGS[id].credits.toLocaleString('pt-BR')} créditos · {agencyClients[id]}</p>
+              </div>
+              <div>
+                <span className="text-2xl font-extrabold text-white">{formatBRL(PLAN_PRICES[id][cycle])}</span>
+                <span className="text-gray-500 text-sm">/mês</span>
+                <p className="text-[11px] text-gray-500">{cycleNote(id)}</p>
+              </div>
+              <Button onClick={() => handleInitiatePayment({ id, name: PLAN_CONFIGS[id].label })} variant="outline" className="h-10 mt-auto uppercase font-bold text-xs tracking-wider">
+                Assinar
+              </Button>
+            </div>
+          ))}
         </div>
       </GlassCard>
 

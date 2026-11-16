@@ -7,6 +7,7 @@ import { useAuth } from '@/context/AuthContext';
 import { PlanId, ToolId, planHasToolAccess, planHasCourseAccess } from '@/lib/planConfig';
 import { AccountState, ToolCheck, checkTool, getAccountState } from '@/lib/accountState';
 import { callTool } from '@/lib/client/api';
+import { toStored } from '@/lib/creditUnits';
 import { track } from '@/lib/client/tracking';
 
 // ─────────────────────────────────────────────
@@ -146,11 +147,11 @@ export function UserProfileProvider({ children }: { children: React.ReactNode })
 
   const applyCredits = useCallback((credits?: { remaining: number; trial: boolean; monthly?: number; extra?: number }, tool?: ToolId) => {
     if (!credits) return;
-    // Cota do mês e avulso vêm separados: o estado da conta soma os dois.
+    // Cota do mês e avulso vêm separados (créditos novos); o perfil guarda na unidade do banco.
     setUserProfile(prev => prev ? {
       ...prev,
-      credits: credits.monthly ?? credits.remaining,
-      ...(credits.extra !== undefined ? { extraCredits: credits.extra } : {}),
+      credits: toStored(credits.monthly ?? credits.remaining),
+      ...(credits.extra !== undefined ? { extraCredits: toStored(credits.extra) } : {}),
       trialUsed: tool && credits.trial ? { ...prev.trialUsed, [tool]: true } : prev.trialUsed,
     } : prev);
   }, []);

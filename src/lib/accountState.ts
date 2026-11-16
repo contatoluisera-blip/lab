@@ -6,6 +6,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { FREE_FIRST_USE, NO_FREE_TRIAL, PLAN_CONFIGS, PlanId, TOOL_COSTS, ToolId, isPaidPlan, planHasToolAccess } from './planConfig';
+import { fromStored } from './creditUnits';
 
 /**
  * - active: assinatura da Stripe ativa (renova sozinha)
@@ -63,16 +64,17 @@ export function formatDate(iso: string): string {
   return new Date(iso).toLocaleDateString('pt-BR', { day: '2-digit', month: '2-digit', year: 'numeric' });
 }
 
-/** Créditos avulsos ainda dentro da validade (vencidos contam como 0). */
+/** Créditos avulsos ainda dentro da validade (vencidos contam como 0), já na escala nova. */
 export function validExtraCredits(profile: AccountProfile | null | undefined, now = Date.now()) {
-  const amount = Math.max(0, Number(profile?.extraCredits ?? 0) || 0);
+  const amount = Math.max(0, fromStored(profile?.extraCredits));
   const exp = profile?.extraCreditsExpireAt ? Date.parse(profile.extraCreditsExpireAt) : 0;
   return amount > 0 && exp > now ? amount : 0;
 }
 
 export function getAccountState(profile: AccountProfile | null | undefined): AccountState {
   const plan = isPaidPlan(profile?.plan) ? profile!.plan as PlanId : null;
-  const monthlyCredits = Math.max(0, Number(profile?.credits ?? 0) || 0);
+  // O banco grava na unidade antiga (src/lib/creditUnits.ts); daqui para frente tudo é crédito novo.
+  const monthlyCredits = Math.max(0, fromStored(profile?.credits));
   const extraCredits = validExtraCredits(profile);
   const credits = monthlyCredits + extraCredits;
   const extra = { monthlyCredits, extraCredits, extraExpiresAt: extraCredits ? profile!.extraCreditsExpireAt! : null };

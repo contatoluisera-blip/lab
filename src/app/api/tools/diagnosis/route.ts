@@ -1,4 +1,5 @@
 import { adminDb } from '@/lib/firebase/admin';
+import { chargeFields } from '@/lib/server/credits';
 import { withTool } from '@/lib/server/tool';
 import { HttpError } from '@/lib/server/auth';
 import { startApifyRun } from '@/lib/server/diagnosis/analyze';
@@ -47,8 +48,7 @@ export const POST = withTool('diagnosis', async ({ body, user, charge }) => {
     status: 'running',
     profileRun,
     postsRun,
-    chargedCredits: charge.charged,
-      chargedExtra: charge.fromExtra,
+    ...chargeFields(charge),
     reusedCollection: !!fresh,
     refunded: false,
     createdAt: new Date().toISOString(),

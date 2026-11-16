@@ -4,7 +4,10 @@
 // pelo webhook do Stripe e pelas rotas de faturamento.
 // ─────────────────────────────────────────────────────────────
 
-export type PlanId = 'start' | 'pro' | 'elite' | 'agency';
+export type PlanId = 'start' | 'pro' | 'elite' | 'agency' | 'agency_plus' | 'agency_max';
+/** Planos de agência: volume alto, limites maiores e recarga com preço próprio. */
+export const AGENCY_PLANS: PlanId[] = ['agency', 'agency_plus', 'agency_max'];
+export const isAgencyPlan = (plan: string | null | undefined) => AGENCY_PLANS.includes(plan as PlanId);
 /** Plano gravado no perfil pode ser um dos pagos ou 'free' (conta sem assinatura ativa). */
 export type StoredPlan = PlanId | 'free';
 
@@ -30,7 +33,7 @@ export interface PlanConfig {
   id: PlanId;
   label: string;
   price: string;
-  credits: number;          // créditos mensais
+  credits: number;          // créditos mensais (escala nova: src/lib/creditUnits.ts)
   tools: ToolId[] | 'all'; // ferramentas liberadas
   courses: boolean;         // acesso à aba Estudo
 }
@@ -40,7 +43,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     id: 'start',
     label: 'Start',
     price: 'R$ 67/mês',
-    credits: 20,
+    credits: 200,
     tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'assistant', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video', 'montagem'],
     courses: false,
   },
@@ -48,7 +51,7 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     id: 'pro',
     label: 'Pro',
     price: 'R$ 117/mês',
-    credits: 50,
+    credits: 500,
     tools: ['diagnosis', 'calculator', 'ideas', 'caption', 'proposal', 'proposal-rewrite', 'assistant', 'clients', 'actions', 'creator-card', 'estudia', 'prompts', 'hub', 'gen-image', 'gen-video', 'montagem'],
     courses: false,
   },
@@ -56,16 +59,32 @@ export const PLAN_CONFIGS: Record<PlanId, PlanConfig> = {
     id: 'elite',
     label: 'Elite',
     price: 'R$ 197/mês',
-    credits: 100,
+    credits: 1000,
     tools: 'all',
     courses: true,
   },
-  // Empresas e agências: volume alto de produção (R$ 1,50 por crédito, 24% abaixo do Elite).
+  // Empresas e agências (docs/plano-agencia.md, seção 8): três tamanhos, crédito de R$ 0,125 a R$ 0,10.
   agency: {
     id: 'agency',
     label: 'Agência',
-    price: 'R$ 1.497/mês',
-    credits: 1000,
+    price: 'R$ 1.247/mês',
+    credits: 10000,
+    tools: 'all',
+    courses: true,
+  },
+  agency_plus: {
+    id: 'agency_plus',
+    label: 'Agência Plus',
+    price: 'R$ 2.747/mês',
+    credits: 25000,
+    tools: 'all',
+    courses: true,
+  },
+  agency_max: {
+    id: 'agency_max',
+    label: 'Agência Max',
+    price: 'R$ 4.997/mês',
+    credits: 50000,
     tools: 'all',
     courses: true,
   },
@@ -86,8 +105,15 @@ export const PLAN_PRICES: Record<PlanId, Record<BillingCycle, number>> = {
   start: { monthly: 67, quarterly: 59.9, annual: 53 },
   pro: { monthly: 117, quarterly: 104.9, annual: 93 },
   elite: { monthly: 197, quarterly: 177, annual: 157 },
-  agency: { monthly: 1497, quarterly: 1347, annual: 1197 },
+  // Agências: trimestral −10% e anual −15% (o anual de agência tem desconto menor que o individual).
+  agency: { monthly: 1247, quarterly: 1122, annual: 1060 },
+  agency_plus: { monthly: 2747, quarterly: 2472, annual: 2335 },
+  agency_max: { monthly: 4997, quarterly: 4497, annual: 4247 },
 };
+
+/** Desconto do ciclo para o plano (o anual de agência é −15%, o individual −20%). */
+export const cycleDiscount = (plan: PlanId, cycle: BillingCycle) =>
+  cycle === 'annual' && isAgencyPlan(plan) ? 0.15 : BILLING_CYCLES[cycle].discount;
 
 export const cycleTotal = (plan: PlanId, cycle: BillingCycle) =>
   Math.round(PLAN_PRICES[plan][cycle] * BILLING_CYCLES[cycle].months * 100) / 100;
@@ -96,46 +122,52 @@ export const formatBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'curr
 
 // ── Recarga avulsa ───────────────────────────────────────────────────────────
 /**
- * Preço do crédito avulso: o mesmo do plano em que o crédito sai mais caro no mensal (hoje o Start, R$ 3,35),
- * para a recarga não competir com subir de plano.
+ * Preço do crédito avulso: o do plano em que o crédito sai mais caro no mensal, para a recarga
+ * não competir com subir de plano. Individuais: Start (R$ 0,335). Agências: Agência (R$ 0,125).
  */
-export const TOPUP_PRICE_PER_CREDIT = Math.max(...(Object.keys(PLAN_PRICES) as PlanId[]).map(p => PLAN_PRICES[p].monthly / PLAN_CONFIGS[p].credits));
-export const TOPUP_PACKS = [10, 25, 50, 100, 250, 500, 1000];
+const maxPerCredit = (plans: PlanId[]) => Math.max(...plans.map(p => PLAN_PRICES[p].monthly / PLAN_CONFIGS[p].credits));
+export const TOPUP_PRICE_PER_CREDIT = Math.round(maxPerCredit(['start', 'pro', 'elite']) * 1000) / 1000;
+export const AGENCY_TOPUP_PRICE_PER_CREDIT = Math.round(maxPerCredit(AGENCY_PLANS) * 1000) / 1000;
+export const TOPUP_PACKS = [100, 250, 500, 1000, 2500, 5000, 10000];
+export const AGENCY_TOPUP_PACKS = [2500, 5000, 10000, 25000, 50000];
 /** Créditos avulsos valem 90 dias, num saldo à parte, usados depois da cota do mês. */
 export const TOPUP_VALID_DAYS = 90;
-export const topupPrice = (credits: number) => Math.round(credits * TOPUP_PRICE_PER_CREDIT * 100) / 100;
+export const topupPacksFor = (plan: string | null | undefined) => (isAgencyPlan(plan) ? AGENCY_TOPUP_PACKS : TOPUP_PACKS);
+export const topupPrice = (credits: number, plan?: string | null) =>
+  Math.round(credits * (isAgencyPlan(plan) ? AGENCY_TOPUP_PRICE_PER_CREDIT : TOPUP_PRICE_PER_CREDIT) * 100) / 100;
 
 /**
- * Custo em créditos de cada uso. Para mudar o preço de uma ferramenta, altere só aqui.
- * Referência de custo real por uso (out/2026): Diagnóstico ~R$ 1,53 (Apify + IA), por isso 2 créditos;
- * demais ferramentas de IA entre R$ 0,01 e R$ 0,64. Calculadora, reescrita de trecho e Hub não têm custo relevante.
+ * Custo em créditos de cada uso (escala nova, forma B de docs/creditos-multiplos.md).
+ * Para mudar o preço de uma ferramenta, altere só aqui. Teto: 1 crédito para cada R$ 0,067 de custo.
+ * Custo real por uso: Diagnóstico ~R$ 1,53 (Apify + IA); ideia, legenda e proposta ~R$ 0,17;
+ * prompt ~R$ 0,46. Calculadora, reescrita de trecho e Hub não têm custo relevante.
  */
 export const TOOL_COSTS: Record<ToolId, number> = {
-  diagnosis: 2,
+  diagnosis: 25,
   calculator: 0,
-  ideas: 1,
-  proposal: 1,
-  assistant: 1,
+  ideas: 5,
+  proposal: 5,
+  assistant: 10,
   clients: 0,
   actions: 0,
-  'creator-card': 1,
-  estudia: 1,
-  prompts: 1,
+  'creator-card': 10,
+  estudia: 10,
+  prompts: 8, // dentro da Montagem, até 3 por cena e tipo saem grátis (src/lib/montagem.ts, SCENE_FREE_PROMPTS)
   'proposal-rewrite': 0, // ajuste fino de um trecho: custo ~R$ 0,01, não consome crédito
-  caption: 1, // legenda do post de uma ideia, gerada à parte
+  caption: 5, // legenda do post de uma ideia, gerada à parte
   hub: 0, // navegar no hub é gratuito; as ações de IA cobram na ferramenta de destino
   // Geração de imagem e vídeo: o custo real de cada pedido vem de src/lib/generation.ts (modelo e configuração).
-  'gen-image': 1,
-  'gen-video': 3,
+  'gen-image': 8,
+  'gen-video': 30,
   // Montagem: o custo de cada exportação vem dos segundos do vídeo (src/lib/montagem.ts, montagemCost).
-  montagem: 2,
+  montagem: 20,
 };
 
-/** Gerador de Ideias: 1 crédito até 5 ideias, 2 créditos de 6 a 10 (o custo de IA cresce com a quantidade). */
+/** Gerador de Ideias: 5 créditos até 5 ideias, 10 de 6 a 10 (o custo de IA cresce com a quantidade). */
 export const IDEAS_MAX = 10;
 export function ideasCost(quantidade: unknown) {
   const n = Math.min(IDEAS_MAX, Math.max(1, Math.round(Number(quantidade) || 5)));
-  return n > 5 ? 2 : 1;
+  return n > 5 ? 10 : 5;
 }
 
 /** Primeiro uso de cada ferramenta é gratuito (teste). */
@@ -156,13 +188,15 @@ export function planFromStripeProduct(productId: string | null | undefined): Pla
     [process.env.STRIPE_PRODUCT_ELITE_ANNUAL, 'elite'],
     [process.env.STRIPE_PRODUCT_AGENCY, 'agency'],
     [process.env.STRIPE_PRODUCT_AGENCY_ANNUAL, 'agency'],
+    [process.env.STRIPE_PRODUCT_AGENCY_PLUS, 'agency_plus'],
+    [process.env.STRIPE_PRODUCT_AGENCY_MAX, 'agency_max'],
   ];
   for (const [id, plan] of pairs) if (id) map[id] = plan;
   return map[productId] ?? null;
 }
 
 export function isPaidPlan(plan: string | null | undefined): plan is PlanId {
-  return plan === 'start' || plan === 'pro' || plan === 'elite' || plan === 'agency';
+  return plan === 'start' || plan === 'pro' || plan === 'elite' || isAgencyPlan(plan);
 }
 
 /** Retorna true se o plano tem acesso à ferramenta */
@@ -184,3 +218,10 @@ export function planCredits(plan: string | null | undefined): number {
   if (!isPaidPlan(plan)) return 0;
   return PLAN_CONFIGS[plan].credits;
 }
+
+/**
+ * Gerações de imagem e vídeo em andamento ao mesmo tempo, por conta.
+ * Agências produzem para vários clientes de uma vez e precisam de mais fila própria.
+ */
+export const GEN_ACTIVE_LIMIT: Record<PlanId, number> = { start: 3, pro: 3, elite: 3, agency: 6, agency_plus: 10, agency_max: 15 };
+export const genActiveLimit = (plan: string | null | undefined) => (isPaidPlan(plan) ? GEN_ACTIVE_LIMIT[plan] : 3);

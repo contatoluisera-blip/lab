@@ -4,13 +4,14 @@ import { errorResponse } from '@/lib/server/tool';
 import { productForPlan, stripeClient } from '@/lib/server/stripe';
 import { adminDb } from '@/lib/firebase/admin';
 import { getAccountState } from '@/lib/accountState';
-import { BILLING_CYCLES, BillingCycle, TOPUP_PACKS, TOPUP_VALID_DAYS, isPaidPlan, topupPrice } from '@/lib/planConfig';
+import { BILLING_CYCLES, BillingCycle, TOPUP_VALID_DAYS, isPaidPlan, topupPacksFor, topupPrice } from '@/lib/planConfig';
+import { toStored } from '@/lib/creditUnits';
 
 export const dynamic = 'force-dynamic';
 
 /**
  * Cria a sessão de checkout da Stripe para o usuário logado:
- * - assinatura: plano (start, pro, elite, agency) e ciclo (mensal, trimestral, anual);
+ * - assinatura: plano (start, pro, elite e os três de agência) e ciclo (mensal, trimestral, anual);
  * - recarga: pagamento único de um pacote de créditos avulsos (só com assinatura ativa).
  */
 export async function POST(req: Request) {
@@ -26,7 +27,7 @@ export async function POST(req: Request) {
     // ── Recarga avulsa ────────────────────────────────────────────────────
     if (body.topup !== undefined) {
       const credits = Number(body.topup);
-      if (!TOPUP_PACKS.includes(credits)) throw new HttpError(400, 'bad_topup', 'Pacote de recarga inválido.');
+      if (!topupPacksFor(profile.plan).includes(credits)) throw new HttpError(400, 'bad_topup', 'Pacote de recarga inválido.');
       if (getAccountState(profile).status !== 'active') {
         throw new HttpError(403, 'topup_needs_plan', 'A recarga é para quem tem assinatura ativa. Escolha um plano primeiro.');
       }
@@ -34,14 +35,14 @@ export async function POST(req: Request) {
         mode: 'payment',
         ...customer,
         client_reference_id: user.uid,
-        metadata: { kind: 'topup', credits: String(credits) },
-        payment_intent_data: { metadata: { kind: 'topup', credits: String(credits), uid: user.uid } },
+        metadata: { kind: 'topup', credits: String(toStored(credits)), units: String(credits) },
+        payment_intent_data: { metadata: { kind: 'topup', credits: String(toStored(credits)), units: String(credits), uid: user.uid } },
         line_items: [{
           quantity: 1,
           price_data: {
             currency: 'brl',
-            unit_amount: Math.round(topupPrice(credits) * 100),
-            product_data: { name: `Recarga de ${credits} créditos`, description: `Créditos avulsos da Creator Lab, válidos por ${TOPUP_VALID_DAYS} dias.` },
+            unit_amount: Math.round(topupPrice(credits, profile.plan) * 100),
+            product_data: { name: `Recarga de ${credits.toLocaleString('pt-BR')} créditos`, description: `Créditos avulsos da Creator Lab, válidos por ${TOPUP_VALID_DAYS} dias.` },
           },
         }],
         success_url: `${origin}/dashboard/billing?topup=ok`,

@@ -1,4 +1,8 @@
 import Anthropic from '@anthropic-ai/sdk';
+import * as admin from 'firebase-admin';
+import { adminDb } from '@/lib/firebase/admin';
+import { projects } from '@/lib/server/montagem/projects';
+import { SCENE_FREE_PROMPTS } from '@/lib/montagem';
 import { withTool, describeProviderError } from '@/lib/server/tool';
 import { AI_MODELS, anthropicClient } from '@/lib/server/ai';
 import { HttpError } from '@/lib/server/auth';
@@ -176,4 +180,22 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
       return { error: e.message, code: e.code };
     }
   );
+}, {
+  // Prompt de uma cena da Montagem: grátis até SCENE_FREE_PROMPTS por cena em cada tipo (frame e movimento).
+  costAsync: async (body, user) => scenePromptCost(user.uid, body),
 });
+
+/** 0 se o prompt é de uma cena do próprio projeto e ainda está na cota grátis (e já conta o uso); senão, preço normal. */
+async function scenePromptCost(uid: string, body: any): Promise<number | undefined> {
+  if (typeof body?.projectId !== 'string' || typeof body?.sceneId !== 'string' || !/^[\w-]{1,64}$/.test(body.sceneId)) return undefined;
+  const kind = body.mode === 't2i' || body.mode === 'i2i' ? 'frame' : 'motion';
+  const ref = projects().doc(body.projectId);
+  return adminDb.runTransaction(async (tx: admin.firestore.Transaction) => {
+    const data = (await tx.get(ref)).data();
+    if (!data || data.uid !== uid || !(data.scenes || []).some((sc: { id: string }) => sc.id === body.sceneId)) return undefined;
+    const used = data.promptUsage?.[body.sceneId]?.[kind] || 0;
+    if (used >= SCENE_FREE_PROMPTS) return undefined;
+    tx.update(ref, { [`promptUsage.${body.sceneId}.${kind}`]: used + 1 });
+    return 0;
+  });
+}

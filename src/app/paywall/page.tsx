@@ -24,7 +24,7 @@ export default function PaywallPage() {
       price: 'R$ 67',
       tier: 1,
       description: 'Ideal para criadores que querem sair do improviso e vender com mais clareza.',
-      features: ['20 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias'],
+      features: ['200 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias'],
       buttonText: 'Contratar Plano',
       featured: false
     },
@@ -33,7 +33,7 @@ export default function PaywallPage() {
       price: 'R$ 117',
       tier: 2,
       description: 'Para quem quer vender com mais autoridade e organizar melhor sua operação.',
-      features: ['50 créditos de IA/mês', 'Acesso completo a todas as ferramentas', 'Gerador de Ideias & Propostas', 'Gestão de Clientes', 'Suporte via e-mail'],
+      features: ['500 créditos de IA/mês', 'Acesso completo a todas as ferramentas', 'Gerador de Ideias & Propostas', 'Gestão de Clientes', 'Suporte via e-mail'],
       buttonText: 'Contratar Plano',
       featured: true
     },
@@ -42,7 +42,7 @@ export default function PaywallPage() {
       price: 'R$ 197',
       tier: 3,
       description: 'Para criadores que querem levar a criação mobile para outro patamar.',
-      features: ['100 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'],
+      features: ['1.000 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'],
       buttonText: 'Contratar Plano',
       featured: false
     }

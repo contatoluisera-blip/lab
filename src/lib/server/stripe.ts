@@ -63,7 +63,7 @@ export function billingInterval(sub: any): 'month' | 'year' | null {
 // ── Plano e ciclo de um produto da Stripe ────────────────────────────────────
 
 const CYCLES: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
-const PLANS: PlanId[] = ['start', 'pro', 'elite', 'agency'];
+const PLANS: PlanId[] = ['start', 'pro', 'elite', 'agency', 'agency_plus', 'agency_max'];
 const productCache = new Map<string, { plan: PlanId; cycle: BillingCycle } | null>();
 
 /**

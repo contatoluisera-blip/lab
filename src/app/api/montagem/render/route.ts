@@ -2,7 +2,7 @@ import { NextResponse } from 'next/server';
 import { adminDb } from '@/lib/firebase/admin';
 import { HttpError, requireUser } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
-import { chargeCredit, refundCredit, ChargeResult } from '@/lib/server/credits';
+import { chargeCredit, refundCredit, ChargeResult, chargeFields } from '@/lib/server/credits';
 import { logPlatformAction } from '@/lib/firebase/logAction';
 import { MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, edlVoicePaths, musicSourceKey, edlDurationFrames, edlLetteringPaths, edlTexts, montagemCost, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
@@ -70,8 +70,7 @@ export async function POST(req: Request) {
       status: 'queued',
       active: true,
       credits,
-      chargedCredits: charge.charged,
-      chargedExtra: charge.fromExtra,
+      ...chargeFields(charge),
       refunded: false,
       durationFrames,
       format: project.format,

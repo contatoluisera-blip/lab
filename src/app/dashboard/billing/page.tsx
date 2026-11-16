@@ -28,22 +28,27 @@ import { useUserProfile } from '@/context/UserProfileContext';
 import { marketingContext, planValue, track } from '@/lib/client/tracking';
 import { formatDate } from '@/lib/accountState';
 import {
-  BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, PLAN_PRICES, PlanId, TOPUP_PACKS, TOPUP_PRICE_PER_CREDIT, TOPUP_VALID_DAYS, cycleTotal, formatBRL, topupPrice,
+  AGENCY_TOPUP_PRICE_PER_CREDIT, BILLING_CYCLES, BillingCycle, PLAN_CONFIGS, PLAN_PRICES, PlanId, TOPUP_PRICE_PER_CREDIT, TOPUP_VALID_DAYS,
+  cycleDiscount, cycleTotal, formatBRL, isAgencyPlan, topupPacksFor, topupPrice,
 } from '@/lib/planConfig';
 
 type PlanCard = { id: PlanId; tier: number; description: string; features: string[]; featured?: boolean };
 
 const PLAN_CARDS: PlanCard[] = [
   { id: 'start', tier: 1, description: 'Ideal para criadores que querem sair do improviso e vender com mais clareza.',
-    features: ['20 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias', 'Hub de Referências e Gerador de Prompts'] },
+    features: ['200 créditos de IA/mês', 'Diagnóstico de Perfil', 'Calculadora de Orçamento', 'Gerador de Ideias', 'Hub de Referências e Gerador de Prompts'] },
   { id: 'pro', tier: 2, featured: true, description: 'Para quem quer vender com mais autoridade e organizar melhor sua operação.',
-    features: ['50 créditos de IA/mês', 'Acesso completo a todas as ferramentas', 'Gerador de Ideias & Propostas', 'Hub de Referências e Gerador de Prompts', 'Gestão de Clientes', 'Suporte via e-mail'] },
+    features: ['500 créditos de IA/mês', 'Acesso completo a todas as ferramentas', 'Gerador de Ideias & Propostas', 'Hub de Referências e Gerador de Prompts', 'Gestão de Clientes', 'Suporte via e-mail'] },
   { id: 'elite', tier: 3, description: 'Para criadores que querem levar a criação mobile para outro patamar.',
-    features: ['100 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'] },
-  { id: 'agency', tier: 4, description: 'Para agências e empresas que produzem conteúdo em escala para vários clientes.',
-    features: ['1.000 créditos de IA/mês', 'Tudo do plano Elite', 'Vídeos de até 5 minutos na Montagem', 'Crédito 24% mais barato que no Elite', 'Atendimento dedicado'] },
+    features: ['1.000 créditos de IA/mês', 'Tudo do plano Pro', 'Cursos e Lives com Luisera', 'Suporte prioritário 24/7', 'Consultoria de marca pessoal'] },
+  { id: 'agency', tier: 4, description: 'Para agências que atendem até ~6 clientes por mês com Reels, posts e carrosséis.',
+    features: ['10.000 créditos de IA/mês', 'Tudo do plano Elite', '6 gerações simultâneas', 'Vídeos de até 5 minutos na Montagem', 'Recarga a R$ 0,125 por crédito'] },
+  { id: 'agency_plus', tier: 5, featured: true, description: 'Para agências com carteira média, ~16 clientes por mês.',
+    features: ['25.000 créditos de IA/mês', 'Tudo do plano Agência', '10 gerações simultâneas', 'Crédito 12% mais barato que no Agência'] },
+  { id: 'agency_max', tier: 6, description: 'Para operações grandes, ~32 clientes por mês.',
+    features: ['50.000 créditos de IA/mês', 'Tudo do plano Agência', '15 gerações simultâneas', 'Crédito 20% mais barato que no Agência'] },
 ];
-const TIER: Record<string, number> = { start: 1, pro: 2, elite: 3, agency: 4 };
+const TIER: Record<string, number> = { start: 1, pro: 2, elite: 3, agency: 4, agency_plus: 5, agency_max: 6 };
 const CYCLE_ORDER: BillingCycle[] = ['monthly', 'quarterly', 'annual'];
 
 export default function BillingPage() {
@@ -119,7 +124,7 @@ export default function BillingPage() {
   };
 
   const handleTopup = (credits: number) => {
-    track('InitiateCheckout', { value: topupPrice(credits), currency: 'BRL', content_name: `recarga_${credits}` });
+    track('InitiateCheckout', { value: topupPrice(credits, account.plan), currency: 'BRL', content_name: `recarga_${credits}` });
     startCheckout({ topup: credits });
   };
 
@@ -146,7 +151,7 @@ export default function BillingPage() {
     }
   };
 
-  const savePct = (c: BillingCycle) => Math.round(BILLING_CYCLES[c].discount * 100);
+  const savePct = (c: BillingCycle, plan: PlanId = 'start') => Math.round(cycleDiscount(plan, c) * 100);
 
   return (
     <div className="space-y-10 pb-10">
@@ -248,16 +253,16 @@ export default function BillingPage() {
               Recarregar créditos
             </h2>
             <p className="text-sm text-gray-400 mt-1">
-              Acabou a cota do mês? Compre créditos avulsos: {formatBRL(TOPUP_PRICE_PER_CREDIT)} por crédito, válidos por {TOPUP_VALID_DAYS} dias e usados depois da cota do mês.
+              Acabou a cota do mês? Compre créditos avulsos: {formatBRL(isAgencyPlan(account.plan) ? AGENCY_TOPUP_PRICE_PER_CREDIT : TOPUP_PRICE_PER_CREDIT)} por crédito, válidos por {TOPUP_VALID_DAYS} dias e usados depois da cota do mês.
             </p>
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-3">
-            {TOPUP_PACKS.map(n => (
+            {topupPacksFor(account.plan).map(n => (
               <button key={n} type="button" onClick={() => handleTopup(n)} disabled={isProcessing}
                 className="rounded-2xl border border-white/[0.08] bg-black/30 hover:border-brand-emerald/50 hover:bg-brand-emerald/[0.06] p-4 text-left transition-colors disabled:opacity-50">
                 <p className="text-2xl font-extrabold text-white tabular-nums">{n.toLocaleString('pt-BR')}</p>
                 <p className="text-[11px] text-gray-500">créditos</p>
-                <p className="mt-2 text-sm font-semibold text-brand-mint">{formatBRL(topupPrice(n))}</p>
+                <p className="mt-2 text-sm font-semibold text-brand-mint">{formatBRL(topupPrice(n, account.plan))}</p>
               </button>
             ))}
           </div>
@@ -275,14 +280,20 @@ export default function BillingPage() {
             {CYCLE_ORDER.map(c => (
               <button key={c} type="button" role="tab" aria-selected={cycle === c} onClick={() => setCycle(c)}
                 className={cn('px-4 py-2 rounded-full text-xs font-semibold transition-colors', cycle === c ? 'bg-brand-emerald/20 text-white' : 'text-gray-400 hover:text-white')}>
-                {BILLING_CYCLES[c].label}{savePct(c) ? <span className="ml-1 text-brand-mint">−{savePct(c)}%</span> : null}
+                {BILLING_CYCLES[c].label}{savePct(c) ? <span className="ml-1 text-brand-mint">{c === 'annual' ? 'até ' : ''}−{savePct(c)}%</span> : null}
               </button>
             ))}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-6">
-          {PLAN_CARDS.map((plan) => {
+        {[
+          { title: 'Criadores', cards: PLAN_CARDS.filter(p => !isAgencyPlan(p.id)) },
+          { title: 'Agências e empresas', cards: PLAN_CARDS.filter(p => isAgencyPlan(p.id)) },
+        ].map(group => (
+        <div key={group.title} className="space-y-3">
+        <h3 className="text-sm font-semibold uppercase tracking-wider text-gray-400">{group.title}</h3>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {group.cards.map((plan) => {
             const isCurrent = plan.tier === currentTier && cycle === currentCycle;
             const perMonth = PLAN_PRICES[plan.id][cycle];
             return (
@@ -308,7 +319,7 @@ export default function BillingPage() {
                     <span className="text-gray-500 text-sm">/mês</span>
                   </div>
                   <p className="text-xs text-gray-500 mt-1 mb-4 min-h-[16px]">
-                    {cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(plan.id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} · créditos todo mês`}
+                    {cycle === 'monthly' ? 'Cobrado todo mês' : `${formatBRL(cycleTotal(plan.id, cycle))} ${cycle === 'annual' ? 'por ano' : 'a cada 3 meses'} (−${savePct(cycle, plan.id)}%) · créditos todo mês`}
                   </p>
                   <p className="text-sm text-gray-400 leading-relaxed min-h-[40px]">{plan.description}</p>
                 </div>
@@ -336,6 +347,8 @@ export default function BillingPage() {
             );
           })}
         </div>
+        </div>
+        ))}
       </div>
 
       {/* Billing History */}
