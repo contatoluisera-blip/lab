@@ -81,3 +81,76 @@ A ideia é uma camada de roteamento por cima da fila que já existe em `gen_jobs
 2. Testar voz (MiniMax Speech 2.8 HD, Gemini Flash TTS) e trilha (MiniMax Music v2) em PT-BR contra ElevenLabs e Suno.
 3. Implementar os adaptadores e o roteamento (itens 1 a 6 da seção 4), com a fal.ai começando só como reserva.
 4. Reavaliar a CometAPI só se ela publicar os preços de vídeo e autorizar o uso por revenda.
+
+## 6. OpenRouter
+
+Lido em 16/11/2026: [quickstart](https://openrouter.ai/docs/quickstart), [preços](https://openrouter.ai/pricing), [FAQ](https://openrouter.ai/docs/faq), [limites](https://openrouter.ai/docs/api_reference/limits), [BYOK](https://openrouter.ai/docs/use-cases/byok), [cache](https://openrouter.ai/docs/features/prompt-caching), [ZDR](https://openrouter.ai/docs/guides/features/zdr.md), [geração de imagem](https://openrouter.ai/docs/features/multimodal/image-generation), [vídeo](https://openrouter.ai/docs/cookbook/video-generation/choose-video-model.md) e a lista pública `GET https://openrouter.ai/api/v1/videos/models`, com o preço de cada vídeo.
+
+### Como funciona
+
+- **Uma API para centenas de modelos:** texto, imagem, vídeo e voz, compatível com o formato da OpenAI. Endereço `https://openrouter.ai/api/v1`, chave no cabeçalho `Authorization: Bearer`.
+- **Endpoints:** `/chat/completions`, `/responses`, `/messages` (formato Anthropic), `/images`, `/videos` (assíncrono, com consulta de status ou webhook) e `/models`.
+- **SDKs:** `@openrouter/sdk`; o SDK da OpenAI também funciona apontando o `baseURL`.
+- **Roteamento:** para o mesmo modelo, escolhe o provedor por preço, velocidade ou latência. Se um provedor falha, tenta o próximo sozinho. Dá para fixar a ordem (`order`), restringir (`only`, `ignore`), limitar o preço (`max_price`) e exigir retenção zero de dados (`zdr`).
+
+### Custos
+
+- **Preço dos modelos:** igual ao de lista do provedor, sem margem.
+- **Taxa:** 5,5% sobre cada compra de créditos (mínimo US$ 0,80); 8% no plano Business; 5% em cripto. Não há taxa por requisição.
+- **BYOK (chave própria):** grátis até US$ 25 mil por mês de uso; acima disso, 5% do valor.
+- **Pagamento:** pré-pago, com cartão (inclusive recarga automática), AliPay ou USDC. Os créditos podem expirar 1 ano após a compra, e o reembolso só vale até 24 horas depois.
+- **Falhas:** tentativas que falham não são cobradas, nem imagens com erro.
+- **Limites:** sem limite de requisições nos modelos pagos, além do limite do próprio provedor de origem.
+- **Garantia de disponibilidade:** só no plano Enterprise.
+
+### Vídeo: OpenRouter × KIE (com a taxa de 5,5%)
+
+| Entrega | KIE | OpenRouter | Diferença |
+|---|---|---|---|
+| Seedance 2 Fast, 720p, 5 s | R$ 3,55 | **R$ 2,74** | 23% mais barato |
+| Wan 2.7, 1080p, 5 s | R$ 3,43 | **R$ 3,02** | 12% mais barato |
+| Kling 3 Standard, 5 s | R$ 2,57 | R$ 2,53 | empate |
+| Kling 3 Pro, 5 s | **R$ 2,57** | R$ 3,38 | 31% mais caro |
+| Hailuo 2.3, 6 s | **R$ 1,49** | R$ 2,96 | 99% mais caro |
+| Veo 3.1 Fast, 1080p, 8 s | **R$ 1,86** | R$ 5,79 | 212% mais caro |
+| Veo 3.1 Lite, 1080p, 8 s | **R$ 1,00** | R$ 3,86 | 286% mais caro |
+| Veo 3.1, 8 s, com áudio | **R$ 7,29** | R$ 19,31 | 165% mais caro |
+| Grok Imagine, 720p, 6 s | **R$ 0,77** | R$ 2,53 | 228% mais caro |
+
+**Também na OpenRouter:**
+- **Vídeo:** Kling O1, Seedance 2.0, 2.0 Mini e 2.5, Wan 2.6 e 3.0, Hailuo 3, Runway Gen-4.5 e Aleph, Veo 3.1 em 4K e HeyGen.
+- **Imagem:** Seedream 5.5 a partir de US$ 0,02, Recraft, GPT Image 2, Gemini Image e FLUX.
+- **Voz:** TTS (Speechify, Eleven v4 Turbo) e transcrição.
+- **Fora:** música (não tem Suno) e Sora.
+
+### Claude pela OpenRouter
+
+- **Preço:** igual ao da Anthropic (Opus 5.5 US$ 4 / 20; Sonnet 5.5 US$ 2 / 10; Sonnet 4.6 US$ 3 / 15 por milhão de tokens), mais 5,5% na compra de créditos. Com BYOK, sem taxa até US$ 25 mil por mês.
+- **O que funciona:** cache (inclusive de 1 hora), saída em JSON com esquema, esforço (`effort`), PDF e imagem por URL.
+- **Restrições:** as mesmas da API direta nos modelos 5.5 (sem desligar o raciocínio, sem forçar ferramenta).
+- **Reserva automática:** se a Anthropic cair, o mesmo modelo é servido pela AWS (Bedrock), pelo Google (Vertex) ou pela Azure.
+- **Atenção:** exigir retenção zero de dados tira a Anthropic direta da rota e deixa só Bedrock e Vertex.
+
+### Onde a OpenRouter entra
+
+1. **Reserva de vídeo, melhor que a fal.ai:** é mais barata que a KIE no Seedance 2 Fast e no Wan 2.7, e empata no Kling 3 Standard. Nesses modelos dá até para usar a OpenRouter como principal. No Veo, no Hailuo e no Grok fica de 2 a 4 vezes mais cara, então só entra como reserva com a regra de 1,3 vez o teto do crédito (seção 4).
+2. **Reserva do Claude e da OpenAI sem custo extra:** com BYOK, as chaves que já usamos passam pela OpenRouter e ganham troca automática de provedor quando a Anthropic ou a OpenAI estiverem fora, sem taxa.
+3. **Uma conta só para muitos modelos:** simplifica testar novos modelos de vídeo e imagem sem um cadastro por fornecedor.
+4. **Limites:**
+   - não tem música (o Suno segue na KIE);
+   - não há garantia de disponibilidade fora do Enterprise;
+   - os vídeos sempre ficam guardados no provedor, mesmo exigindo retenção zero;
+   - os créditos podem expirar em 1 ano.
+
+**Ordem recomendada de provedores:**
+
+| Uso | Ordem |
+|---|---|
+| Kling | KIE → OpenRouter |
+| Seedance 2 Fast e Wan 2.7 | OpenRouter → KIE (após teste de qualidade) |
+| Veo, Hailuo, Grok | KIE → (fila) → OpenRouter só dentro do teto |
+| Imagens | KIE → OpenRouter |
+| Trilha | KIE (Suno) |
+| Claude | Anthropic direta → OpenRouter (BYOK) |
+
+A fal.ai fica como terceira opção, para os modelos que a OpenRouter não tiver.
