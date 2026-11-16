@@ -123,3 +123,62 @@ Nosso custo real para comparar: Kling 3 5 s R$ 2,57 · Nano Banana 2 2K R$ 0,34 
 - O custo real por cliente não muda (R$ 104), então o custo por crédito sobe de R$ 0,37 para R$ 0,55.
 - A margem realista (80% de uso) fica em 66% / 62% / 58% no mensal e 60% / 56% / 51% no anual (−15%), para Agência / Plus / Max. É uma margem menor, mas com uma oferta muito mais competitiva por entrega.
 - O pior caso continua limitado pelo teto de R$ 0,67 por crédito: nenhum uso passa disso.
+
+## 8. Recálculo final, com margem mais apertada (decisão de 16/11/2026)
+
+Esta seção substitui os preços das seções 3 e 4, que ficam como histórico.
+
+**Regras decididas:**
+- **Imagem a 1 crédito:** a imagem cobra só pelo custo, com 1 crédito para cada R$ 0,67 de custo. O Nano Banana 2 em 2K e 4K passa a 1 crédito; só modelos mais caros em 4K, como o Nano Banana Pro, ficam em 2.
+- **Prompts das cenas sem custo** dentro da Montagem: prompt do frame e do movimento de cada cena. O Gerador de Prompts avulso continua a 1 crédito. Para evitar abuso, cada cena tem até 3 gerações grátis de cada prompt; a partir da 4ª, cobra 1 crédito.
+- **Sem imagens ilimitadas** por enquanto.
+- **Vídeo sem padrão imposto:** todos os modelos continuam disponíveis, cada um com o crédito proporcional ao custo.
+
+**Consumo e custo por cliente com essas regras** (mesmo perfil da seção 2):
+
+| Entrega | Créditos (antes → agora) |
+|---|---|
+| Post de imagem | 3 → **2** |
+| Carrossel de 5 imagens | 12 → **7** |
+| Reel IA 30 s, Kling 3 | 54 → **36** |
+| Reel IA 30 s, Veo Lite | 48 → **30** |
+| Por cliente/mês | 278 → **188** |
+
+Custo real por cliente: R$ 104. Por crédito, isso dá R$ 0,55 no uso realista e R$ 0,71 no pior caso, que é uma agência fazendo só Reels em Kling com os prompts absorvidos.
+
+### Preços propostos
+
+| Plano | Créditos | Mensal | Trimestral (−10%) | Anual (−15%) | Clientes | Custo por cliente |
+|---|---|---|---|---|---|---|
+| Agência | 1.000 | **R$ 1.247** (R$ 1,25/cr) | R$ 1.122/mês | R$ 1.060/mês | ~5 | R$ 234 |
+| Agência Plus | 2.500 | **R$ 2.747** (R$ 1,10/cr) | R$ 2.472/mês | R$ 2.335/mês | ~13 | R$ 207 |
+| Agência Max | 5.000 | **R$ 4.997** (R$ 1,00/cr) | R$ 4.497/mês | R$ 4.247/mês | ~27 | R$ 188 |
+
+Os três planos ficam de 17% a 18% mais baratos que a proposta da seção 3 (R$ 1.497 / 3.297 / 5.797).
+
+### Margem
+
+O pior caso é com 100% dos créditos gastos a R$ 0,71. O realista, com 80% dos créditos gastos a R$ 0,55. Já descontados cartão e custo fixo.
+
+| Plano | Mensal (realista · pior) | Trimestral | Anual |
+|---|---|---|---|
+| Agência | 60% · 38% | 56% · 32% | 53% · 28% |
+| Agência Plus | 55% · 31% | 51% · 24% | 48% · 20% |
+| Agência Max | 52% · 25% | 47% · 17% | 44% · 13% |
+
+**Piso:** R$ 0,85 por crédito, que é o Max no anual. Abaixo de ~R$ 0,75, o pior caso passa a dar prejuízo.
+
+### Comparação atualizada (Reel de 30 s pronto)
+
+| | Reel com Kling | Reel com Veo Lite |
+|---|---|---|
+| Creator Lab Agência | R$ 44,89 | R$ 37,41 |
+| Creator Lab Agência Plus | R$ 39,56 | R$ 32,96 |
+| Creator Lab Agência Max | R$ 35,98 | R$ 29,98 |
+| Higgsfield Team / Magnific Pro (só os clipes, sem roteiro, edição, voz e trilha) | R$ 27,11 / R$ 11,09 | — |
+
+O Reel pronto fica perto do preço de gerar só os clipes na Higgsfield Team. A diferença paga a edição, a locução e a trilha, que nos concorrentes ficam fora.
+
+### Para depois
+
+- **Vitrine de agência com as gerações** e um **painel de gestão** para coordenadores e diretores acompanharem as gerações da equipe. Depende das contas de equipe e será refinado à parte.
