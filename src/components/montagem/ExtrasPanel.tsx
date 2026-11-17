@@ -13,7 +13,7 @@ const fmt = (frames: number) => {
 };
 
 /**
- * Locuções avulsas e efeitos sonoros do Estúdio de Áudio na linha do tempo: cada um entra no início
+ * Locuções avulsas e efeitos sonoros de Gerar Áudio na linha do tempo: cada um entra no início
  * de um clipe, com um atraso opcional. Locução pode ter legenda palavra por palavra; a trilha abaixa durante a fala.
  */
 export function ExtrasPanel({ edl, libraryJobs, totalFrames, label, onEdl }: {
@@ -52,7 +52,7 @@ export function ExtrasPanel({ edl, libraryJobs, totalFrames, label, onEdl }: {
       <div>
         <p className="flex items-center gap-1.5 text-xs font-semibold text-white"><AudioLines className="w-3.5 h-3.5 text-brand-mint" /> Locuções e efeitos da biblioteca <span className="font-normal text-gray-500">(opcional)</span></p>
         <p className="text-[11px] text-gray-500 mt-0.5">
-          O que você gera no <Link href="/dashboard/audio" className="text-brand-mint hover:underline">Estúdio de Áudio</Link> entra aqui: escolha o áudio e em que ponto do vídeo ele começa.
+          O que você cria em <Link href="/dashboard/audio" className="text-brand-mint hover:underline">Gerar Áudio</Link> entra aqui: escolha o áudio e em que ponto do vídeo ele começa.
         </p>
       </div>
 

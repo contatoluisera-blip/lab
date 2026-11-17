@@ -15,7 +15,7 @@ export interface KieInputs {
   videoUrl?: string;
   /** Título da trilha (Suno). */
   title?: string;
-  /** Parâmetros do Suno (Estúdio de Áudio). Sem eles: instrumental no V6. */
+  /** Parâmetros do Suno (Gerar Áudio). Sem eles: instrumental no V6. */
   music?: MusicOptions | null;
 }
 

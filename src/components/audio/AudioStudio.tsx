@@ -104,7 +104,7 @@ function insertAt(el: HTMLTextAreaElement | null, value: string, current: string
 }
 
 /**
- * Estúdio de Áudio: locução, trilha e efeitos sonoros como ferramenta própria, com todos os
+ * Gerar Áudio: locução, trilha e efeitos sonoros como ferramenta própria, com todos os
  * parâmetros de cada provedor. Tudo vai para a biblioteca de áudio, que também aparece na Montagem.
  */
 export function AudioStudio() {
@@ -226,7 +226,7 @@ export function AudioStudio() {
   return (
     <div className="max-w-5xl mx-auto space-y-8 pb-16">
       <header className="space-y-2">
-        <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Estúdio de Áudio</h1>
+        <h1 className="text-3xl md:text-4xl font-extrabold text-white tracking-tight">Gerar Áudio</h1>
         <p className="text-gray-400 max-w-2xl">
           Locução com vozes brasileiras, trilha original e efeitos sonoros. Baixe o arquivo ou use direto na{' '}
           <Link href="/dashboard/montagem" className="text-brand-mint hover:underline">Montagem de Vídeo</Link>, onde tudo aparece na biblioteca.

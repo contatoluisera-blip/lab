@@ -14,13 +14,13 @@ function readRequest(body: any) {
   const voiceId = String(body?.voiceId || '');
   const text = typeof body?.text === 'string' ? body.text.replace(/[ \t]+/g, ' ').replace(/\n{3,}/g, '\n\n').trim() : '';
   const options = sanitizeVoiceOptions(provider, body?.options);
-  // Limite do texto: o do Estúdio ou o do modelo, o que for menor (o v3 aceita até 5 mil caracteres).
+  // Limite do texto: o da ferramenta ou o do modelo, o que for menor (o v3 aceita até 5 mil caracteres).
   const max = provider === 'elevenlabs' ? Math.min(VOICE_STUDIO_TEXT_MAX, elevenModel(options.model).maxChars) : VOICE_STUDIO_TEXT_MAX;
   return { provider, voiceId, text, options, max };
 }
 
 /**
- * Estúdio de Áudio: locução avulsa a partir de um texto, com o tempo de cada palavra (legenda .srt
+ * Gerar Áudio: locução avulsa a partir de um texto, com o tempo de cada palavra (legenda .srt
  * e Montagem). Cobra pelo tamanho do texto; se o provedor falhar, devolve. Responde em streaming:
  * textos longos passam do limite de uma resposta comum.
  */
@@ -69,5 +69,5 @@ export const POST = withTool('audio', async ({ user, body, charge, refund }) => 
     const { provider, text, options, max } = readRequest(body);
     return voiceCredits(provider, Math.min(text.length, max), options.model);
   },
-  logDescription: () => 'Estúdio de Áudio: gerou locução',
+  logDescription: () => 'Gerar Áudio: gerou locução',
 });

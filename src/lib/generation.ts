@@ -576,7 +576,7 @@ export interface GenJob {
   /** Projeto de vídeo e cena de origem (Montagem). */
   projectId?: string | null;
   sceneId?: string | null;
-  /** Áudio: trilha, locução ou efeito sonoro (Estúdio de Áudio). Sem o campo = trilha. */
+  /** Áudio: trilha, locução ou efeito sonoro (Gerar Áudio). Sem o campo = trilha. */
   audioType?: 'music' | 'voice' | 'sfx' | null;
   /** Locução: tempo de cada palavra (legenda na Montagem e arquivo .srt). */
   words?: { w: string; s: number; e: number }[];

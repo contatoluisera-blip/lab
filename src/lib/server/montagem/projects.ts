@@ -112,7 +112,7 @@ export function projectAssets(uid: string, project: VideoProject): ProjectAsset[
 }
 
 /**
- * Biblioteca de áudio da pessoa (Estúdio de Áudio e trilhas dos projetos), para validar e assinar no render:
+ * Biblioteca de áudio da pessoa (Gerar Áudio e trilhas dos projetos), para validar e assinar no render:
  * - `music`: chave de cada versão de trilha → caminho no Storage;
  * - `library`: id da geração → tipo, duração, palavras (locução) e caminho.
  */

@@ -129,7 +129,7 @@ export function ProjectEditor({ projectId }: { projectId: string }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeRenders]);
 
-  // Biblioteca de áudio (Estúdio de Áudio e trilhas de outros projetos).
+  // Biblioteca de áudio (Gerar Áudio e trilhas de outros projetos).
   const { jobs: libraryJobs, library } = useAudioLibrary(user?.uid);
   const clipsDone = useMemo(() => jobs.filter(j => j.kind === 'video' && j.status === 'completed' && j.outputs?.[0]?.stored), [jobs]);
   const uploads = useMemo(() => project?.uploads || [], [project?.uploads]);

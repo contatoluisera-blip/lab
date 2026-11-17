@@ -1,4 +1,4 @@
-// Estúdio de Áudio no servidor: guarda o arquivo, registra a geração na biblioteca (gen_jobs)
+// Gerar Áudio no servidor: guarda o arquivo, registra a geração na biblioteca (gen_jobs)
 // e gera efeitos sonoros na ElevenLabs. A locução reaproveita `synthesize` da Montagem.
 
 import { randomUUID } from 'crypto';
@@ -23,7 +23,7 @@ export async function storeAudio(uid: string, audio: Buffer, prefix: string) {
 
 /**
  * Registra uma locução ou efeito já pronto na biblioteca de áudio (mesma coleção das trilhas),
- * para aparecer no Estúdio de Áudio e na Montagem.
+ * para aparecer em Gerar Áudio e na Montagem.
  */
 export async function saveInstantAudio(uid: string, charge: ChargeResult, tool: ToolId, item: {
   audioType: 'voice' | 'sfx';

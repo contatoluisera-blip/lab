@@ -334,7 +334,7 @@ export interface Edl {
     duck: number;
     track?: { clipId: string; frames: number; words: VoiceWord[] }[];
   } | null;
-  /** Áudios da biblioteca (Estúdio de Áudio) colocados na linha do tempo: locuções avulsas e efeitos sonoros. */
+  /** Áudios da biblioteca (Gerar Áudio) colocados na linha do tempo: locuções avulsas e efeitos sonoros. */
   extras?: EdlExtra[] | null;
 }
 

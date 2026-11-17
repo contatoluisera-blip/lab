@@ -1,5 +1,5 @@
 // ─────────────────────────────────────────────────────────────
-// Estúdio de Áudio: locução, trilha e efeitos sonoros como ferramenta própria.
+// Gerar Áudio: locução, trilha e efeitos sonoros como ferramenta própria.
 // Tudo fica em `gen_jobs` (kind 'audio'), na mesma biblioteca que a Montagem lê:
 // - trilha (Suno, pela fila da KIE) → audioType 'music';
 // - locução (ElevenLabs ou OpenAI) e efeito sonoro (ElevenLabs) → gerados na hora.
@@ -17,7 +17,7 @@ export const AUDIO_TYPE_LABEL: Record<AudioType, string> = {
   sfx: 'Efeito sonoro',
 };
 
-/** Trilhas antigas (Suno, antes do Estúdio) não têm o campo: são trilha. */
+/** Trilhas antigas (Suno, antes de Gerar Áudio) não têm o campo: são trilha. */
 export const audioTypeOf = (job: Pick<GenJob, 'kind'> & { audioType?: AudioType | null }): AudioType | null =>
   job.kind !== 'audio' ? null : job.audioType || 'music';
 

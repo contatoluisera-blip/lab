@@ -27,7 +27,7 @@ export const MOODS: { label: string; style: string }[] = [
 export function MusicPanel({ project, jobs, libraryJobs = [], edl, totalFrames, onEdl, onError }: {
   project: VideoProject;
   jobs: Job[];
-  /** Trilhas geradas no Estúdio de Áudio ou em outros projetos. */
+  /** Trilhas geradas em Gerar Áudio ou em outros projetos. */
   libraryJobs?: GenJob[];
   edl: Edl;
   totalFrames: number;
@@ -72,7 +72,7 @@ export function MusicPanel({ project, jobs, libraryJobs = [], edl, totalFrames, 
     <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
       <div>
         <p className="flex items-center gap-1.5 text-xs font-semibold text-white"><Music2 className="w-3.5 h-3.5 text-brand-mint" /> Trilha sonora <span className="font-normal text-gray-500">(opcional)</span></p>
-        <p className="text-[11px] text-gray-500 mt-0.5">Música instrumental gerada no clima do vídeo, com {duration} s. Cada pedido traz mais de uma versão para você escolher. As trilhas do Estúdio de Áudio também aparecem aqui.</p>
+        <p className="text-[11px] text-gray-500 mt-0.5">Música instrumental gerada no clima do vídeo, com {duration} s. Cada pedido traz mais de uma versão para você escolher. As trilhas criadas em Gerar Áudio também aparecem aqui.</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {MOODS.map(m => (

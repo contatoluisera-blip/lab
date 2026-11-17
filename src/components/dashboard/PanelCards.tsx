@@ -282,7 +282,7 @@ const TOOLS: ToolDef[] = [
   { name: 'Gerar Imagem', desc: `${IMAGE_MODEL_COUNT} modelos: Nano Banana, GPT Image…`, href: '/dashboard/imagens', icon: ImagePlus, cat: 'Criar', cost: `desde ${minFor('image')} cr`, size: 'wide', badge: 'Novo' },
   { name: 'Gerador de Prompts', desc: 'Direção de fotografia para IA', href: '/dashboard/prompt-studio', icon: Clapperboard, tool: 'prompts', cat: 'Criar', size: 'wide' },
   { name: 'Montagem de Vídeo', desc: 'Do roteiro ao MP4, com o Claude', href: '/dashboard/montagem', icon: Scissors, tool: 'montagem', cat: 'Criar', cost: 'desde 20 cr', badge: 'Novo' },
-  { name: 'Estúdio de Áudio', desc: 'Locução, trilha e efeitos sonoros', href: '/dashboard/audio', icon: AudioLines, tool: 'audio', cat: 'Criar', cost: 'desde 5 cr', badge: 'Novo' },
+  { name: 'Gerar Áudio', desc: 'Locução, trilha e efeitos sonoros', href: '/dashboard/audio', icon: AudioLines, tool: 'audio', cat: 'Criar', cost: 'desde 5 cr', badge: 'Novo' },
   { name: 'Gerador de Ideias', desc: 'Roteiros prontos para gravar', href: '/dashboard/idea-generator', icon: Lightbulb, tool: 'ideas', cat: 'Criar' },
   { name: 'Hub de Referências', desc: 'Reels virais analisados', pitch: 'Reels que viralizaram, com a análise do gancho, do formato e do porquê funcionou.', href: '/dashboard/hub', icon: Compass, tool: 'hub', cat: 'Criar', size: 'wide' },
   { name: 'Foto de Estúdio', desc: 'Retrato profissional com IA', href: '/dashboard/estudia', icon: Camera, tool: 'estudia', cat: 'Criar' },

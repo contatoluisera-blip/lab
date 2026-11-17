@@ -304,7 +304,7 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
     const i = edl.clips.findIndex(c => c.id === v.clipId);
     return i < 0 || !sources[voiceSourceKey(v.clipId)] ? null : { ...v, from: starts[i] + VOICE_LEAD_FRAMES, src: sources[voiceSourceKey(v.clipId)] };
   }).filter(Boolean) as { clipId: string; frames: number; words: VoiceWord[]; from: number; src: string }[];
-  // Áudios da biblioteca (Estúdio de Áudio): locuções avulsas e efeitos, cada um a partir do seu quadro.
+  // Áudios da biblioteca (Gerar Áudio): locuções avulsas e efeitos, cada um a partir do seu quadro.
   const extras = (edl.extras || []).filter(x => x.frames && sources[extraSourceKey(x.jobId)]);
   const extraVoice = extras.filter(x => x.kind === 'voice');
   const speech = [

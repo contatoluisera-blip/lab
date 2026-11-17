@@ -16,7 +16,7 @@ const secondsOf = (body: any) => {
 };
 
 /**
- * Estúdio de Áudio: efeito sonoro a partir de uma descrição (ElevenLabs, text-to-sound).
+ * Gerar Áudio: efeito sonoro a partir de uma descrição (ElevenLabs, text-to-sound).
  * Cobra pela duração; se o provedor falhar, devolve. A descrição vai em inglês para o gerador.
  */
 export const POST = withTool('audio', async ({ user, body, charge, refund }) => {
@@ -61,5 +61,5 @@ export const POST = withTool('audio', async ({ user, body, charge, refund }) => 
   );
 }, {
   cost: (body) => sfxCredits(secondsOf(body)),
-  logDescription: () => 'Estúdio de Áudio: gerou efeito sonoro',
+  logDescription: () => 'Gerar Áudio: gerou efeito sonoro',
 });

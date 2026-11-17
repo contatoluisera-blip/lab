@@ -49,7 +49,7 @@ export async function POST(req: Request) {
     const model = getModel(String(body.modelId || ''));
     const mode = body.mode as GenMode;
     if (!model || !model.modes.includes(mode)) throw new HttpError(400, 'bad_model', 'Escolha um modelo compatível com o tipo de geração.');
-    // Trilha: dentro de um projeto cobra na Montagem; avulsa, no Estúdio de Áudio.
+    // Trilha: dentro de um projeto cobra na Montagem; avulsa, em Gerar Áudio.
     tool = model.kind === 'video' ? 'gen-video' : model.kind === 'audio' ? (body.projectId ? 'montagem' : 'audio') : 'gen-image';
 
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';

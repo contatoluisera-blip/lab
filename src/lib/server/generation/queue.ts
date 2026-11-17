@@ -43,7 +43,7 @@ export interface StoredJob extends GenJob {
   chargedExtra?: number;
   /** 10 = `credits` na escala nova; `chargedCredits` e `chargedExtra` ficam sempre na unidade do banco. */
   creditScale?: number;
-  /** Parâmetros do Suno escolhidos no Estúdio de Áudio. */
+  /** Parâmetros do Suno escolhidos em Gerar Áudio. */
   musicOptions?: MusicOptions | null;
   tool: ToolId;
   lastCheckedAt?: string | null;

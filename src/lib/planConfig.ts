@@ -160,7 +160,7 @@ export const TOOL_COSTS: Record<ToolId, number> = {
   // Geração de imagem e vídeo: o custo real de cada pedido vem de src/lib/generation.ts (modelo e configuração).
   'gen-image': 8,
   'gen-video': 30,
-  // Estúdio de Áudio: locução pelo tamanho do texto (src/lib/voice.ts), trilha pelo catálogo, efeito pela duração.
+  // Gerar Áudio: locução pelo tamanho do texto (src/lib/voice.ts), trilha pelo catálogo, efeito pela duração.
   audio: 8,
   // Montagem: o custo de cada exportação vem dos segundos do vídeo (src/lib/montagem.ts, montagemCost).
   montagem: 20,
