@@ -5,7 +5,16 @@ import { useAuth } from '@/context/AuthContext';
 import { Film, RefreshCcw, Plus, Trash2, Check, X, Link2, Sparkles, ExternalLink, Settings2, Radar } from 'lucide-react';
 import { formatCount, shortCodeFromUrl } from '@/lib/hub';
 
-type Source = { id: string; nicho: string; type: 'keyword' | 'hashtag' | 'profile'; value: string; active: boolean };
+type TermStat = { lastRunAt: string; received: number; repeated: number; fresh: number; cooldownUntil?: string | null };
+type Source = { id: string; nicho: string; type: 'keyword' | 'hashtag' | 'profile'; value: string; active: boolean; variants?: string[]; terms?: Record<string, TermStat> };
+
+/** Resumo de um termo na memória da coleta: repetidos da última busca e se está em pausa. */
+function termLabel(t?: TermStat) {
+  if (!t) return 'ainda não buscado';
+  const pct = t.received ? Math.round((100 * t.repeated) / t.received) : 0;
+  const until = t.cooldownUntil && Date.parse(t.cooldownUntil) > Date.now() ? ` · pausa até ${new Date(t.cooldownUntil).toLocaleDateString('pt-BR')}` : '';
+  return t.received ? `${t.received} reels, ${pct}% repetidos, ${t.fresh} novos${until}` : `nenhum reel${until}`;
+}
 type Pending = {
   id: string; url: string; author: string; thumb: string; views: number; likes: number; comments: number;
   score: number; caption: string; source: 'auto' | 'manual'; sourceNicho: string | null; aiStatus: 'todo' | 'done' | 'failed';
@@ -121,7 +130,8 @@ export default function AdminHubPage() {
                   const res = await fetch('/api/hub/collect', { method: 'POST', headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${token}` }, body: '{}' });
                   const json = await res.json();
                   if (!res.ok || !json.success) throw new Error(json.error || 'Falha ao iniciar a coleta.');
-                  setMessage({ ok: true, text: `Coleta iniciada em ${json.sources} fontes. Os reels entram na fila em alguns minutos; clique em Atualizar.` });
+                  const pausedNote = json.paused?.length ? ` ${json.paused.length} fonte(s) em pausa por só trazerem repetidos.` : '';
+                  setMessage({ ok: true, text: `Coleta iniciada com ${json.sources} termo(s)${json.terms?.length ? `: ${json.terms.join(', ')}` : ''}.${pausedNote} Os reels entram na fila em alguns minutos; clique em Atualizar.` });
                   await load();
                 } catch (e: any) { setMessage({ ok: false, text: e.message }); } finally { setBusy(''); }
               }}
@@ -130,7 +140,7 @@ export default function AdminHubPage() {
             </button>
           </div>
           <div className="p-5 space-y-4">
-            <p className="text-[11px] text-gray-500">Roda sozinha toda segunda às 9h. Palavra-chave traz os reels em alta no Instagram para o termo; @perfil traz os reels mais recentes do perfil. Só entram na fila reels acima do mínimo de views, e nenhum reel que já passou pelo hub volta.</p>
+            <p className="text-[11px] text-gray-500">Roda sozinha toda segunda às 9h. Palavra-chave traz os reels em alta no Instagram para o termo; @perfil traz os reels mais recentes do perfil. Só entram na fila reels acima do mínimo de views, e nenhum reel que já passou pelo hub volta. Termo que traz 60% ou mais de repetidos entra em pausa (2 a 4 semanas) e o nicho passa a ser buscado por variações sugeridas pela IA, para não pagar o Apify por reels que já temos.</p>
             {state?.sources.some(s => s.type === 'hashtag') && (
               <div className="text-[11px] text-amber-300 bg-amber-500/5 border border-amber-500/20 rounded-lg p-3 flex items-center justify-between gap-3">
                 <span>Fontes por #hashtag não trazem reels. Troque pela lista de palavras-chave sugeridas.</span>
@@ -155,6 +165,10 @@ export default function AdminHubPage() {
                 <div key={s.id} className="flex items-center justify-between px-3 py-2 text-sm">
                   <span className={s.active ? 'text-gray-200' : 'text-gray-600 line-through'}>
                     <span className="text-gray-500">{s.nicho} · </span>{s.type === 'profile' ? '@' : s.type === 'hashtag' ? '#' : ''}{s.value}
+                    <span className="block text-[10px] text-gray-500">{termLabel(s.terms?.[s.value.replace(/^[#@]/, '').trim().toLowerCase().replace(/\s+/g, ' ')])}</span>
+                    {s.variants?.map(v => (
+                      <span key={v} className="block text-[10px] text-gray-500">↳ variação “{v}”: {termLabel(s.terms?.[v])}</span>
+                    ))}
                   </span>
                   <span className="flex items-center gap-3">
                     <button onClick={() => run('toggle', { action: 'toggleSource', id: s.id, active: !s.active }, () => s.active ? 'Fonte pausada.' : 'Fonte ativada.')} className="text-[11px] text-gray-400 hover:text-white">{s.active ? 'Pausar' : 'Ativar'}</button>

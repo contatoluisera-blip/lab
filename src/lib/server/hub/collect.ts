@@ -1,4 +1,5 @@
 import { createHash, randomUUID } from 'crypto';
+import { FieldPath } from 'firebase-admin/firestore';
 import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { HttpError } from '@/lib/server/auth';
 import { describeApifyError } from '@/lib/server/diagnosis/analyze';
@@ -26,6 +27,36 @@ export interface HubSettings {
 }
 
 export const DEFAULT_SETTINGS: HubSettings = { minViews: 30_000, perSource: 30 };
+
+// ── Memória por termo de busca ───────────────────────────────────────────────
+// A busca "popular" do Instagram devolve quase o mesmo ranking toda semana. Cada coleta guarda,
+// por termo, quantos reels vieram repetidos; termo saturado entra em pausa e o nicho passa a ser
+// buscado por variações (src/lib/server/hub/variants.ts). Assim o Apify não cobra por reels que já temos.
+
+export interface TermStats {
+  lastRunAt: string;
+  received: number;
+  repeated: number;
+  fresh: number;
+  cooldownUntil?: string | null;
+}
+
+/** Dias de pausa conforme a parcela de repetidos na última busca do termo. */
+export function cooldownDays(received: number, repeated: number) {
+  if (received < 5) return received === 0 ? 14 : 0;
+  const ratio = repeated / received;
+  return ratio >= 0.8 ? 28 : ratio >= 0.6 ? 14 : 0;
+}
+
+export const termAvailable = (t: TermStats | undefined, now = Date.now()) => !t?.cooldownUntil || Date.parse(t.cooldownUntil) <= now;
+
+/** Termo da vez para uma fonte de palavra-chave: o original ou uma variação fora de pausa, o menos usado recentemente. */
+export function pickTerm(source: { value: string; variants?: string[]; terms?: Record<string, TermStats> }, now = Date.now()) {
+  const candidates = Array.from(new Set([cleanSourceValue(source.value), ...(source.variants || []).map(cleanSourceValue)])).filter(Boolean);
+  const free = candidates.filter(t => termAvailable(source.terms?.[t], now));
+  free.sort((a, b) => (source.terms?.[a]?.lastRunAt || '').localeCompare(source.terms?.[b]?.lastRunAt || ''));
+  return { term: free[0] || null, candidates };
+}
 
 export async function getSettings(): Promise<HubSettings> {
   const snap = await adminDb.collection('hub_settings').doc('config').get();
@@ -61,8 +92,8 @@ export async function startHubRun(opts: {
   /** Actor e entrada do Apify. */
   actor: string;
   input: Record<string, unknown>;
-  /** Endereço de cada fonte (como volta em `inputUrl`) e o nicho correspondente. */
-  urls: { url: string; nicho: string | null }[];
+  /** Endereço de cada fonte (como volta em `inputUrl`), o nicho e o termo buscado (para a memória por termo). */
+  urls: { url: string; nicho: string | null; sourceId?: string; term?: string }[];
   requestedBy: string;
 }) {
   const token = process.env.APIFY_API_TOKEN;
@@ -82,11 +113,16 @@ export async function startHubRun(opts: {
   if (!res.ok || !data?.data?.id) throw describeApifyError(res.status, data);
 
   const nichoByUrl: Record<string, string | null> = {};
-  for (const u of opts.urls) nichoByUrl[normalizeUrl(u.url)] = u.nicho;
+  const termByUrl: Record<string, { sourceId: string; term: string }> = {};
+  for (const u of opts.urls) {
+    nichoByUrl[normalizeUrl(u.url)] = u.nicho;
+    if (u.sourceId && u.term) termByUrl[normalizeUrl(u.url)] = { sourceId: u.sourceId, term: u.term };
+  }
 
   await adminDb.collection('hub_runs').doc(data.data.id).set({
     kind: opts.kind,
     nichoByUrl,
+    termByUrl,
     status: 'running',
     requestedBy: opts.requestedBy,
     createdAt: new Date().toISOString(),
@@ -213,6 +249,32 @@ export async function ingestRun(runId: string, datasetId: string) {
     await batch.commit();
   }
 
-  await runRef.update({ status: 'ingested', ...stats, finishedAt: now });
+  // Memória por termo: quantos vieram, quantos repetidos e quantos novos; termo saturado entra em pausa.
+  const termByUrl: Record<string, { sourceId: string; term: string }> = run.termByUrl || {};
+  const perUrl: Record<string, { received: number; repeated: number; fresh: number }> = {};
+  const urlOf = (it: any) => (it?.inputUrl ? normalizeUrl(String(it.inputUrl)) : '');
+  const freshCodes = new Set(fresh.map(c => c.it.shortCode));
+  const seenInRun = new Set<string>();
+  for (const c of videos) {
+    const u = urlOf(c.it);
+    if (!termByUrl[u]) continue;
+    const st = (perUrl[u] ||= { received: 0, repeated: 0, fresh: 0 });
+    st.received++;
+    if (existing.has(c.it.shortCode) || seenInRun.has(c.it.shortCode)) st.repeated++;
+    else if (freshCodes.has(c.it.shortCode)) st.fresh++;
+    seenInRun.add(c.it.shortCode);
+  }
+  // Termos buscados que não devolveram nada também contam (pausa para não pagar a busca vazia de novo).
+  for (const u of Object.keys(termByUrl)) perUrl[u] ||= { received: 0, repeated: 0, fresh: 0 };
+  const termStats: Record<string, TermStats & { term: string }> = {};
+  for (const [u, st] of Object.entries(perUrl)) {
+    const { sourceId, term } = termByUrl[u];
+    const days = cooldownDays(st.received, st.repeated);
+    const entry: TermStats = { lastRunAt: now, ...st, cooldownUntil: days ? new Date(Date.now() + days * 86_400_000).toISOString() : null };
+    termStats[`${sourceId}|${term}`] = { ...entry, term };
+    await adminDb.collection('hub_sources').doc(sourceId).update(new FieldPath('terms', term), entry).catch((e: any) => console.error('[hub] memória do termo', term, e?.message));
+  }
+
+  await runRef.update({ status: 'ingested', ...stats, termStats, finishedAt: now });
   return stats;
 }
