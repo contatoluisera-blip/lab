@@ -16,6 +16,7 @@ import { adminDb, adminStorage } from '@/lib/firebase/admin';
 import { GenConfig, GenJob, GenMode, GenOutput } from '@/lib/generation';
 import { ToolId } from '@/lib/planConfig';
 import { buildKiePayload, createKieTask, getKieRecord } from './kie';
+import type { MusicOptions } from '@/lib/audioStudio';
 import { refundFields } from '@/lib/server/credits';
 
 const KIE_KEY = () => process.env.KIE_AI_API_KEY || '';
@@ -42,6 +43,8 @@ export interface StoredJob extends GenJob {
   chargedExtra?: number;
   /** 10 = `credits` na escala nova; `chargedCredits` e `chargedExtra` ficam sempre na unidade do banco. */
   creditScale?: number;
+  /** Parâmetros do Suno escolhidos no Estúdio de Áudio. */
+  musicOptions?: MusicOptions | null;
   tool: ToolId;
   lastCheckedAt?: string | null;
   attempts: number;
@@ -118,6 +121,7 @@ async function submit(job: StoredJob) {
 
   const payload = buildKiePayload(job.modelId, job.mode as GenMode, job.config as GenConfig, {
     prompt: job.prompt, negativePrompt: job.negativePrompt || undefined, imageUrls, videoUrl, title: job.title || undefined,
+    music: job.musicOptions || null,
   });
   const result = await createKieTask(apiKey, payload, callbackUrl(job.id));
   const ref = jobs().doc(job.id);

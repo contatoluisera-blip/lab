@@ -4,6 +4,7 @@
 // ─────────────────────────────────────────────────────────────
 
 import { GenConfig, GenMode } from '@/lib/generation';
+import type { MusicOptions } from '@/lib/audioStudio';
 
 const KIE_BASE = 'https://api.kie.ai/api/v1';
 
@@ -14,6 +15,8 @@ export interface KieInputs {
   videoUrl?: string;
   /** Título da trilha (Suno). */
   title?: string;
+  /** Parâmetros do Suno (Estúdio de Áudio). Sem eles: instrumental no V6. */
+  music?: MusicOptions | null;
 }
 
 /** Corpo do createTask para cada modelo do catálogo. */
@@ -48,20 +51,28 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
           multi_shots: false,
         },
       };
-    case 'suno-v6':
-      // Modo personalizado: estilo + título; instrumental (a locução entra por cima na Montagem).
+    case 'suno-v6': {
+      // Modo personalizado: estilo + título; instrumental por padrão (a locução entra por cima na Montagem).
+      const m = inputs.music || { version: 'V6', instrumental: true };
       return {
         model: 'ai-music-api/generate',
         input: {
           custom_mode: true,
-          instrumental: true,
-          model: 'V6',
+          instrumental: m.instrumental,
+          model: m.version,
           style: inputs.prompt.slice(0, 1000),
           title: (inputs.title || 'Trilha Creator Lab').slice(0, 80),
+          ...(!m.instrumental && m.lyrics ? { lyrics: m.lyrics.slice(0, 5000) } : {}),
           ...(inputs.negativePrompt ? { negative_tags: inputs.negativePrompt.slice(0, 200) } : {}),
+          ...(!m.instrumental && m.vocalGender ? { vocal_gender: m.vocalGender } : {}),
+          ...(m.styleWeight !== undefined ? { style_weight: m.styleWeight } : {}),
+          ...(m.weirdness !== undefined ? { weirdness_constraint: m.weirdness } : {}),
+          ...(!m.instrumental && m.audioWeight !== undefined ? { audio_weight: m.audioWeight } : {}),
+          ...(m.variety !== undefined ? { variety: m.variety } : {}),
           duration: Math.min(360, Math.max(10, Number(config.duration) || 30)),
         },
       };
+    }
     case 'veo-fast':
     case 'veo-quality':
     case 'veo-lite':

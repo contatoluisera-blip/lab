@@ -6,6 +6,7 @@ import { chargeCredit, refundCredit, ChargeResult, chargeFields } from '@/lib/se
 import { logPlatformAction } from '@/lib/firebase/logAction';
 import { GEN_LIMITS, GEN_TERMS_VERSION, GenMode, getModel, normalizeConfig, quote } from '@/lib/generation';
 import { ToolId, genActiveLimit } from '@/lib/planConfig';
+import { sanitizeMusicOptions } from '@/lib/audioStudio';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
 import { StoredJob, dispatchQueue, newJobId, queuePositions } from '@/lib/server/generation/queue';
 import { loadOwnedProject } from '@/lib/server/montagem/projects';
@@ -65,7 +66,9 @@ export async function POST(req: Request) {
       throw new HttpError(428, 'terms_required', 'Aceite os termos de uso da geração para continuar.');
     }
 
-    const moderation = moderatePrompt(`${prompt}\n${negativePrompt}`);
+    // Trilha: parâmetros do Suno (a letra também passa pela moderação).
+    const musicOptions = model.kind === 'audio' && body.music ? sanitizeMusicOptions(body.music) : null;
+    const moderation = moderatePrompt(`${prompt}\n${negativePrompt}\n${musicOptions?.lyrics || ''}`);
     if (!moderation.ok) {
       await adminDb.collection('gen_blocked_prompts').add({ uid, email: user.email, prompt: prompt.slice(0, 1000), modelId: model.id, createdAt: new Date().toISOString() });
       throw new HttpError(422, 'prompt_blocked', moderation.reason);
@@ -120,7 +123,7 @@ export async function POST(req: Request) {
       projectId,
       sceneId,
       title: model.kind === 'audio' && typeof body.title === 'string' ? body.title.trim().slice(0, 80) || null : null,
-      ...(model.kind === 'audio' ? { audioType: 'music' as const } : {}),
+      ...(model.kind === 'audio' ? { audioType: 'music' as const, ...(musicOptions ? { musicOptions } : {}) } : {}),
       expectedKieCredits: price.kieCredits,
       refunded: false,
       attempts: 0,

@@ -9,7 +9,7 @@ import { anthropicClient, openaiClient } from '@/lib/server/ai';
 import { claudeCostUsd } from '@/lib/server/aiCost';
 import { Edl, MONTAGEM_FPS, VideoProject, clipFrames, uploadFolder } from '@/lib/montagem';
 import { UNIT_COST_USD } from '@/lib/platformCosts';
-import { ProjectVoice, VOICE_TEXT_MAX, VoiceProvider, VoiceWord, WORDS_PER_SECOND } from '@/lib/voice';
+import { ProjectVoice, VOICE_TEXT_MAX, VoiceOptions, VoiceProvider, VoiceWord, WORDS_PER_SECOND, elevenModel, openaiModel } from '@/lib/voice';
 
 const ELEVEN_MODEL = 'eleven_multilingual_v2';
 /** Custo de referência por mil caracteres e por minuto (src/lib/platformCosts.ts). */
@@ -78,11 +78,17 @@ export async function writeVoiceScript(project: VideoProject, edl: Edl, style: s
 }
 
 // ── Voz ──────────────────────────────────────────────────────────────────────
-/** ElevenLabs devolve o tempo de cada caractere: junta em palavras (mantém a pontuação colada). */
+/**
+ * ElevenLabs devolve o tempo de cada caractere: junta em palavras (mantém a pontuação colada).
+ * Tags de emoção do v3/v4 ([happy], [whispers]…) não são faladas: ficam fora da legenda.
+ */
 function wordsFromAlignment(a: { characters: string[]; character_start_times_seconds: number[]; character_end_times_seconds: number[] }): VoiceWord[] {
   const words: VoiceWord[] = [];
   let cur: VoiceWord | null = null;
+  let inTag = false;
   a.characters.forEach((ch, i) => {
+    if (ch === '[') { inTag = true; return; }
+    if (inTag) { if (ch === ']') inTag = false; return; }
     if (/\s/.test(ch)) { if (cur) words.push(cur); cur = null; return; }
     if (!cur) cur = { w: '', s: a.character_start_times_seconds[i], e: a.character_end_times_seconds[i] };
     cur.w += ch;
@@ -92,13 +98,26 @@ function wordsFromAlignment(a: { characters: string[]; character_start_times_sec
   return words.map(w => ({ w: w.w, s: Math.round(w.s * 1000) / 1000, e: Math.round(w.e * 1000) / 1000 }));
 }
 
-async function elevenlabs(voiceId: string, text: string) {
+async function elevenlabs(voiceId: string, text: string, opts: VoiceOptions = {}) {
+  const model = elevenModel(opts.model || ELEVEN_MODEL);
+  const settings = {
+    ...(opts.stability !== undefined ? { stability: opts.stability } : {}),
+    ...(opts.similarity !== undefined ? { similarity_boost: opts.similarity } : {}),
+    ...(opts.style !== undefined ? { style: opts.style } : {}),
+    ...(opts.speakerBoost !== undefined ? { use_speaker_boost: opts.speakerBoost } : {}),
+    ...(opts.speed !== undefined ? { speed: opts.speed } : {}),
+  };
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) throw new HttpError(503, 'voice_unconfigured', 'A locução com ElevenLabs ainda não está disponível.');
   const res = await fetch(`https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(voiceId)}/with-timestamps?output_format=mp3_44100_128`, {
     method: 'POST',
     headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, model_id: ELEVEN_MODEL, language_code: 'pt' }),
+    body: JSON.stringify({
+      text, model_id: model.id, language_code: 'pt',
+      ...(Object.keys(settings).length ? { voice_settings: settings } : {}),
+      ...(opts.seed !== undefined ? { seed: opts.seed } : {}),
+      ...(opts.normalization ? { apply_text_normalization: opts.normalization } : {}),
+    }),
     signal: AbortSignal.timeout(60_000),
   });
   const data: any = await res.json().catch(() => ({}));
@@ -108,14 +127,16 @@ async function elevenlabs(voiceId: string, text: string) {
   }
   const words = data.alignment ? wordsFromAlignment(data.alignment) : [];
   const seconds = words.length ? words[words.length - 1].e + 0.15 : text.length / 14;
-  return { audio: Buffer.from(data.audio_base64, 'base64'), words, seconds, usd: (text.length / 1000) * ELEVEN_USD_PER_1K };
+  return { audio: Buffer.from(data.audio_base64, 'base64'), words, seconds, usd: (text.length / 1000) * ELEVEN_USD_PER_1K * model.cost };
 }
 
-async function openai(voiceId: string, text: string, style: string) {
+async function openai(voiceId: string, text: string, style: string, opts: VoiceOptions = {}) {
   const client = openaiClient();
+  const model = openaiModel(opts.model);
   const speech = await client.audio.speech.create({
-    model: 'gpt-4o-mini-tts', voice: voiceId, input: text, response_format: 'mp3',
-    instructions: `Fale em português do Brasil, com sotaque brasileiro natural. Tom: ${style || 'natural e envolvente, ritmo de Reels'}.`,
+    model: model.id, voice: voiceId, input: text, response_format: 'mp3',
+    ...(model.instructions ? { instructions: `Fale em português do Brasil, com sotaque brasileiro natural. Tom: ${style || 'natural e envolvente, ritmo de Reels'}.` } : {}),
+    ...(model.speed && opts.speed !== undefined ? { speed: opts.speed } : {}),
   });
   const audio = Buffer.from(await speech.arrayBuffer());
   // A OpenAI não devolve o tempo das palavras: a transcrição do próprio áudio dá.
@@ -124,11 +145,13 @@ async function openai(voiceId: string, text: string, style: string) {
   });
   const words: VoiceWord[] = (tr.words || []).map((w: any) => ({ w: String(w.word), s: Math.round(w.start * 1000) / 1000, e: Math.round(w.end * 1000) / 1000 }));
   const seconds = Number(tr.duration) || (words.length ? words[words.length - 1].e + 0.15 : text.length / 14);
-  return { audio, words, seconds, usd: (seconds / 60) * UNIT_COST_USD.openaiVoicePerMinute };
+  const usd = model.instructions ? (seconds / 60) * UNIT_COST_USD.openaiVoicePerMinute
+    : text.length * (model.id === 'tts-1-hd' ? 30 : 15) / 1e6 + (seconds / 60) * 0.006;
+  return { audio, words, seconds, usd };
 }
 
-export async function synthesize(provider: VoiceProvider, voiceId: string, text: string, style: string) {
-  return provider === 'elevenlabs' ? elevenlabs(voiceId, text) : openai(voiceId, text, style);
+export async function synthesize(provider: VoiceProvider, voiceId: string, text: string, style: string, opts: VoiceOptions = {}) {
+  return provider === 'elevenlabs' ? elevenlabs(voiceId, text, opts) : openai(voiceId, text, style, opts);
 }
 
 /** Guarda o MP3 na pasta da pessoa e devolve o link com token. */

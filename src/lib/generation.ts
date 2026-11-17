@@ -466,10 +466,10 @@ const AUDIO_MODELS: GenModel[] = [
   {
     id: 'suno-v6', kind: 'audio', family: 'Suno', featured: true,
     name: 'Suno V6',
-    tagline: 'Trilha instrumental no clima e na duração do vídeo.',
-    badges: ['Instrumental', 'Até 6 min'],
+    tagline: 'Trilha instrumental ou música com letra, no clima e na duração que você escolher.',
+    badges: ['Instrumental ou com voz', 'Até 6 min'],
     modes: ['t2a'],
-    durations: [15, 30, 45, 60, 90, 120, 180].map(v => ({ value: v, label: `${v} s` })),
+    durations: [10, 15, 30, 45, 60, 90, 120, 180, 240, 300, 360].map(v => ({ value: v, label: v < 60 ? `${v} s` : `${Math.floor(v / 60)} min${v % 60 ? ` ${v % 60} s` : ''}` })),
     defaults: { duration: 30 },
     priceUsd: () => 0.06,
   },

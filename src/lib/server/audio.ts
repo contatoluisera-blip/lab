@@ -36,6 +36,8 @@ export async function saveInstantAudio(uid: string, charge: ChargeResult, tool: 
   seconds: number;
   words?: GenJob['words'];
   config?: GenJob['config'];
+  /** Parâmetros usados (para repetir ou conferir depois). */
+  extra?: Record<string, unknown>;
 }) {
   const id = newJobId();
   const now = new Date().toISOString();
@@ -46,6 +48,7 @@ export async function saveInstantAudio(uid: string, charge: ChargeResult, tool: 
     status: 'completed', active: false,
     outputs: [{ url: item.file.url, path: item.file.path, type: 'audio', stored: true, seconds: Math.round(item.seconds * 100) / 100 }],
     ...(item.words?.length ? { words: item.words } : {}),
+    ...(item.extra ? { params: item.extra } : {}),
     inputPaths: { images: [] }, expectedKieCredits: 0, refunded: false, attempts: 0, error: null,
     projectId: null, sceneId: null, createdAt: now, completedAt: now,
   });
@@ -66,13 +69,13 @@ export async function sfxPromptInEnglish(text: string) {
 }
 
 /** Gera o efeito na ElevenLabs (40 créditos dela por segundo). */
-export async function elevenlabsSfx(text: string, seconds: number, loop: boolean) {
+export async function elevenlabsSfx(text: string, seconds: number | null, loop: boolean, influence = 0.3) {
   const key = process.env.ELEVENLABS_API_KEY;
   if (!key) throw new HttpError(503, 'sfx_unconfigured', 'Os efeitos sonoros ainda não estão disponíveis.');
   const res = await fetch('https://api.elevenlabs.io/v1/sound-generation?output_format=mp3_44100_128', {
     method: 'POST',
     headers: { 'xi-api-key': key, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ text, duration_seconds: seconds, prompt_influence: 0.45, loop, model_id: SFX_MODEL }),
+    body: JSON.stringify({ text, ...(seconds ? { duration_seconds: seconds } : {}), prompt_influence: influence, loop, model_id: SFX_MODEL }),
     signal: AbortSignal.timeout(60_000),
   });
   if (!res.ok) {
