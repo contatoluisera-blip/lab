@@ -45,8 +45,6 @@ export interface StoredJob extends GenJob {
   tool: ToolId;
   lastCheckedAt?: string | null;
   attempts: number;
-  /** Título da trilha (Suno). */
-  title?: string | null;
 }
 
 /** Id em ordem de criação: permite listar as gerações de alguém pela ordem sem índice composto. */

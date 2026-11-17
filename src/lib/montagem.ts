@@ -334,6 +334,65 @@ export interface Edl {
     duck: number;
     track?: { clipId: string; frames: number; words: VoiceWord[] }[];
   } | null;
+  /** Áudios da biblioteca (Estúdio de Áudio) colocados na linha do tempo: locuções avulsas e efeitos sonoros. */
+  extras?: EdlExtra[] | null;
+}
+
+/**
+ * Áudio da biblioteca num ponto do vídeo. `frames` e `words` vêm sempre da geração (servidor no render,
+ * biblioteca na prévia), nunca do que o navegador mandou.
+ */
+export interface EdlExtra {
+  id: string;
+  jobId: string;
+  kind: 'voice' | 'sfx';
+  /** Quadro do vídeo final em que o áudio começa. */
+  from: number;
+  volume: number;
+  /** Locução: legenda palavra por palavra. */
+  captions: boolean;
+  frames?: number;
+  words?: VoiceWord[];
+}
+
+/** Geração de áudio da pessoa, como a Montagem precisa para validar e tocar. */
+export interface LibraryAudio {
+  audioType: 'music' | 'voice' | 'sfx';
+  seconds: number;
+  words?: VoiceWord[];
+  path?: string;
+  url?: string;
+}
+
+export const EXTRAS_MAX = 30;
+export const extraSourceKey = (jobId: string) => `extra:${jobId}`;
+
+/** Faixa de áudios extras validada: só gerações de locução ou efeito da própria pessoa, dentro do vídeo. */
+export function extrasTrackFor(raw: unknown, library: Record<string, LibraryAudio>, totalFrames: number): EdlExtra[] {
+  if (!Array.isArray(raw)) return [];
+  const out: EdlExtra[] = [];
+  for (const r of raw.slice(0, EXTRAS_MAX)) {
+    const jobId = String(r?.jobId || '');
+    const item = library[jobId];
+    if (!item || (item.audioType !== 'voice' && item.audioType !== 'sfx')) continue;
+    const from = Math.max(0, Math.round(Number(r?.from) || 0));
+    if (from >= totalFrames) continue;
+    const frames = Math.max(1, Math.min(Math.ceil(item.seconds * MONTAGEM_FPS), totalFrames - from));
+    const voice = item.audioType === 'voice';
+    out.push({
+      id: String(r?.id || `x${out.length}`).replace(/[^\w-]/g, '').slice(0, 24) || `x${out.length}`,
+      jobId, kind: item.audioType, from, frames,
+      volume: Math.min(1.5, Math.max(0.05, Number(r?.volume) || 1)),
+      captions: voice && r?.captions !== false,
+      ...(voice && item.words?.length ? { words: item.words.slice(0, 600) } : {}),
+    });
+  }
+  return out;
+}
+
+/** Arquivos dos áudios extras usados no plano: chave → caminho no Storage, para o render assinar. */
+export function edlExtraPaths(edl: Edl, library: Record<string, LibraryAudio>) {
+  return Object.fromEntries((edl.extras || []).filter(x => library[x.jobId]?.path).map(x => [extraSourceKey(x.jobId), library[x.jobId].path!]));
 }
 
 /** Quadro em que cada clipe começa no vídeo final (já descontadas as transições). */
@@ -417,7 +476,7 @@ const cleanText = (v: unknown) => (typeof v === 'string' ? v.replace(/[\p{Extend
  * cortes ficam dentro da duração do arquivo. Letterings e estilo vêm só da ID Visual do projeto.
  * Lança Error com mensagem em português.
  */
-export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = [], music: Record<string, { path: string }> = {}, voice: ProjectVoice | null = null): Edl {
+export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<string, AllowedClip>, maxFrames: number, brand: BrandKit | null = null, assets: ProjectAsset[] = [], music: Record<string, { path: string }> = {}, voice: ProjectVoice | null = null, library: Record<string, LibraryAudio> = {}): Edl {
   const validLettering = (v: unknown) => (typeof v === 'string' && (brand?.letterings.some(l => l.id === v) || assets.some(a => a.type === 'image' && a.id === v)) ? v : null);
   const list: any[] = Array.isArray(raw?.clips) ? raw.clips : [];
   if (!list.length) throw new Error('Coloque pelo menos uma cena na linha do tempo.');
@@ -481,7 +540,8 @@ export function sanitizeEdl(raw: any, format: MontagemFormat, allowed: Record<st
   if (frames > maxFrames) {
     throw new Error(`O vídeo tem ${Math.ceil(frames / MONTAGEM_FPS)} s e o seu plano permite até ${Math.floor(maxFrames / MONTAGEM_FPS)} s. Corte algumas cenas.`);
   }
-  return edl;
+  const extras = extrasTrackFor(raw?.extras, library, frames);
+  return extras.length ? { ...edl, extras } : edl;
 }
 
 /** Textos do plano, para passar pela moderação. */

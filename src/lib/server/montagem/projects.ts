@@ -1,7 +1,7 @@
 import * as admin from 'firebase-admin';
 import { adminDb } from '@/lib/firebase/admin';
 import { HttpError } from '@/lib/server/auth';
-import { ASSET_ID_PREFIX, ASSET_LIMITS, AllowedClip, ProjectAsset, musicSourceKey, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
+import { ASSET_ID_PREFIX, ASSET_LIMITS, AllowedClip, LibraryAudio, ProjectAsset, musicSourceKey, UPLOAD_ID_PREFIX, UPLOAD_LIMITS, VideoProject, sourceFramesFor, uploadFolder } from '@/lib/montagem';
 import { LETTERING_ROLES } from '@/lib/brand';
 import type { StoredJob } from '@/lib/server/generation/queue';
 
@@ -111,14 +111,26 @@ export function projectAssets(uid: string, project: VideoProject): ProjectAsset[
     }));
 }
 
-/** Trilhas geradas no projeto (Suno): chave da faixa → caminho no Storage, para validar e assinar no render. */
-export async function projectMusic(uid: string, projectId: string): Promise<Record<string, { path: string }>> {
-  const snap = await adminDb.collection('gen_jobs').where('uid', '==', uid).where('projectId', '==', projectId).get();
-  const out: Record<string, { path: string }> = {};
+/**
+ * Biblioteca de áudio da pessoa (Estúdio de Áudio e trilhas dos projetos), para validar e assinar no render:
+ * - `music`: chave de cada versão de trilha → caminho no Storage;
+ * - `library`: id da geração → tipo, duração, palavras (locução) e caminho.
+ */
+export async function userAudioLibrary(uid: string) {
+  const snap = await adminDb.collection('gen_jobs').where('uid', '==', uid).where('kind', '==', 'audio').get();
+  const music: Record<string, { path: string }> = {};
+  const library: Record<string, LibraryAudio> = {};
   for (const d of snap.docs) {
     const j = d.data() as StoredJob;
-    if (j.kind !== 'audio' || j.status !== 'completed') continue;
-    (j.outputs || []).forEach((o, i) => { if (o.stored && o.path) out[musicSourceKey(d.id, i)] = { path: o.path }; });
+    if (j.status !== 'completed') continue;
+    const type = j.audioType || 'music';
+    if (type === 'music') {
+      (j.outputs || []).forEach((o, i) => { if (o.stored && o.path) music[musicSourceKey(d.id, i)] = { path: o.path }; });
+      continue;
+    }
+    const out = j.outputs?.[0];
+    if (!out?.stored || !out.path) continue;
+    library[d.id] = { audioType: type, seconds: Number(out.seconds) || 1, path: out.path, ...(j.words?.length ? { words: j.words } : {}) };
   }
-  return out;
+  return { music, library };
 }

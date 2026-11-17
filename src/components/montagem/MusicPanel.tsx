@@ -4,13 +4,14 @@ import React, { useState } from 'react';
 import { Check, Loader2, Music2 } from 'lucide-react';
 import { callTool } from '@/lib/client/api';
 import { useUserProfile } from '@/context/UserProfileContext';
-import { STATUS_LABEL, getModel, normalizeConfig, quote } from '@/lib/generation';
+import { GenJob, STATUS_LABEL, getModel, normalizeConfig, quote } from '@/lib/generation';
+import { audioTypeOf } from '@/lib/audioStudio';
 import { Edl, MONTAGEM_FPS, MUSIC_DEFAULT_VOLUME, VideoProject } from '@/lib/montagem';
 import type { Job } from './ProductionPanel';
 
 const MODEL_ID = 'suno-v6';
 /** Climas prontos (o Suno entende melhor em inglês); a pessoa pode escrever o próprio. */
-const MOODS: { label: string; style: string }[] = [
+export const MOODS: { label: string; style: string }[] = [
   { label: 'Inspirador', style: 'uplifting inspirational corporate, warm piano and strings, soft build, modern' },
   { label: 'Lo-fi', style: 'chill lo-fi hip hop, mellow keys, soft vinyl texture, relaxed groove' },
   { label: 'Pop animado', style: 'upbeat feel-good pop, bright synths, claps, energetic and catchy' },
@@ -23,9 +24,11 @@ const MOODS: { label: string; style: string }[] = [
  * Trilha da montagem: Suno V6 (KIE) instrumental, na duração do vídeo. Cada pedido devolve
  * mais de uma versão; a escolhida toca sob o vídeo todo, com volume ajustável e fade no fim.
  */
-export function MusicPanel({ project, jobs, edl, totalFrames, onEdl, onError }: {
+export function MusicPanel({ project, jobs, libraryJobs = [], edl, totalFrames, onEdl, onError }: {
   project: VideoProject;
   jobs: Job[];
+  /** Trilhas geradas no Estúdio de Áudio ou em outros projetos. */
+  libraryJobs?: GenJob[];
   edl: Edl;
   totalFrames: number;
   onEdl: (next: Edl) => void;
@@ -40,7 +43,10 @@ export function MusicPanel({ project, jobs, edl, totalFrames, onEdl, onError }: 
   const duration = (model.durations || []).map(d => d.value).find(v => v >= seconds) ?? 180;
   const config = normalizeConfig(model, { duration });
   const credits = quote(model, config).credits;
-  const tracks = jobs.filter(j => j.kind === 'audio');
+  const own = jobs.filter(j => audioTypeOf(j) === 'music');
+  const ownIds = new Set(own.map(j => j.id));
+  const fromLibrary = libraryJobs.filter(j => audioTypeOf(j) === 'music' && j.status === 'completed' && !ownIds.has(j.id));
+  const tracks: (GenJob & { library?: boolean })[] = [...own, ...fromLibrary.map(j => ({ ...j, library: true }))];
 
   const generate = async () => {
     const text = style.trim();
@@ -66,7 +72,7 @@ export function MusicPanel({ project, jobs, edl, totalFrames, onEdl, onError }: 
     <div className="rounded-2xl border border-white/[0.07] bg-black/30 p-4 space-y-3">
       <div>
         <p className="flex items-center gap-1.5 text-xs font-semibold text-white"><Music2 className="w-3.5 h-3.5 text-brand-mint" /> Trilha sonora <span className="font-normal text-gray-500">(opcional)</span></p>
-        <p className="text-[11px] text-gray-500 mt-0.5">Música instrumental gerada no clima do vídeo, com {duration} s. Cada pedido traz mais de uma versão para você escolher.</p>
+        <p className="text-[11px] text-gray-500 mt-0.5">Música instrumental gerada no clima do vídeo, com {duration} s. Cada pedido traz mais de uma versão para você escolher. As trilhas do Estúdio de Áudio também aparecem aqui.</p>
       </div>
       <div className="flex flex-wrap gap-1.5">
         {MOODS.map(m => (
@@ -91,7 +97,8 @@ export function MusicPanel({ project, jobs, edl, totalFrames, onEdl, onError }: 
             <li key={j.id} className="rounded-xl border border-white/[0.06] bg-black/30 p-2.5 space-y-2">
               <p className="text-[11px] text-gray-400 truncate">
                 <span className={j.status === 'failed' ? 'text-red-300' : j.status === 'completed' ? 'text-brand-mint' : 'text-amber-300'}>{STATUS_LABEL[j.status]}</span>
-                {' · '}{j.prompt}
+                {j.library ? <span className="text-gray-500"> · da biblioteca</span> : null}
+                {' · '}{j.title ? `${j.title} · ` : ''}{j.prompt}
               </p>
               {j.status === 'failed' && j.error && <p className="text-[11px] text-red-300">{j.error}</p>}
               {j.active && <div className="h-1 rounded-full bg-white/10 overflow-hidden"><div className="h-full w-1/3 bg-amber-300 animate-pulse" /></div>}

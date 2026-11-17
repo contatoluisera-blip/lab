@@ -31,6 +31,7 @@ import {
   Film,
   Scissors,
   Palette,
+  AudioLines,
 } from 'lucide-react';
 
 const MENU_ITEMS = [
@@ -46,6 +47,7 @@ const MENU_ITEMS = [
   { name: 'Gerador de Prompts', href: '/dashboard/prompt-studio', icon: Clapperboard },
   { name: 'Gerar Imagem', href: '/dashboard/imagens', icon: ImagePlus },
   { name: 'Gerar Vídeo', href: '/dashboard/videos', icon: Film },
+  { name: 'Estúdio de Áudio', href: '/dashboard/audio', icon: AudioLines },
   { name: 'Montagem de Vídeo', href: '/dashboard/montagem', icon: Scissors },
   { name: 'ID Visual', href: '/dashboard/id-visual', icon: Palette },
   { name: 'Minhas Ações', href: '/dashboard/actions', icon: FolderArchive },

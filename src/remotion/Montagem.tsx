@@ -7,7 +7,7 @@ import { wipe } from '@remotion/transitions/wipe';
 import { pushCut } from '@remotion/transitions/push-cut';
 import { flip } from '@remotion/transitions/flip';
 import { iris } from '@remotion/transitions/iris';
-import { ClipMotion, END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextAnim, TextPosition, TransitionKind, clipFrames, clipStartFrames, edlClipsFrames, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
+import { ClipMotion, END_CARD_FRAMES, Edl, EdlClip, LetteringSize, TextAnim, TextPosition, TransitionKind, clipFrames, clipStartFrames, edlClipsFrames, extraSourceKey, letteringPlace, letteringSourceKey, musicSourceKey, transitionFramesAt } from '../lib/montagem';
 import { VOICE_LEAD_FRAMES, VoiceWord, voiceSourceKey } from '../lib/voice';
 import type { EdlStyle } from '../lib/brand';
 import { FONTS } from './fonts';
@@ -304,17 +304,29 @@ export const Montagem: React.FC<MontagemProps> = ({ edl, sources }) => {
     const i = edl.clips.findIndex(c => c.id === v.clipId);
     return i < 0 || !sources[voiceSourceKey(v.clipId)] ? null : { ...v, from: starts[i] + VOICE_LEAD_FRAMES, src: sources[voiceSourceKey(v.clipId)] };
   }).filter(Boolean) as { clipId: string; frames: number; words: VoiceWord[]; from: number; src: string }[];
-  const speech = voiceItems.map(v => [v.from, v.from + v.frames] as [number, number]);
+  // Áudios da biblioteca (Estúdio de Áudio): locuções avulsas e efeitos, cada um a partir do seu quadro.
+  const extras = (edl.extras || []).filter(x => x.frames && sources[extraSourceKey(x.jobId)]);
+  const extraVoice = extras.filter(x => x.kind === 'voice');
+  const speech = [
+    ...voiceItems.map(v => [v.from, v.from + v.frames] as [number, number]),
+    ...extraVoice.map(x => [x.from, x.from + x.frames!] as [number, number]),
+  ];
   return (
     <AbsoluteFill style={{ backgroundColor: '#000' }}>
       <TransitionSeries>{items}</TransitionSeries>
       {edl.music && sources[musicSourceKey(edl.music.jobId, edl.music.index)]
-        ? <Music src={sources[musicSourceKey(edl.music.jobId, edl.music.index)]} volume={edl.music.volume} speech={speech} duck={edl.voice?.duck ?? 1} />
+        ? <Music src={sources[musicSourceKey(edl.music.jobId, edl.music.index)]} volume={edl.music.volume} speech={speech} duck={edl.voice?.duck ?? (extraVoice.length ? 0.3 : 1)} />
         : null}
       {voiceItems.map(v => (
         <Sequence key={`voice-${v.clipId}`} from={v.from} durationInFrames={v.frames}>
           <Audio src={v.src} volume={edl.voice!.volume} />
           {edl.voice!.captions && v.words.length ? <VoiceCaption words={v.words} style={edl.style} /> : null}
+        </Sequence>
+      ))}
+      {extras.map(x => (
+        <Sequence key={`extra-${x.id}`} from={x.from} durationInFrames={x.frames}>
+          <Audio src={sources[extraSourceKey(x.jobId)]} volume={x.volume} />
+          {x.kind === 'voice' && x.captions && x.words?.length ? <VoiceCaption words={x.words} style={edl.style} /> : null}
         </Sequence>
       ))}
       {edl.watermark && markSrc && clipsFrames > 0 ? (

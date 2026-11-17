@@ -48,8 +48,8 @@ export async function POST(req: Request) {
     const model = getModel(String(body.modelId || ''));
     const mode = body.mode as GenMode;
     if (!model || !model.modes.includes(mode)) throw new HttpError(400, 'bad_model', 'Escolha um modelo compatível com o tipo de geração.');
-    // Trilha só existe dentro da Montagem: cobra na ferramenta dela.
-    tool = model.kind === 'video' ? 'gen-video' : model.kind === 'audio' ? 'montagem' : 'gen-image';
+    // Trilha: dentro de um projeto cobra na Montagem; avulsa, no Estúdio de Áudio.
+    tool = model.kind === 'video' ? 'gen-video' : model.kind === 'audio' ? (body.projectId ? 'montagem' : 'audio') : 'gen-image';
 
     const prompt = typeof body.prompt === 'string' ? body.prompt.trim() : '';
     if (prompt.length < 3) throw new HttpError(400, 'missing_prompt', 'Escreva ou importe um prompt antes de gerar.');
@@ -120,6 +120,7 @@ export async function POST(req: Request) {
       projectId,
       sceneId,
       title: model.kind === 'audio' && typeof body.title === 'string' ? body.title.trim().slice(0, 80) || null : null,
+      ...(model.kind === 'audio' ? { audioType: 'music' as const } : {}),
       expectedKieCredits: price.kieCredits,
       refunded: false,
       attempts: 0,

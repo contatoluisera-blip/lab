@@ -4,11 +4,11 @@ import { HttpError, requireUser } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
 import { chargeCredit, refundCredit, ChargeResult, chargeFields } from '@/lib/server/credits';
 import { logPlatformAction } from '@/lib/firebase/logAction';
-import { MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, edlVoicePaths, musicSourceKey, edlDurationFrames, edlLetteringPaths, edlTexts, montagemCost, sanitizeEdl } from '@/lib/montagem';
+import { MONTAGEM_FPS, MONTAGEM_MAX_SECONDS, edlExtraPaths, edlVoicePaths, musicSourceKey, edlDurationFrames, edlLetteringPaths, edlTexts, montagemCost, sanitizeEdl } from '@/lib/montagem';
 import { isPaidPlan } from '@/lib/planConfig';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
 import { newJobId } from '@/lib/server/generation/queue';
-import { allProjectClips, loadOwnedProject, projectAssets, projectMusic } from '@/lib/server/montagem/projects';
+import { allProjectClips, loadOwnedProject, projectAssets, userAudioLibrary } from '@/lib/server/montagem/projects';
 import { loadProjectBrand } from '@/lib/server/montagem/brand';
 import { projectVoice } from '@/lib/server/montagem/voice';
 import { StoredRender, dispatchRenders } from '@/lib/server/render/queue';
@@ -41,11 +41,11 @@ export async function POST(req: Request) {
     const allowed = Object.fromEntries(clips.map(c => [c.jobId, { sourceFrames: c.sourceFrames, sceneId: c.sceneId }]));
     const brand = await loadProjectBrand(uid, project.brandKitId);
     const assets = projectAssets(uid, project);
-    const music = await projectMusic(uid, project.id);
+    const { music, library } = await userAudioLibrary(uid);
     const voice = projectVoice(uid, project);
     let edl;
     try {
-      edl = sanitizeEdl(body.edl ?? project.edl, project.format, allowed, MONTAGEM_MAX_SECONDS[plan] * MONTAGEM_FPS, brand, assets, music, voice);
+      edl = sanitizeEdl(body.edl ?? project.edl, project.format, allowed, MONTAGEM_MAX_SECONDS[plan] * MONTAGEM_FPS, brand, assets, music, voice, library);
     } catch (e: any) {
       throw new HttpError(400, 'bad_edl', e.message);
     }
@@ -75,7 +75,7 @@ export async function POST(req: Request) {
       durationFrames,
       format: project.format,
       edl,
-      sourcePaths: { ...Object.fromEntries(clips.filter(c => used.has(c.jobId)).map(c => [c.jobId, c.path])), ...edlLetteringPaths(edl, brand, assets), ...edlVoicePaths(edl, voice), ...(edl.music ? { [musicSourceKey(edl.music.jobId, edl.music.index)]: music[musicSourceKey(edl.music.jobId, edl.music.index)].path } : {}) },
+      sourcePaths: { ...Object.fromEntries(clips.filter(c => used.has(c.jobId)).map(c => [c.jobId, c.path])), ...edlLetteringPaths(edl, brand, assets), ...edlVoicePaths(edl, voice), ...edlExtraPaths(edl, library), ...(edl.music ? { [musicSourceKey(edl.music.jobId, edl.music.index)]: music[musicSourceKey(edl.music.jobId, edl.music.index)].path } : {}) },
       attempts: 0,
       progress: 0,
       error: null,
