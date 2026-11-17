@@ -95,6 +95,8 @@ export async function startHubRun(opts: {
   /** Endereço de cada fonte (como volta em `inputUrl`), o nicho e o termo buscado (para a memória por termo). */
   urls: { url: string; nicho: string | null; sourceId?: string; term?: string }[];
   requestedBy: string;
+  /** false: sem aviso do Apify ao site; quem chamou processa o resultado (scripts/hub-collect-now.ts). */
+  webhook?: boolean;
 }) {
   const token = process.env.APIFY_API_TOKEN;
   if (!token) throw new HttpError(503, 'provider_unconfigured', 'O token do Apify não está configurado no servidor.');
@@ -103,8 +105,9 @@ export async function startHubRun(opts: {
     eventTypes: ['ACTOR.RUN.SUCCEEDED'],
     requestUrl: `${opts.origin}/api/hub/apify-webhook?key=${hubSecret()}`,
   }])).toString('base64');
+  const hook = opts.webhook === false ? '' : `&webhooks=${encodeURIComponent(webhooks)}`;
 
-  const res = await fetch(`https://api.apify.com/v2/acts/${opts.actor}/runs?token=${token}&webhooks=${encodeURIComponent(webhooks)}`, {
+  const res = await fetch(`https://api.apify.com/v2/acts/${opts.actor}/runs?token=${token}${hook}`, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(opts.input),
