@@ -57,7 +57,11 @@ export async function saveInstantAudio(uid: string, charge: ChargeResult, tool: 
 
 /** O gerador de efeitos entende melhor inglês: traduz a descrição (Claude rápido, frações de centavo). */
 export async function sfxPromptInEnglish(text: string) {
-  if (/^[\x20-\x7E]+$/.test(text) && !/\b(de|com|um|uma|som|barulho|para)\b/i.test(text)) return { text, usd: 0 };
+  // Só pula a tradução quando o texto tem cara de inglês (sem acento, com palavras comuns do inglês e nenhuma do português).
+  const looksEnglish = /^[\x20-\x7E]+$/.test(text)
+    && /\b(the|of|with|and|in|on|at|from|a|an|is|sound|footsteps?|door|car|wind|rain|crowd|loud|soft|slow|fast)\b/i.test(text)
+    && !/\b(de|da|do|das|dos|com|um|uma|uns|umas|som|barulho|para|na|no|nas|nos|numa|num|em|que|e|ao|aos|pela|pelo)\b/i.test(text);
+  if (looksEnglish) return { text, usd: 0 };
   const res = await anthropicClient().messages.create({
     model: AI_MODELS.anthropicFast,
     max_tokens: 200,

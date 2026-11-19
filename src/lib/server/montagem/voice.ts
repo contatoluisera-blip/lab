@@ -130,6 +130,42 @@ async function elevenlabs(voiceId: string, text: string, opts: VoiceOptions = {}
   return { audio: Buffer.from(data.audio_base64, 'base64'), words, seconds, usd: (text.length / 1000) * ELEVEN_USD_PER_1K * model.cost };
 }
 
+/**
+ * A transcrição erra nomes e marcas ("Creator Lab" vira "Curlab"): a legenda usa sempre as palavras
+ * do texto original e aproveita da transcrição só o tempo, pela posição relativa de cada letra.
+ */
+export function retimeWords(text: string, heard: VoiceWord[]): VoiceWord[] {
+  const tokens = text.split(/\s+/).filter(Boolean);
+  if (!heard.length || !tokens.length) return [];
+  const size = (w: string) => Math.max(1, w.replace(/[^\p{L}\p{N}]/gu, '').length);
+  // Pontos de ancoragem: (fração do texto falado, segundo) no início e no fim de cada palavra ouvida.
+  const heardTotal = heard.reduce((n, w) => n + size(w.w), 0);
+  const anchors: [number, number][] = [];
+  let acc = 0;
+  for (const w of heard) {
+    anchors.push([acc / heardTotal, w.s]);
+    acc += size(w.w);
+    anchors.push([acc / heardTotal, w.e]);
+  }
+  const at = (f: number) => {
+    for (let i = 1; i < anchors.length; i++) {
+      const [f0, t0] = anchors[i - 1], [f1, t1] = anchors[i];
+      if (f <= f1) return f1 === f0 ? t1 : t0 + ((f - f0) / (f1 - f0)) * (t1 - t0);
+    }
+    return anchors[anchors.length - 1][1];
+  };
+  const total = tokens.reduce((n, w) => n + size(w), 0);
+  let pos = 0;
+  let prevEnd = 0;
+  return tokens.map(w => {
+    const s = Math.max(prevEnd, at(pos / total));
+    pos += size(w);
+    const e = Math.max(s + 0.05, at(pos / total));
+    prevEnd = Math.round(e * 1000) / 1000;
+    return { w, s: Math.round(s * 1000) / 1000, e: prevEnd };
+  });
+}
+
 async function openai(voiceId: string, text: string, style: string, opts: VoiceOptions = {}) {
   const client = openaiClient();
   const model = openaiModel(opts.model);
@@ -142,8 +178,10 @@ async function openai(voiceId: string, text: string, style: string, opts: VoiceO
   // A OpenAI não devolve o tempo das palavras: a transcrição do próprio áudio dá.
   const tr: any = await client.audio.transcriptions.create({
     file: new File([audio], 'voz.mp3', { type: 'audio/mpeg' }), model: 'whisper-1', response_format: 'verbose_json', timestamp_granularities: ['word'], language: 'pt',
+    prompt: text.slice(0, 800),
   });
-  const words: VoiceWord[] = (tr.words || []).map((w: any) => ({ w: String(w.word), s: Math.round(w.start * 1000) / 1000, e: Math.round(w.end * 1000) / 1000 }));
+  const heard: VoiceWord[] = (tr.words || []).map((w: any) => ({ w: String(w.word), s: Math.round(w.start * 1000) / 1000, e: Math.round(w.end * 1000) / 1000 }));
+  const words = retimeWords(text, heard);
   const seconds = Number(tr.duration) || (words.length ? words[words.length - 1].e + 0.15 : text.length / 14);
   const usd = model.instructions ? (seconds / 60) * UNIT_COST_USD.openaiVoicePerMinute
     : text.length * (model.id === 'tts-1-hd' ? 30 : 15) / 1e6 + (seconds / 60) * 0.006;
