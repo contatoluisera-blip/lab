@@ -6,7 +6,8 @@
 // ─────────────────────────────────────────────────────────────
 
 export type GenKind = 'image' | 'video' | 'audio';
-export type GenMode = 't2i' | 'i2i' | 't2v' | 'i2v' | 'v2v' | 't2a';
+/** r2v: vídeo guiado por imagens de referência (personagem, produto, cenário), sem frame inicial. */
+export type GenMode = 't2i' | 'i2i' | 't2v' | 'i2v' | 'r2v' | 'v2v' | 't2a';
 
 /** Versão dos termos de uso da geração. Mudou o texto? Suba a versão: todos aceitam de novo. */
 export const GEN_TERMS_VERSION = '2026-11-04';
@@ -62,6 +63,10 @@ export interface GenModel {
   nativeAudio?: boolean;
   /** Imagens de entrada aceitas em cada modo. */
   maxImages?: Partial<Record<GenMode, number>>;
+  /** Opções que o provedor restringe num modo (ex.: Grok com várias referências só até 720p). */
+  modeLimits?: Partial<Record<GenMode, { resolutions?: string[]; aspects?: string[] }>>;
+  /** Como o prompt cita as referências, quando o modelo tem sintaxe própria (ex.: @image1). */
+  refSyntax?: string;
   defaults: GenConfig;
   /** Preço em dólar da configuração escolhida (tabela oficial da KIE). */
   priceUsd: (c: GenConfig) => number;
@@ -161,8 +166,8 @@ const BASE_MODELS: GenModel[] = [
     kind: 'video',
     name: 'Veo 3.1 Fast',
     tagline: 'Google Veo com som e fala nativos. Ótimo para cenas com diálogo.',
-    badges: ['Áudio e fala nativos', '8 s'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Áudio e fala nativos', '8 s', 'Até 3 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS.filter(a => a.value !== '1:1'),
     resolutions: [
       { value: '720p', label: '720p', hint: 'Teste' },
@@ -170,7 +175,7 @@ const BASE_MODELS: GenModel[] = [
     ],
     durations: [{ value: 8, label: '8 s' }],
     nativeAudio: true,
-    maxImages: { i2v: 2 },
+    maxImages: { i2v: 2, r2v: 3 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.30 : 0.325),
   },
@@ -300,13 +305,13 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'veo-lite', kind: 'video', family: 'Google', highlight: 'Veo mais barato',
     name: 'Veo 3.1 Lite',
     tagline: 'O Veo com som e fala nativos pela metade do preço do Fast.',
-    badges: ['Áudio e fala nativos', '8 s'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Áudio e fala nativos', '8 s', 'Até 3 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS.filter(a => a.value !== '1:1'),
     resolutions: [{ value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
     durations: [{ value: 8, label: '8 s' }],
     nativeAudio: true,
-    maxImages: { i2v: 2 },
+    maxImages: { i2v: 2, r2v: 3 },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 8 },
     priceUsd: (c) => (c.resolution === '720p' ? 0.15 : 0.175),
     minCredits: () => 20, // piso de modelo premium (Veo com áudio nativo)
@@ -342,13 +347,13 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'seedance-fast', kind: 'video', family: 'ByteDance', featured: true,
     name: 'Seedance 2 Fast',
     tagline: 'O Seedance da ByteDance: cenas cinematográficas com áudio, primeiro e último frame.',
-    badges: ['Áudio nativo', 'Primeiro e último frame'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Áudio nativo', 'Primeiro e último frame', 'Até 9 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Entrega' }],
     durations: DUR_5_10,
     nativeAudio: true,
-    maxImages: { i2v: 2 },
+    maxImages: { i2v: 2, r2v: 9 },
     defaults: { aspect: '9:16', resolution: '720p', duration: 5 },
     priceUsd: (c) => perSec({ '480p': 0.059, '720p': 0.124 }, c.resolution, '720p', c.duration === 10 ? 10 : 5),
   },
@@ -356,13 +361,16 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'grok-imagine', kind: 'video', family: 'xAI', highlight: 'Mais barato',
     name: 'Grok Imagine',
     tagline: 'O vídeo da xAI, com áudio sempre ligado e o menor custo por segundo.',
-    badges: ['Áudio nativo', 'Até 15 s'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Áudio nativo', 'Até 15 s', 'Até 7 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: [...VIDEO_ASPECTS, { value: '2:3', label: '2:3', hint: 'Retrato' }],
     resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
     durations: [{ value: 6, label: '6 s' }, { value: 10, label: '10 s' }, { value: 15, label: '15 s' }],
     nativeAudio: true,
-    maxImages: { i2v: 1 },
+    maxImages: { i2v: 1, r2v: 7 },
+    // Com várias imagens a KIE só aceita até 720p.
+    modeLimits: { r2v: { resolutions: ['480p', '720p'] } },
+    refSyntax: '@image1, @image2…',
     defaults: { aspect: '9:16', resolution: '720p', duration: 6 },
     priceUsd: (c) => perSec({ '480p': 0.012, '720p': 0.0225, '1080p': 0.04 }, c.resolution, '720p', c.duration || 6),
   },
@@ -488,6 +496,7 @@ export const GEN_MODES: Record<GenKind, { id: GenMode; label: string; descriptio
   ],
   video: [
     { id: 'i2v', label: 'Imagem → vídeo', description: 'Anime um frame seu, com primeiro e último quadro.' },
+    { id: 'r2v', label: 'Referências → vídeo', description: 'Imagens de personagem, produto ou cenário guiam o vídeo, sem fixar o primeiro quadro.' },
     { id: 't2v', label: 'Texto → vídeo', description: 'A cena nasce só do prompt.' },
     { id: 'v2v', label: 'Vídeo → vídeo', description: 'Transforme um vídeo mantendo o movimento.' },
   ],
@@ -506,14 +515,24 @@ export function modelsFor(kind: GenKind, mode: GenMode) {
 
 function pick<T extends string | number>(options: GenOption<T>[] | undefined, value: unknown, fallback: T | undefined) {
   if (!options?.length) return undefined;
-  return options.find(o => o.value === value)?.value ?? fallback ?? options[0].value;
+  return options.find(o => o.value === value)?.value ?? (options.some(o => o.value === fallback) ? fallback : undefined) ?? options[0].value;
+}
+
+/** Opções do modelo neste modo (alguns modos restringem resolução ou proporção). */
+export function optionsFor(model: GenModel, mode?: GenMode) {
+  const lim = mode ? model.modeLimits?.[mode] : undefined;
+  return {
+    aspects: lim?.aspects && model.aspects ? model.aspects.filter(a => lim.aspects!.includes(a.value)) : model.aspects,
+    resolutions: lim?.resolutions && model.resolutions ? model.resolutions.filter(r => lim.resolutions!.includes(r.value)) : model.resolutions,
+  };
 }
 
 /** Normaliza a configuração para os valores aceitos pelo modelo (o servidor confia só nisto). */
-export function normalizeConfig(model: GenModel, raw: GenConfig = {}): GenConfig {
+export function normalizeConfig(model: GenModel, raw: GenConfig = {}, mode?: GenMode): GenConfig {
+  const opts = optionsFor(model, mode);
   const config: GenConfig = {
-    aspect: pick(model.aspects, raw.aspect, model.defaults.aspect),
-    resolution: pick(model.resolutions, raw.resolution, model.defaults.resolution),
+    aspect: pick(opts.aspects, raw.aspect, model.defaults.aspect),
+    resolution: pick(opts.resolutions, raw.resolution, model.defaults.resolution),
     duration: pick(model.durations, Number(raw.duration), model.defaults.duration),
     quality: pick(model.qualities, raw.quality, model.defaults.quality),
     audio: model.audioToggle ? Boolean(raw.audio ?? model.defaults.audio) : model.nativeAudio ? true : undefined,
@@ -524,8 +543,8 @@ export function normalizeConfig(model: GenModel, raw: GenConfig = {}): GenConfig
   return config;
 }
 
-export function quote(model: GenModel, config: GenConfig) {
-  const c = normalizeConfig(model, config);
+export function quote(model: GenModel, config: GenConfig, mode?: GenMode) {
+  const c = normalizeConfig(model, config, mode);
   const usd = model.priceUsd(c);
   const credits = creditsForUsd(usd, model.minCredits?.(c) ?? KIND_MIN_CREDITS[model.kind]);
   return { usd, credits, kieCredits: Math.round(usd / KIE_USD_PER_CREDIT) };

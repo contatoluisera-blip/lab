@@ -75,10 +75,11 @@ export async function POST(req: Request) {
     }
 
     // Entradas exigidas por cada modo.
-    const images: string[] = Array.isArray(body.inputs?.images) ? body.inputs.images.slice(0, 8) : [];
+    const images: string[] = Array.isArray(body.inputs?.images) ? body.inputs.images.slice(0, 9) : [];
     const maxImages = model.maxImages?.[mode] ?? 0;
     if (images.length > maxImages) throw new HttpError(400, 'too_many_images', `Este modelo aceita até ${maxImages} imagem(ns) neste modo.`);
     if ((mode === 'i2v' || mode === 'i2i') && !images.length) throw new HttpError(400, 'missing_image', 'Envie a imagem de entrada.');
+    if (mode === 'r2v' && !images.length) throw new HttpError(400, 'missing_image', 'Envie pelo menos uma imagem de referência.');
     const imagePaths = await Promise.all(images.map(p => checkInput(uid, p, 'image')));
     const videoPath = mode === 'v2v' ? await checkInput(uid, body.inputs?.video, 'video') : null;
 
@@ -98,8 +99,8 @@ export async function POST(req: Request) {
       sceneId = project.scenes.some(s => s.id === body.sceneId) ? String(body.sceneId) : null;
     }
 
-    const config = normalizeConfig(model, body.config || {});
-    const price = quote(model, config);
+    const config = normalizeConfig(model, body.config || {}, mode);
+    const price = quote(model, config, mode);
     charge = await chargeCredit(uid, tool, price.credits);
 
     const id = newJobId();

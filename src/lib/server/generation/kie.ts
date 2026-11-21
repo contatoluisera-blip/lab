@@ -81,8 +81,10 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
         input: {
           model: modelId === 'veo-quality' ? 'veo3' : modelId === 'veo-lite' ? 'veo3_lite' : 'veo3_fast',
           prompt,
-          generation_type: mode === 'i2v' && inputs.imageUrls.length ? 'FIRST_AND_LAST_FRAMES_2_VIDEO' : 'TEXT_2_VIDEO',
-          ...(mode === 'i2v' && inputs.imageUrls.length ? { image_urls: inputs.imageUrls.slice(0, 2) } : {}),
+          // Referências (1 a 3, só Fast e Lite, 8 s) ou primeiro e último frame (até 2).
+          generation_type: mode === 'r2v' && inputs.imageUrls.length ? 'REFERENCE_2_VIDEO'
+            : mode === 'i2v' && inputs.imageUrls.length ? 'FIRST_AND_LAST_FRAMES_2_VIDEO' : 'TEXT_2_VIDEO',
+          ...((mode === 'i2v' || mode === 'r2v') && inputs.imageUrls.length ? { image_urls: inputs.imageUrls.slice(0, mode === 'r2v' ? 3 : 2) } : {}),
           aspect_ratio: config.aspect === '16:9' ? '16:9' : '9:16',
           resolution: config.resolution === '720p' ? '720p' : '1080p',
           duration: 8,
@@ -183,12 +185,15 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
     }
     case 'seedance-fast': {
       const [first, last] = mode === 'i2v' ? inputs.imageUrls : [];
+      // Referências não se misturam com primeiro e último frame (docs.kie.ai).
+      const refs = mode === 'r2v' ? inputs.imageUrls.slice(0, 9) : [];
       return {
         model: 'bytedance/seedance-2-fast',
         input: {
           prompt,
           ...(first ? { first_frame_url: first } : {}),
           ...(last ? { last_frame_url: last } : {}),
+          ...(refs.length ? { reference_image_urls: refs } : {}),
           aspect_ratio: first ? 'adaptive' : config.aspect || '9:16',
           resolution: config.resolution === '480p' ? '480p' : '720p',
           duration: config.duration === 10 ? 10 : 5,
@@ -198,12 +203,15 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
     }
     case 'grok-imagine': {
       const i2v = mode === 'i2v' && inputs.imageUrls.length > 0;
+      // Várias imagens viram referências (@image1…); a proporção só vale nesse modo.
+      const r2v = mode === 'r2v' && inputs.imageUrls.length > 0;
       const duration = [6, 10, 15].includes(config.duration || 0) ? config.duration! : 6;
       return {
-        model: i2v ? 'grok-imagine/image-to-video' : 'grok-imagine/text-to-video',
+        model: i2v || r2v ? 'grok-imagine/image-to-video' : 'grok-imagine/text-to-video',
         input: {
           prompt,
-          ...(i2v ? { image_urls: inputs.imageUrls.slice(0, 1), duration: String(duration) } : { aspect_ratio: config.aspect || '9:16', duration }),
+          ...(r2v ? { image_urls: inputs.imageUrls.slice(0, 7), aspect_ratio: config.aspect || '9:16', duration: String(duration) }
+            : i2v ? { image_urls: inputs.imageUrls.slice(0, 1), duration: String(duration) } : { aspect_ratio: config.aspect || '9:16', duration }),
           // Nunca o modo "spicy": só o normal.
           mode: 'normal',
           resolution: ['480p', '720p', '1080p'].includes(config.resolution || '') ? config.resolution : '720p',
