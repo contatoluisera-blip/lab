@@ -19,7 +19,7 @@ import { ensurePromptFits } from '@/lib/client/promptFit';
 import { compactStoredImage } from '@/lib/client/imageInput';
 import {
   GEN_LIMITS, GEN_MODES, GEN_TERMS_VERSION, GenConfig, GenJob, GenKind, GenMode, STATUS_LABEL,
-  getModel, modelsFor, normalizeConfig, quote,
+  getModel, modelsFor, normalizeConfig, optionsFor, quote,
 } from '@/lib/generation';
 import { PROMPT_MODES, PromptMode } from '@/lib/promptStudio';
 import { AspectGlyph, Chip, ImageSlot, InputSlotState, ModelCard, StepHeader, VideoSlot } from './parts';
@@ -123,11 +123,12 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
     return [...groups.entries()];
   }, [available]);
   const [configs, setConfigs] = useState<Record<string, GenConfig>>({});
-  const config = normalizeConfig(model, configs[model.id] || model.defaults);
+  const config = normalizeConfig(model, configs[model.id] || model.defaults, mode);
   const setConfig = (patch: GenConfig) => setConfigs(prev => ({ ...prev, [model.id]: { ...config, ...patch } }));
-  const price = quote(model, config);
+  const price = quote(model, config, mode);
+  const modeOpts = optionsFor(model, mode);
   /** Custo em créditos se esta opção for escolhida (mostra a escada de qualidade). */
-  const costIf = (patch: GenConfig) => quote(model, { ...config, ...patch }).credits;
+  const costIf = (patch: GenConfig) => quote(model, { ...config, ...patch }, mode).credits;
   const hintWith = (hint: string | undefined, credits: number) => `${hint ? `${hint} · ` : ''}${credits} cr`;
 
   const [prompt, setPrompt] = useState('');
@@ -174,9 +175,13 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
       const max = model.maxImages?.i2i ?? 4;
       return Array.from({ length: max }, (_, i) => ({ label: i === 0 ? 'Imagem base' : `Referência ${i + 1}`, required: i === 0 }));
     }
+    if (mode === 'r2v') {
+      const max = model.maxImages?.r2v ?? 3;
+      return Array.from({ length: max }, (_, i) => ({ label: `Referência ${i + 1}`, required: i === 0 }));
+    }
     return [];
   }, [mode, model]);
-  const visibleSlots = mode === 'i2i'
+  const visibleSlots = mode === 'i2i' || mode === 'r2v'
     ? slotDefs.slice(0, Math.min(slotDefs.length, Math.max(2, slots.filter(Boolean).length + 1)))
     : slotDefs;
 
@@ -475,7 +480,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
           {/* 2. Entradas */}
           {(slotDefs.length > 0 || mode === 'v2v') && (
             <div>
-              <StepHeader n={2} title={mode === 'v2v' ? 'Vídeo de entrada' : mode === 'i2v' ? 'Frames' : 'Imagens'} />
+              <StepHeader n={2} title={mode === 'v2v' ? 'Vídeo de entrada' : mode === 'i2v' ? 'Frames' : mode === 'r2v' ? 'Referências' : 'Imagens'} />
               {mode === 'v2v' ? (
                 <VideoSlot value={video} busy={busy === 'video'} onPick={pickVideo}
                   onClear={() => { if (video) URL.revokeObjectURL(video.preview); setVideo(null); }}
@@ -490,6 +495,13 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
                 </div>
               )}
               {mode === 'i2v' && slotDefs.length > 1 && <p className="text-[10px] text-gray-500 mt-2">Com o frame final, o modelo faz o caminho entre as duas imagens.</p>}
+              {mode === 'r2v' && (
+                <p className="text-[10px] text-gray-500 mt-2">
+                  Até {slotDefs.length} imagens de personagem, produto ou cenário. {model.refSyntax
+                    ? `Cite cada uma no prompt pela ordem: ${model.refSyntax}`
+                    : 'Diga no prompt o papel de cada uma (ex.: "a mulher da imagem 1 segura o produto da imagem 2").'}
+                </p>
+              )}
             </div>
           )}
 
@@ -522,11 +534,11 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
           {/* 4. Ajustes */}
           <div className="space-y-4">
             <StepHeader n={slotDefs.length > 0 || mode === 'v2v' ? 4 : 3} title="Ajustes" />
-            {model.aspects && !(mode === 'i2v' && !model.id.startsWith('veo')) && (
+            {modeOpts.aspects && !(mode === 'i2v' && !model.id.startsWith('veo')) && (
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Proporção{mode === 'i2v' ? ' (o vídeo segue o frame inicial quando possível)' : ''}</p>
                 <div className="flex flex-wrap gap-2">
-                  {model.aspects.map(a => (
+                  {modeOpts.aspects.map(a => (
                     <Chip key={a.value} active={config.aspect === a.value} onClick={() => setConfig({ aspect: a.value })} hint={a.hint}>
                       <span className="flex flex-col items-center"><AspectGlyph aspect={a.value} active={config.aspect === a.value} />{a.label}</span>
                     </Chip>
@@ -550,11 +562,11 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
                 </div>
               </div>
             )}
-            {model.resolutions && (
+            {modeOpts.resolutions && (
               <div>
                 <p className="text-[11px] text-gray-500 mb-2">Resolução</p>
                 <div className="flex flex-wrap gap-2">
-                  {model.resolutions.map(r => <Chip key={r.value} active={config.resolution === r.value} hint={hintWith(r.hint, costIf({ resolution: r.value }))} onClick={() => setConfig({ resolution: r.value })}>{r.label}</Chip>)}
+                  {modeOpts.resolutions.map(r => <Chip key={r.value} active={config.resolution === r.value} hint={hintWith(r.hint, costIf({ resolution: r.value }))} onClick={() => setConfig({ resolution: r.value })}>{r.label}</Chip>)}
                 </div>
               </div>
             )}
