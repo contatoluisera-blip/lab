@@ -12,11 +12,27 @@ export interface KieInputs {
   prompt: string;
   negativePrompt?: string;
   imageUrls: string[];
+  /**
+   * Imagem → vídeo: as imagens vêm na ordem [inicial, ...intermediários, final?] e isto diz se a última é o frame final.
+   * Pedidos antigos não têm o campo: com 2 imagens, a segunda era o final.
+   */
+  lastFrame?: boolean;
   videoUrl?: string;
   /** Título da trilha (Suno). */
   title?: string;
   /** Parâmetros do Suno (Gerar Áudio). Sem eles: instrumental no V6. */
   music?: MusicOptions | null;
+}
+
+/** Frames de imagem → vídeo: inicial, intermediários (Kling 4.0) e final. */
+export function framesOf(inputs: Pick<KieInputs, 'imageUrls' | 'lastFrame'>) {
+  const imgs = inputs.imageUrls;
+  const hasLast = imgs.length > 1 && (inputs.lastFrame ?? true);
+  return {
+    first: imgs[0] as string | undefined,
+    middle: imgs.slice(1, hasLast ? -1 : undefined),
+    last: hasLast ? imgs[imgs.length - 1] : undefined,
+  };
 }
 
 /** Corpo do createTask para cada modelo do catálogo. */
@@ -25,6 +41,8 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
   const prompt = inputs.negativePrompt
     ? `${inputs.prompt}\nAvoid: ${inputs.negativePrompt}`.slice(0, 2500)
     : inputs.prompt.slice(0, 2500);
+  const f = mode === 'i2v' ? framesOf(inputs) : { first: undefined, middle: [] as string[], last: undefined };
+  const firstLast = [f.first, f.last].filter(Boolean) as string[];
 
   switch (modelId) {
     case 'nano-banana-2':
@@ -44,7 +62,7 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
         model: 'kling-3.0/video',
         input: {
           prompt,
-          ...(mode === 'i2v' && inputs.imageUrls.length ? { image_urls: inputs.imageUrls.slice(0, 2) } : { aspect_ratio: config.aspect || '9:16' }),
+          ...(firstLast.length ? { image_urls: firstLast } : { aspect_ratio: config.aspect || '9:16' }),
           sound: Boolean(config.audio),
           duration: String(config.duration === 10 ? 10 : 5),
           mode: config.quality === 'std' ? 'std' : config.quality === '4k' ? '4K' : 'pro',
@@ -84,7 +102,7 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
           // Referências (1 a 3, só Fast e Lite, 8 s) ou primeiro e último frame (até 2).
           generation_type: mode === 'r2v' && inputs.imageUrls.length ? 'REFERENCE_2_VIDEO'
             : mode === 'i2v' && inputs.imageUrls.length ? 'FIRST_AND_LAST_FRAMES_2_VIDEO' : 'TEXT_2_VIDEO',
-          ...((mode === 'i2v' || mode === 'r2v') && inputs.imageUrls.length ? { image_urls: inputs.imageUrls.slice(0, mode === 'r2v' ? 3 : 2) } : {}),
+          ...(mode === 'r2v' && inputs.imageUrls.length ? { image_urls: inputs.imageUrls.slice(0, 3) } : firstLast.length ? { image_urls: firstLast } : {}),
           aspect_ratio: config.aspect === '16:9' ? '16:9' : '9:16',
           resolution: config.resolution === '720p' ? '720p' : '1080p',
           duration: 8,
@@ -171,20 +189,32 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
       };
     }
     case 'kling-4': {
-      const [first, last] = mode === 'i2v' ? inputs.imageUrls : [];
+      const duration = config.duration === 10 ? 10 : 5;
+      const resolution = config.resolution === '720p' ? '720p' : '1080p';
+      // Referências (@image_1…): até 10, sem frames.
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'kling-4.0/reference-to-video',
+          input: { prompt, image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution, duration },
+        };
+      }
+      // Frames: inicial + intermediários (@keyframe_N, até 8) + final, no máximo 6 em 5 s e 10 em 10 s.
+      const maxMiddle = (duration === 10 ? 10 : 6) - (f.first ? 1 : 0) - (f.last ? 1 : 0);
+      const middle = f.middle.slice(0, Math.max(0, Math.min(8, maxMiddle)));
       return {
         model: 'kling-4.0/keyframe-to-video',
         input: {
           prompt,
-          ...(first ? { first_frame_url: first } : { aspect_ratio: config.aspect || '9:16' }),
-          ...(last ? { last_frame_url: last } : {}),
-          resolution: config.resolution === '720p' ? '720p' : '1080p',
-          duration: config.duration === 10 ? 10 : 5,
+          ...(f.first ? { first_frame_url: f.first } : { aspect_ratio: config.aspect || '9:16' }),
+          ...(middle.length ? { keyframe_urls: middle } : {}),
+          ...(f.last ? { last_frame_url: f.last } : {}),
+          resolution,
+          duration,
         },
       };
     }
     case 'seedance-fast': {
-      const [first, last] = mode === 'i2v' ? inputs.imageUrls : [];
+      const { first, last } = f;
       // Referências não se misturam com primeiro e último frame (docs.kie.ai).
       const refs = mode === 'r2v' ? inputs.imageUrls.slice(0, 9) : [];
       return {
@@ -220,6 +250,20 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
     }
     case 'pixverse-v6': {
       const i2v = mode === 'i2v' && inputs.imageUrls.length > 0;
+      // Referências pelo V6 Fusion: cada imagem ganha um nome (@img1, @img2…) para o prompt citar.
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'pixverse-v6/reference-to-video',
+          input: {
+            prompt,
+            image_references: inputs.imageUrls.slice(0, 7).map((url, i) => ({ image_url: url, type: 'subject', ref_name: `img${i + 1}` })),
+            aspect_ratio: config.aspect || '9:16',
+            quality: ['540p', '720p', '1080p'].includes(config.resolution || '') ? config.resolution : '1080p',
+            duration: config.duration === 10 ? 10 : 5,
+            generate_audio_switch: Boolean(config.audio),
+          },
+        };
+      }
       return {
         model: i2v ? 'pixverse-v6-max/image-to-video' : 'pixverse-v6-max/text-to-video',
         input: {
@@ -251,12 +295,26 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
         model: 'hailuo/02-image-to-video-pro',
         input: {
           prompt,
-          image_url: inputs.imageUrls[0],
-          ...(inputs.imageUrls[1] ? { end_image_url: inputs.imageUrls[1] } : {}),
+          image_url: f.first || inputs.imageUrls[0],
+          ...(f.last ? { end_image_url: f.last } : {}),
         },
       };
     case 'wan-27': {
-      const [first, last] = mode === 'i2v' ? inputs.imageUrls : [];
+      const { first, last } = f;
+      // Referências pelo wan/2-7-r2v: até 5 imagens, citadas no prompt como "image 1", "image 2"…
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'wan/2-7-r2v',
+          input: {
+            prompt: inputs.prompt.slice(0, 2500),
+            ...(inputs.negativePrompt ? { negative_prompt: inputs.negativePrompt.slice(0, 500) } : {}),
+            reference_image: inputs.imageUrls.slice(0, 5),
+            aspect_ratio: config.aspect || '9:16',
+            resolution: config.resolution === '720p' ? '720p' : '1080p',
+            duration: config.duration === 10 ? 10 : 5,
+          },
+        };
+      }
       return {
         model: first ? 'wan/2-7-image-to-video' : 'wan/2-7-text-to-video',
         input: {

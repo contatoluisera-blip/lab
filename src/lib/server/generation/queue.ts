@@ -31,7 +31,7 @@ const jobs = () => adminDb.collection('gen_jobs') as admin.firestore.CollectionR
 const now = () => new Date().toISOString();
 
 export interface StoredJob extends GenJob {
-  inputPaths: { images: string[]; video?: string | null };
+  inputPaths: { images: string[]; video?: string | null; lastFrame?: boolean };
   negativePrompt?: string | null;
   kieTaskId?: string | null;
   expectedKieCredits: number;
@@ -120,7 +120,7 @@ async function submit(job: StoredJob) {
   }
 
   const payload = buildKiePayload(job.modelId, job.mode as GenMode, job.config as GenConfig, {
-    prompt: job.prompt, negativePrompt: job.negativePrompt || undefined, imageUrls, videoUrl, title: job.title || undefined,
+    prompt: job.prompt, negativePrompt: job.negativePrompt || undefined, imageUrls, lastFrame: job.inputPaths?.lastFrame, videoUrl, title: job.title || undefined,
     music: job.musicOptions || null,
   });
   const result = await createKieTask(apiKey, payload, callbackUrl(job.id));

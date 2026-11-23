@@ -4,7 +4,7 @@ import { HttpError, requireUser } from '@/lib/server/auth';
 import { errorResponse } from '@/lib/server/tool';
 import { chargeCredit, refundCredit, ChargeResult, chargeFields } from '@/lib/server/credits';
 import { logPlatformAction } from '@/lib/firebase/logAction';
-import { GEN_LIMITS, GEN_TERMS_VERSION, GenMode, getModel, normalizeConfig, quote } from '@/lib/generation';
+import { GEN_LIMITS, GEN_TERMS_VERSION, GenMode, MAX_INPUT_IMAGES, getModel, maxImagesFor, normalizeConfig, quote } from '@/lib/generation';
 import { ToolId, genActiveLimit } from '@/lib/planConfig';
 import { sanitizeMusicOptions } from '@/lib/audioStudio';
 import { moderatePrompt } from '@/lib/server/generation/moderation';
@@ -75,8 +75,9 @@ export async function POST(req: Request) {
     }
 
     // Entradas exigidas por cada modo.
-    const images: string[] = Array.isArray(body.inputs?.images) ? body.inputs.images.slice(0, 9) : [];
-    const maxImages = model.maxImages?.[mode] ?? 0;
+    // O limite de cada modelo é o do provedor (src/lib/generation.ts), às vezes dependente da duração.
+    const images: string[] = Array.isArray(body.inputs?.images) ? body.inputs.images.slice(0, MAX_INPUT_IMAGES + 1) : [];
+    const maxImages = maxImagesFor(model, mode, body.config || {});
     if (images.length > maxImages) throw new HttpError(400, 'too_many_images', `Este modelo aceita até ${maxImages} imagem(ns) neste modo.`);
     if ((mode === 'i2v' || mode === 'i2i') && !images.length) throw new HttpError(400, 'missing_image', 'Envie a imagem de entrada.');
     if (mode === 'r2v' && !images.length) throw new HttpError(400, 'missing_image', 'Envie pelo menos uma imagem de referência.');
@@ -119,7 +120,7 @@ export async function POST(req: Request) {
       status: 'queued',
       active: true,
       outputs: [],
-      inputPaths: { images: imagePaths, video: videoPath },
+      inputPaths: { images: imagePaths, video: videoPath, ...(mode === 'i2v' ? { lastFrame: body.inputs?.lastFrame === true || (body.inputs?.lastFrame === undefined && imagePaths.length === 2) } : {}) },
       promptId: typeof body.promptId === 'string' ? body.promptId.slice(0, 64) : null,
       projectId,
       sceneId,

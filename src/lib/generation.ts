@@ -61,15 +61,20 @@ export interface GenModel {
   audioToggle?: boolean;
   /** Áudio sempre gerado pelo modelo. */
   nativeAudio?: boolean;
-  /** Imagens de entrada aceitas em cada modo. */
+  /**
+   * Imagens de entrada aceitas em cada modo: o máximo que o provedor aceita (esquema de cada modelo em docs.kie.ai,
+   * conferido em 23/11/2026). Quando o limite depende da configuração, `maxImagesBy` refina.
+   */
   maxImages?: Partial<Record<GenMode, number>>;
+  /** Limite que depende da configuração (ex.: Kling 4.0, frames por duração). */
+  maxImagesBy?: (mode: GenMode, c: GenConfig) => number | undefined;
   /** Opções que o provedor restringe num modo (ex.: Grok com várias referências só até 720p). */
   modeLimits?: Partial<Record<GenMode, { resolutions?: string[]; aspects?: string[] }>>;
-  /** Como o prompt cita as referências, quando o modelo tem sintaxe própria (ex.: @image1). */
-  refSyntax?: string;
+  /** Como o prompt cita as imagens, por modo, quando o modelo tem sintaxe própria (ex.: @image1). */
+  refSyntax?: Partial<Record<GenMode, string>>;
   defaults: GenConfig;
-  /** Preço em dólar da configuração escolhida (tabela oficial da KIE). */
-  priceUsd: (c: GenConfig) => number;
+  /** Preço em dólar da configuração escolhida (tabela oficial da KIE); alguns modos têm tabela própria. */
+  priceUsd: (c: GenConfig, mode?: GenMode) => number;
   /**
    * Piso em créditos deste modelo, no lugar do piso do tipo (ex.: rascunhos a 5, Veo Lite a 20).
    * O cobrado é o maior entre isto e a regra de custo.
@@ -114,7 +119,7 @@ const BASE_MODELS: GenModel[] = [
       { value: '2K', label: '2K', hint: 'Entrega' },
       { value: '4K', label: '4K', hint: 'Impressão' },
     ],
-    maxImages: { i2i: 4 },
+    maxImages: { i2i: 10 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.04, '2K': 0.06, '4K': 0.09 } as Record<string, number>)[c.resolution || '2K'] ?? 0.09,
   },
@@ -131,7 +136,7 @@ const BASE_MODELS: GenModel[] = [
       { value: '2K', label: '2K', hint: 'Entrega' },
       { value: '4K', label: '4K', hint: 'Impressão' },
     ],
-    maxImages: { i2i: 4 },
+    maxImages: { i2i: 8 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => (c.resolution === '4K' ? 0.12 : 0.09),
     minCredits: (c) => (c.resolution === '4K' ? 12 : 8),
@@ -240,7 +245,7 @@ const EXTRA_MODELS: GenModel[] = [
     modes: ['t2i', 'i2i'],
     aspects: IMAGE_ASPECTS.filter(a => a.value !== '4:5').concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }]),
     resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '4K', label: '4K', hint: 'Impressão' }],
-    maxImages: { i2i: 4 },
+    maxImages: { i2i: 16 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.03, '2K': 0.05, '4K': 0.08 } as Record<string, number>)[c.resolution || '2K'] ?? 0.08,
   },
@@ -252,10 +257,10 @@ const EXTRA_MODELS: GenModel[] = [
     modes: ['t2i', 'i2i'],
     aspects: IMAGE_ASPECTS.filter(a => a.value !== '4:5').concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }]),
     resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }],
-    maxImages: { i2i: 4 },
+    maxImages: { i2i: 10 },
     defaults: { aspect: '9:16', resolution: '2K' },
-    // + até 3 imagens extras de referência a US$ 0,0025 (a primeira é grátis)
-    priceUsd: (c) => (c.resolution === '1K' ? 0.035 : 0.07) + 0.0075,
+    // + até 9 imagens extras de referência a US$ 0,0025 (a primeira é grátis); continua no piso de 8 créditos.
+    priceUsd: (c) => (c.resolution === '1K' ? 0.035 : 0.07) + 0.0225,
   },
   {
     id: 'flux-3-klein', kind: 'image', family: 'Black Forest Labs', highlight: 'Mais barato',
@@ -265,7 +270,7 @@ const EXTRA_MODELS: GenModel[] = [
     modes: ['t2i', 'i2i'],
     aspects: IMAGE_ASPECTS.concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }]).filter(a => a.value !== '4:5'),
     resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '4K', label: '4K', hint: 'Impressão' }],
-    maxImages: { i2i: 4 },
+    maxImages: { i2i: 10 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.008, '2K': 0.0125, '4K': 0.0325 } as Record<string, number>)[c.resolution || '2K'] ?? 0.0325,
     minCredits: () => 5, // rascunho
@@ -334,12 +339,15 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'kling-4', kind: 'video', family: 'Kling', highlight: 'Mais novo',
     name: 'Kling 4.0',
     tagline: 'A geração mais nova do Kling: movimento e coerência de cena em outro nível.',
-    badges: ['Primeiro e último frame', 'Até 10 s'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Frames intermediários', 'Até 10 referências', 'Até 10 s'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
     durations: DUR_5_10,
-    maxImages: { i2v: 2 },
+    // Frames (inicial + intermediários + final): 6 em 5 s e 10 em 10 s. Referências: até 10. Mesmo preço nos dois modos.
+    maxImages: { i2v: 10, r2v: 10 },
+    maxImagesBy: (mode, c) => (mode === 'i2v' ? (c.duration === 10 ? 10 : 6) : undefined),
+    refSyntax: { i2v: '@first_frame, @keyframe_1, @keyframe_2… e @last_frame', r2v: '@image_1, @image_2…' },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 5 },
     priceUsd: (c) => perSec({ '720p': 0.1425, '1080p': 0.2125 }, c.resolution, '1080p', c.duration === 10 ? 10 : 5),
   },
@@ -370,7 +378,7 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2v: 1, r2v: 7 },
     // Com várias imagens a KIE só aceita até 720p.
     modeLimits: { r2v: { resolutions: ['480p', '720p'] } },
-    refSyntax: '@image1, @image2…',
+    refSyntax: { r2v: '@image1, @image2…' },
     defaults: { aspect: '9:16', resolution: '720p', duration: 6 },
     priceUsd: (c) => perSec({ '480p': 0.012, '720p': 0.0225, '1080p': 0.04 }, c.resolution, '720p', c.duration || 6),
   },
@@ -378,16 +386,20 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'pixverse-v6', kind: 'video', family: 'PixVerse',
     name: 'PixVerse V6 Max',
     tagline: 'Efeitos e estilos virais com ótimo custo, áudio opcional.',
-    badges: ['Até 1080p', 'Áudio opcional'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Até 1080p', 'Áudio opcional', 'Até 7 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '540p', label: '540p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
     durations: DUR_5_10,
     audioToggle: true,
-    maxImages: { i2v: 1 },
+    // Com referências usa o PixVerse V6 Fusion (pixverse-v6/reference-to-video), mais barato que o V6 Max.
+    maxImages: { i2v: 1, r2v: 7 },
+    refSyntax: { r2v: '@img1, @img2…' },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 5, audio: false },
-    priceUsd: (c) => {
-      const t = c.audio ? { '540p': 0.044, '720p': 0.06, '1080p': 0.112 } : { '540p': 0.036, '720p': 0.044, '1080p': 0.088 };
+    priceUsd: (c, mode) => {
+      const t = mode === 'r2v'
+        ? (c.audio ? { '540p': 0.036, '720p': 0.048, '1080p': 0.092 } : { '540p': 0.028, '720p': 0.036, '1080p': 0.072 })
+        : c.audio ? { '540p': 0.044, '720p': 0.06, '1080p': 0.112 } : { '540p': 0.036, '720p': 0.044, '1080p': 0.088 };
       return perSec(t, c.resolution, '1080p', c.duration === 10 ? 10 : 5);
     },
   },
@@ -432,12 +444,14 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'wan-27', kind: 'video', family: 'Alibaba',
     name: 'Wan 2.7',
     tagline: 'O Wan mais recente: bom movimento, negative prompt e primeiro e último frame.',
-    badges: ['Primeiro e último frame', 'Até 10 s'],
-    modes: ['t2v', 'i2v'],
+    badges: ['Primeiro e último frame', 'Até 5 referências', 'Até 10 s'],
+    modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
     durations: DUR_5_10,
-    maxImages: { i2v: 2 },
+    // Referências pelo wan/2-7-r2v (mesmo preço da família 2.7).
+    maxImages: { i2v: 2, r2v: 5 },
+    refSyntax: { r2v: 'image 1, image 2… (por extenso, em inglês)' },
     defaults: { aspect: '9:16', resolution: '1080p', duration: 5 },
     priceUsd: (c) => perSec({ '720p': 0.08, '1080p': 0.12 }, c.resolution, '1080p', c.duration === 10 ? 10 : 5),
   },
@@ -518,6 +532,16 @@ function pick<T extends string | number>(options: GenOption<T>[] | undefined, va
   return options.find(o => o.value === value)?.value ?? (options.some(o => o.value === fallback) ? fallback : undefined) ?? options[0].value;
 }
 
+/** Máximo de imagens de entrada do modelo neste modo e configuração (0 = não aceita). */
+export function maxImagesFor(model: GenModel, mode: GenMode, config: GenConfig = {}) {
+  const base = model.maxImages?.[mode] ?? 0;
+  const by = model.maxImagesBy?.(mode, normalizeConfig(model, config, mode));
+  return by === undefined ? base : Math.min(base, by);
+}
+
+/** Maior limite de imagens entre todos os modelos (o servidor nunca lê mais que isto). */
+export const MAX_INPUT_IMAGES = 16;
+
 /** Opções do modelo neste modo (alguns modos restringem resolução ou proporção). */
 export function optionsFor(model: GenModel, mode?: GenMode) {
   const lim = mode ? model.modeLimits?.[mode] : undefined;
@@ -545,7 +569,7 @@ export function normalizeConfig(model: GenModel, raw: GenConfig = {}, mode?: Gen
 
 export function quote(model: GenModel, config: GenConfig, mode?: GenMode) {
   const c = normalizeConfig(model, config, mode);
-  const usd = model.priceUsd(c);
+  const usd = model.priceUsd(c, mode);
   const credits = creditsForUsd(usd, model.minCredits?.(c) ?? KIND_MIN_CREDITS[model.kind]);
   return { usd, credits, kieCredits: Math.round(usd / KIE_USD_PER_CREDIT) };
 }

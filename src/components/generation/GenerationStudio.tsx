@@ -19,7 +19,7 @@ import { ensurePromptFits } from '@/lib/client/promptFit';
 import { compactStoredImage } from '@/lib/client/imageInput';
 import {
   GEN_LIMITS, GEN_MODES, GEN_TERMS_VERSION, GenConfig, GenJob, GenKind, GenMode, STATUS_LABEL,
-  getModel, modelsFor, normalizeConfig, optionsFor, quote,
+  getModel, maxImagesFor, modelsFor, normalizeConfig, optionsFor, quote,
 } from '@/lib/generation';
 import { PROMPT_MODES, PromptMode } from '@/lib/promptStudio';
 import { AspectGlyph, Chip, ImageSlot, InputSlotState, ModelCard, StepHeader, VideoSlot } from './parts';
@@ -165,25 +165,30 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sceneKey, kind]);
 
-  // Entradas exigidas por modo.
+  // Entradas por modo, até o limite do provedor para este modelo (e duração, no Kling 4.0).
+  const maxInputs = maxImagesFor(model, mode, config);
   const slotDefs = useMemo(() => {
     if (mode === 'i2v') {
+      // Ordem dos espaços: inicial, final e, quando o modelo aceita, os intermediários.
       const frames = [{ label: 'Frame inicial', required: true }, { label: 'Frame final', required: false }];
-      return frames.slice(0, Math.max(1, model.maxImages?.i2v ?? 2));
+      const middles = Array.from({ length: Math.max(0, maxInputs - 2) }, (_, i) => ({ label: `Intermediário ${i + 1}`, required: false }));
+      return [...frames, ...middles].slice(0, Math.max(1, maxInputs));
     }
     if (mode === 'i2i') {
-      const max = model.maxImages?.i2i ?? 4;
-      return Array.from({ length: max }, (_, i) => ({ label: i === 0 ? 'Imagem base' : `Referência ${i + 1}`, required: i === 0 }));
+      return Array.from({ length: maxInputs }, (_, i) => ({ label: i === 0 ? 'Imagem base' : `Referência ${i + 1}`, required: i === 0 }));
     }
     if (mode === 'r2v') {
-      const max = model.maxImages?.r2v ?? 3;
-      return Array.from({ length: max }, (_, i) => ({ label: `Referência ${i + 1}`, required: i === 0 }));
+      return Array.from({ length: maxInputs }, (_, i) => ({ label: `Referência ${i + 1}`, required: i === 0 }));
     }
     return [];
-  }, [mode, model]);
-  const visibleSlots = mode === 'i2i' || mode === 'r2v'
-    ? slotDefs.slice(0, Math.min(slotDefs.length, Math.max(2, slots.filter(Boolean).length + 1)))
-    : slotDefs;
+  }, [mode, maxInputs]);
+  // Os espaços aparecem conforme a pessoa preenche (frame inicial e final sempre à vista).
+  const filledCount = slots.slice(0, slotDefs.length).filter(Boolean).length;
+  const visibleSlots = mode === 'i2v'
+    ? slotDefs.slice(0, Math.min(slotDefs.length, Math.max(2, slots.slice(2, slotDefs.length).filter(Boolean).length + 3)))
+    : mode === 'i2i' || mode === 'r2v'
+      ? slotDefs.slice(0, Math.min(slotDefs.length, Math.max(2, filledCount + 1)))
+      : slotDefs;
 
   const changeMode = (m: GenMode) => {
     setMode(m);
@@ -320,7 +325,11 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
       const stamp = Date.now();
       const images: string[] = [];
       const filled = slots.slice(0, slotDefs.length);
-      for (let i = 0; i < filled.length; i++) {
+      // Imagem → vídeo vai na ordem [inicial, ...intermediários, final]; os outros modos, na ordem dos espaços.
+      const order = mode === 'i2v'
+        ? [0, ...filled.map((_, i) => i).filter(i => i >= 2), 1]
+        : filled.map((_, i) => i);
+      for (const i of order) {
         const s = filled[i];
         if (!s) continue;
         // Resultado guardado (ex.: frame do projeto): vai uma cópia reduzida, porque PNGs de 8 MB são recusados.
@@ -340,7 +349,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
       if (finalPrompt !== prompt.trim()) setPrompt(finalPrompt);
       const res = await callTool<{ id: string; position: number | null }>('/api/gen/create', {
         kind, mode, modelId: model.id, config, prompt: finalPrompt, negativePrompt: negative.trim(),
-        inputs: { images, video: videoPath }, promptId: source?.id || null,
+        inputs: { images, video: videoPath, ...(mode === 'i2v' ? { lastFrame: !!filled[1] } : {}) }, promptId: source?.id || null,
         projectId: sceneCtx?.project.id || null, sceneId: sceneCtx?.scene?.id || null,
       });
       setSelectedId(res.data.id);
@@ -486,7 +495,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
                   onClear={() => { if (video) URL.revokeObjectURL(video.preview); setVideo(null); }}
                   note={`MP4 ou MOV · ${GEN_LIMITS.videoMinSeconds} a ${GEN_LIMITS.videoMaxSeconds} s · até ${GEN_LIMITS.videoMaxBytes / 1024 / 1024} MB`} />
               ) : (
-                <div className={`grid gap-3 ${visibleSlots.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
+                <div className={`grid gap-3 ${visibleSlots.length > 6 ? 'grid-cols-4' : visibleSlots.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   {visibleSlots.map((d, i) => (
                     <ImageSlot key={i} label={d.label} required={d.required} value={slots[i]} busy={busy === i}
                       onPick={f => pickImage(i, f)}
@@ -495,11 +504,19 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
                 </div>
               )}
               {mode === 'i2v' && slotDefs.length > 1 && <p className="text-[10px] text-gray-500 mt-2">Com o frame final, o modelo faz o caminho entre as duas imagens.</p>}
-              {mode === 'r2v' && (
+              {mode === 'i2v' && slotDefs.length > 2 && (
+                <p className="text-[10px] text-gray-500 mt-1">
+                  Até {slotDefs.length} frames nesta duração. Os intermediários entram em ordem entre o inicial e o final.
+                  {model.refSyntax?.i2v ? ` Para citar no prompt: ${model.refSyntax.i2v}.` : ''}
+                </p>
+              )}
+              {(mode === 'r2v' || mode === 'i2i') && slotDefs.length > 1 && (
                 <p className="text-[10px] text-gray-500 mt-2">
-                  Até {slotDefs.length} imagens de personagem, produto ou cenário. {model.refSyntax
-                    ? `Cite cada uma no prompt pela ordem: ${model.refSyntax}`
-                    : 'Diga no prompt o papel de cada uma (ex.: "a mulher da imagem 1 segura o produto da imagem 2").'}
+                  {mode === 'i2i'
+                    ? `Até ${slotDefs.length} imagens neste modelo. A primeira é a base; as outras entram como referência.`
+                    : `Até ${slotDefs.length} imagens de personagem, produto ou cenário. ${model.refSyntax?.r2v
+                      ? `Cite cada uma no prompt pela ordem: ${model.refSyntax.r2v}`
+                      : 'Diga no prompt o papel de cada uma (ex.: "a mulher da imagem 1 segura o produto da imagem 2").'}`}
                 </p>
               )}
             </div>
