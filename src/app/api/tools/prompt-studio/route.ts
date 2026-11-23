@@ -9,24 +9,40 @@ import { HttpError } from '@/lib/server/auth';
 import { textStreamResponse } from '@/lib/server/stream';
 import { logPlatformAction } from '@/lib/firebase/logAction';
 import { PROMPT_STANDARD } from '@/lib/server/prompts/standard';
-import { AUTO, MAIN_TEXT, PROMPT_MODES, PromptMode, fieldsForMode } from '@/lib/promptStudio';
+import { AUTO, MAIN_TEXT, PROMPT_MODES, PromptMode, fieldsForMode, promptImageTarget } from '@/lib/promptStudio';
 
-type ImageRole = 'inicial' | 'final' | 'base' | 'referencia';
+/**
+ * Imagens chegam na ordem dos espaços da tela (a mesma em que vão ser anexadas na geração), com null nos vazios:
+ * - Image to Video: [inicial, final, intermediário 1, intermediário 2…];
+ * - Image to Image: [base, referência 2, referência 3…];
+ * - Reference to Video: [referência 1, referência 2…];
+ * - Video to Video: [referência de aparência].
+ * Aceita também o formato antigo por papel ({ inicial, final, base, referencia }).
+ */
+function readImages(mode: PromptMode, raw: unknown): (string | null)[] {
+  if (Array.isArray(raw)) return raw.map(v => (typeof v === 'string' && v ? v : null));
+  const r = (raw || {}) as Record<string, unknown>;
+  const pick = (k: string) => (typeof r[k] === 'string' && r[k] ? (r[k] as string) : null);
+  if (mode === 'i2v') return [pick('inicial'), pick('final')];
+  if (mode === 'i2i') return [pick('base'), pick('referencia')];
+  if (mode === 'v2v') return [pick('referencia')];
+  return [];
+}
 
-const IMAGE_ROLES: Record<PromptMode, { role: ImageRole; label: string; required: boolean }[]> = {
-  i2v: [
-    { role: 'inicial', label: 'Imagem 1 — frame inicial do vídeo (âncora de identidade e composição)', required: true },
-    { role: 'final', label: 'Imagem 2 — último frame desejado (modo primeiro + último frame)', required: false },
-  ],
-  i2i: [
-    { role: 'base', label: 'Imagem 1 — imagem base a ser editada', required: true },
-    { role: 'referencia', label: 'Imagem 2 — referência apenas de estilo, cor e luz', required: false },
-  ],
-  v2v: [
-    { role: 'referencia', label: 'Imagem de referência — aparência desejada (personagem, estilo ou cenário)', required: false },
-  ],
-  t2i: [],
-};
+/** Rótulo de cada imagem para a IA, com o número que ela terá no pedido de geração. */
+function imageLabel(mode: PromptMode, slot: number, n: number) {
+  if (mode === 'i2v') {
+    if (slot === 0) return `Imagem ${n} — frame inicial do vídeo (âncora de identidade e composição)`;
+    if (slot === 1) return `Imagem ${n} — último frame desejado (o vídeo termina nesta imagem)`;
+    return `Imagem ${n} — frame intermediário ${slot - 1} (o vídeo passa por esta imagem, em ordem, entre o inicial e o final)`;
+  }
+  if (mode === 'i2i') return slot === 0 ? `Imagem ${n} — imagem base a ser editada` : `Imagem ${n} — referência (use o que a descrição pedir dela: pessoa, produto, cenário, estilo, cor ou luz)`;
+  if (mode === 'r2v') return `Imagem ${n} — referência para o vídeo (personagem, produto, cenário ou estilo, conforme a descrição)`;
+  return 'Imagem de referência — aparência desejada (personagem, estilo ou cenário)';
+}
+
+/** O corpo inteiro passa pela função da Netlify (limite de ~6 MB): as imagens somadas ficam abaixo disto. */
+const MAX_TOTAL_IMAGE_CHARS = 5_000_000;
 
 /** Quadros tirados do vídeo no navegador (o modelo de texto não lê vídeo): até 4, do início ao fim. */
 const MAX_FRAMES = 4;
@@ -112,15 +128,31 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
       content.push({ type: 'image', source: { type: 'base64', ...parseImage(f) } });
     });
   }
-  const images = (body.images || {}) as Record<string, unknown>;
-  for (const slot of IMAGE_ROLES[mode]) {
-    if (!images[slot.role]) {
-      if (slot.required) throw new HttpError(400, 'missing_image', 'Envie a imagem para este tipo de prompt.');
-      continue;
-    }
-    content.push({ type: 'text', text: slot.label });
-    content.push({ type: 'image', source: { type: 'base64', ...parseImage(images[slot.role]) } });
+  // Mesmo limite de imagens da geração para o modelo da ficha (ou o padrão da aba de geração).
+  const target = promptImageTarget(mode, body.choices || {});
+  const slots = readImages(mode, body.images).slice(0, target.max);
+  if ((mode === 'i2v' || mode === 'i2i' || mode === 'r2v') && !slots[0]) {
+    throw new HttpError(400, 'missing_image', mode === 'r2v' ? 'Envie pelo menos uma imagem de referência.' : 'Envie a imagem para este tipo de prompt.');
   }
+  const totalChars = slots.reduce((n, v) => n + (v?.length || 0), 0);
+  if (totalChars > MAX_TOTAL_IMAGE_CHARS) throw new HttpError(413, 'images_too_large', 'As imagens somadas passaram do limite. Use menos imagens ou arquivos menores.');
+  // Numeração igual à ordem em que vão anexadas na geração (Image to Video: inicial, intermediários, final).
+  const order = mode === 'i2v' ? [0, ...slots.map((_, i) => i).filter(i => i >= 2), 1] : slots.map((_, i) => i);
+  const sent = order.filter(i => slots[i]);
+  sent.forEach((slot, idx) => {
+    content.push({ type: 'text', text: imageLabel(mode, slot, idx + 1) });
+    content.push({ type: 'image', source: { type: 'base64', ...parseImage(slots[slot]) } });
+  });
+  // Mais de uma imagem: o prompt cita cada uma pelo número, na sintaxe do modelo quando ele tem uma.
+  const citeRule = sent.length > 1 && mode !== 'v2v'
+    ? [
+      '',
+      `IMAGENS ANEXADAS NA GERAÇÃO: ${sent.length}, na ordem acima (Imagem 1 a ${sent.length}). O prompt deve usar todas e dizer o papel de cada uma.`,
+      target.refSyntax
+        ? `Cite cada imagem no prompt com a sintaxe do modelo escolhido: ${target.refSyntax} (a numeração segue a ordem acima).`
+        : 'Cite cada imagem no prompt pelo número, em inglês ("image 1", "image 2"…), seguindo a ordem acima.',
+    ]
+    : [];
 
   const { decided, gaps } = describeChoices(mode, body.choices || {});
   const modeLabel = PROMPT_MODES.find(m => m.id === mode)!.label;
@@ -137,6 +169,7 @@ export const POST = withTool('prompts', async ({ body, user, refund }) => {
       '',
       'LACUNAS (decida pelos Padrões e liste em "decisoes"):',
       gaps.length ? gaps.join('\n') : '- nenhuma',
+      ...citeRule,
     ].join('\n'),
   });
 

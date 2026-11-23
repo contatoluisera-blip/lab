@@ -31,7 +31,7 @@ import { PromptImport, SavedPrompt } from './PromptImport';
 type StudioKind = Exclude<GenKind, 'audio'>;
 
 /** Prompts do Gerador que servem para cada aba. */
-const IMPORTABLE: Record<StudioKind, PromptMode[]> = { image: ['t2i', 'i2i'], video: ['i2v', 'v2v'] };
+const IMPORTABLE: Record<StudioKind, PromptMode[]> = { image: ['t2i', 'i2i'], video: ['i2v', 'r2v', 'v2v'] };
 
 const COPY: Record<StudioKind, { title: string; subtitle: string; cta: string; tool: 'gen-image' | 'gen-video' }> = {
   image: {
@@ -212,7 +212,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
       setSource(h.source === 'prompts' ? { id: h.promptId, label: 'Gerador de Prompts' } : h.source === 'imagens' ? { label: 'Imagem gerada' } : null);
       const list: (InputSlotState | null)[] = [
         ...(h.storedImages || []).map(s => ({ preview: s.preview, path: s.path })),
-        ...(h.images || []).map(d => ({ preview: d, dataUrl: d })),
+        ...(h.images || []).map(d => (d ? { preview: d, dataUrl: d } : null)),
       ];
       setSlots(list);
       if (h.video) {
@@ -391,7 +391,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
 
   const blocked = !!userProfile?.genBlocked;
   const balanceAfter = account.credits - price.credits;
-  const createHref = withProject(`/dashboard/prompt-studio?mode=${mode === 'v2v' ? 'v2v' : mode === 'i2i' ? 'i2i' : mode === 't2i' ? 't2i' : 'i2v'}`, sceneCtx);
+  const createHref = withProject(`/dashboard/prompt-studio?mode=${mode === 'v2v' || mode === 'i2i' || mode === 't2i' || mode === 'r2v' ? mode : 'i2v'}`, sceneCtx);
 
   if (!hasToolAccess(copy.tool)) {
     return (

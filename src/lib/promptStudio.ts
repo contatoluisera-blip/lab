@@ -5,7 +5,10 @@
 // decisão assumida pela IA, listada no resultado.
 // ─────────────────────────────────────────────────────────────
 
-export type PromptMode = 'i2v' | 'v2v' | 't2i' | 'i2i';
+import { GenMode, getModel, maxImagesFor, modelsFor } from '@/lib/generation';
+
+/** r2v: vídeo guiado por imagens de referência (personagem, produto, cenário), sem frame inicial. */
+export type PromptMode = 'i2v' | 'r2v' | 'v2v' | 't2i' | 'i2i';
 
 export const AUTO = 'auto';
 
@@ -23,6 +26,7 @@ export interface PromptField {
 
 export const PROMPT_MODES: { id: PromptMode; label: string; description: string }[] = [
   { id: 'i2v', label: 'Image to Video', description: 'Anime uma imagem com câmera, ação e som.' },
+  { id: 'r2v', label: 'Reference to Video', description: 'Personagem, produto ou cenário de várias imagens guiam o vídeo.' },
   { id: 'v2v', label: 'Video to Video', description: 'Transforme um vídeo seu mantendo movimento, câmera e tempo.' },
   { id: 't2i', label: 'Text to Image', description: 'Crie uma imagem do zero a partir da descrição.' },
   { id: 'i2i', label: 'Image to Image', description: 'Edite uma imagem preservando o que importa.' },
@@ -32,6 +36,9 @@ export const PROMPT_FIELDS: PromptField[] = [
   // Plataforma
   { id: 'modelo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['i2v'], kind: 'select',
     options: ['Seedance 2.5 (KIE AI)', 'Veo 3', 'Kling', 'Kling 4.0', 'Hailuo 2.3', 'Wan 2.7', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
+  { id: 'modeloRef', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['r2v'], kind: 'select',
+    options: ['Veo 3', 'Kling 4.0', 'Seedance 2.5 (KIE AI)', 'Grok Imagine', 'PixVerse V6', 'Wan 2.7'],
+    help: 'Define quantas referências cabem e como o prompt cita cada uma.' },
   { id: 'modeloVideo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['v2v'], kind: 'select',
     options: ['Wan 2.6 (KIE AI)', 'Kling 3.0 Omni', 'Seedance 2 (vídeo de referência)', 'Luma Modify', 'Runway'] },
   { id: 'modeloImagem', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['t2i', 'i2i'], kind: 'select',
@@ -121,11 +128,46 @@ export const PROMPT_FIELDS: PromptField[] = [
 export const PROMPT_GROUPS: PromptField['group'][] = ['Plataforma', 'Cena', 'Câmera', 'Lente e luz', 'Estilo', 'Som', 'Restrições'];
 
 export function fieldsForMode(mode: PromptMode) {
-  return PROMPT_FIELDS.filter(f => f.modes.includes(mode));
+  // Reference to Video usa os campos de Image to Video (menos a lista de modelos, que tem a sua).
+  return PROMPT_FIELDS.filter(f => f.modes.includes(mode) || (mode === 'r2v' && f.modes.includes('i2v') && f.id !== 'modelo'));
+}
+
+/** Modelo da ficha do Gerador → modelo disponível para gerar na Creator Lab. */
+export function genModelFromChoices(mode: PromptMode, choices: Record<string, string | string[]>): string | null {
+  const m = String(choices.modelo || choices.modeloRef || choices.modeloImagem || choices.modeloVideo || '');
+  if (mode === 'v2v') return 'wan-v2v';
+  const map: [RegExp, string][] = [
+    [/kling 4/i, 'kling-4'], [/kling/i, 'kling-3'], [/veo/i, 'veo-fast'], [/seedance/i, 'seedance-fast'],
+    [/hailuo/i, 'hailuo-23-std'], [/wan/i, 'wan-27'], [/grok/i, 'grok-imagine'], [/pixverse/i, 'pixverse-v6'], [/runway/i, 'runway'],
+    [/nano banana pro/i, 'nano-banana-pro'], [/nano banana/i, 'nano-banana-2'], [/seedream/i, 'seedream-5-pro'],
+    [/gpt image/i, 'gpt-image-2'], [/ideogram/i, 'ideogram-v3'], [/imagen/i, 'imagen4-fast'], [/flux/i, 'flux-3-klein'],
+  ];
+  for (const [re, id] of map) if (re.test(m)) return id;
+  return null;
+}
+
+/** Imagens que o Gerador aceita em cada modo (as mesmas que a geração vai anexar). */
+export const PROMPT_IMAGE_MODES: PromptMode[] = ['i2v', 'r2v', 'i2i', 'v2v'];
+
+/**
+ * Modelo de geração que a ficha aponta (ou o padrão da aba de geração) e quantas imagens ele aceita,
+ * para o Gerador pedir exatamente as imagens que vão ser anexadas depois.
+ */
+export function promptImageTarget(mode: PromptMode, choices: Record<string, string | string[]>) {
+  if (mode === 'v2v') return { modelId: null as string | null, max: 1, refSyntax: undefined as string | undefined };
+  if (mode === 't2i') return { modelId: null as string | null, max: 0, refSyntax: undefined as string | undefined };
+  const kind = mode === 'i2i' ? 'image' : 'video';
+  const chosen = getModel(genModelFromChoices(mode, choices) || '');
+  const model = chosen && chosen.modes.includes(mode as GenMode) ? chosen : modelsFor(kind, mode as GenMode)[0];
+  const seconds = parseInt(String(choices.duracao || ''), 10);
+  const max = maxImagesFor(model, mode as GenMode, Number.isFinite(seconds) ? { duration: seconds } : {});
+  return { modelId: model.id, max, refSyntax: model.refSyntax?.[mode as GenMode] };
 }
 
 /** Texto principal pedido em cada modo. */
 export const MAIN_TEXT: Record<PromptMode, { label: string; placeholder: string; required: boolean }> = {
+  r2v: { label: 'O que deve acontecer no vídeo', required: true,
+    placeholder: 'Ex.: a mulher da imagem 1 abre a caixa do produto da imagem 2 na cozinha da imagem 3 e sorri para a câmera.' },
   i2v: { label: 'O que deve acontecer no vídeo', required: false,
     placeholder: 'Ex.: a enfermeira levanta a cabeça quando um alarme toca e dá um passo decidido à frente. Quero algo tenso.' },
   t2i: { label: 'Descreva a imagem', required: true,

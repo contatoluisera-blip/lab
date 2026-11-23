@@ -12,8 +12,11 @@ export interface GenHandoff {
   prompt: string;
   negativePrompt?: string;
   promptId?: string | null;
-  /** Imagens como data URL (JPEG), na ordem: frame inicial/base, depois final/referência. */
-  images?: string[];
+  /**
+   * Imagens como data URL (JPEG), na ordem dos espaços da aba de geração (null = espaço vazio):
+   * imagem → vídeo [inicial, final, intermediários…]; com referência [base, referências…]; referências → vídeo [1, 2…].
+   */
+  images?: (string | null)[];
   /** Resultados anteriores já guardados (ex.: animar uma imagem gerada). */
   storedImages?: { preview: string; path: string }[];
   video?: File | null;

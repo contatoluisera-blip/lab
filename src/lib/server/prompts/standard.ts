@@ -128,6 +128,19 @@ Os rótulos só organizam; se o modelo escolhido responde melhor a texto corrido
 - Hailuo 2.3: forte em movimento de pessoas e expressões; descreva a ação corporal e o gesto com clareza, câmera simples; sem áudio.
 - Wan 2.7: aceita negative prompt e primeiro + último frame; frases diretas, uma ação principal por clipe.
 - Grok Imagine / PixVerse V6: prompts curtos e visuais, uma ideia por clipe; descreva o som em uma frase se o áudio estiver ligado.
+- Frames intermediários (Kling 4.0): além do inicial e do final, até 8 imagens no meio, em ordem. Descreva o caminho de uma para a outra e cite cada frame pelo nome que o modelo usa (@first_frame, @keyframe_1, @keyframe_2…, @last_frame); cite só frames enviados.
+
+# MODO REFERENCE TO VIDEO
+
+## Princípio central
+Não há frame inicial: as imagens são referências de identidade (personagem, produto, cenário, estilo). O prompt constrói a cena inteira, como num Text to Video, e diz o papel de cada imagem. Nada da referência entra se o prompt não pedir.
+
+## Regras
+- Use todas as imagens enviadas e dê um papel explícito a cada uma, pela ordem: quem é a pessoa, qual é o produto, onde é a cena, de onde vem o estilo.
+- Cite as imagens com a sintaxe do modelo: Kling 4.0 @image_1, @image_2…; Grok Imagine @image1, @image2…; PixVerse V6 @img1, @img2…; Veo 3, Seedance e Wan 2.7 por extenso ("image 1", "the woman from image 1").
+- Trave a identidade: rosto, roupa, cores e formato do produto e logos devem seguir a referência exatamente.
+- A ação, a câmera, a luz e o som seguem o formato I2V ([SHOT], [ACTION], [ENVIRONMENT], [LENS & LOOK], [LIGHT], [AUDIO], [CONTINUITY]).
+- Veo 3 com referências: só 8 s. Escreva uma ação curta.
 
 # MODO TEXT TO IMAGE
 
@@ -181,7 +194,7 @@ A imagem enviada é a base. O prompt descreve com precisão a EDIÇÃO (o que mu
 6. Preservar: identidade/rosto, pose, roupa, produto, logo, texto, composição, enquadramento.
 7. Integração: luz, sombra, perspectiva e escala coerentes entre o que muda e o que fica.
 8. Restrições.
-Se houver imagem de referência de estilo, dê papel explícito a cada imagem ("Use image 1 as the base to edit; use image 2 only as a style and color reference").
+Com mais de uma imagem, dê papel explícito a cada uma, pela ordem em que serão anexadas ("Use image 1 as the base to edit; put the product from image 2 in her hand; use image 3 only as a style and color reference"). Use todas as imagens enviadas; nenhuma fica sem papel.
 
 ## Formato do prompt (I2I) — em inglês
 [EDIT] <a mudança, objetiva e localizada>.

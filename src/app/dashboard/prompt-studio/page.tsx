@@ -20,40 +20,24 @@ import { addDoc, collection, doc, getDoc, getDocs, query, where } from 'firebase
 import { streamTool, parseModelJson } from '@/lib/client/api';
 import { addNotification } from '@/lib/notifications';
 import {
-  AUTO, MAIN_TEXT, PROMPT_GROUPS, PROMPT_MODES, PromptMode, PromptResult, fieldsForMode,
+  AUTO, MAIN_TEXT, PROMPT_GROUPS, PROMPT_MODES, PromptMode, PromptResult, fieldsForMode, genModelFromChoices, promptImageTarget,
 } from '@/lib/promptStudio';
+import { getModel } from '@/lib/generation';
 
 type Choices = Record<string, string | string[]>;
-type Images = Partial<Record<'inicial' | 'final' | 'base' | 'referencia', string>>;
+/** Imagens na ordem dos espaços (a mesma da aba de geração), com null nos vazios. */
+type Images = (string | null)[];
 
-const IMAGE_SLOTS: Record<PromptMode, { role: keyof Images; label: string; required: boolean }[]> = {
-  i2v: [
-    { role: 'inicial', label: 'Imagem inicial', required: true },
-    { role: 'final', label: 'Último frame (opcional)', required: false },
-  ],
-  i2i: [
-    { role: 'base', label: 'Imagem a editar', required: true },
-    { role: 'referencia', label: 'Referência de estilo (opcional)', required: false },
-  ],
-  v2v: [
-    { role: 'referencia', label: 'Referência de aparência (opcional)', required: false },
-  ],
-  t2i: [],
-};
-
-/** Modelo da ficha do Gerador → modelo disponível para gerar na Creator Lab. */
-function genModelFromChoices(mode: PromptMode, choices: Choices): string | null {
-  const m = String(choices.modelo || choices.modeloImagem || choices.modeloVideo || '');
-  if (mode === 'v2v') return 'wan-v2v';
-  const map: [RegExp, string][] = [
-    [/kling 4/i, 'kling-4'], [/kling/i, 'kling-3'], [/veo/i, 'veo-fast'], [/seedance/i, 'seedance-fast'],
-    [/hailuo/i, 'hailuo-23-std'], [/wan/i, 'wan-27'], [/grok/i, 'grok-imagine'], [/pixverse/i, 'pixverse-v6'], [/runway/i, 'runway'],
-    [/nano banana pro/i, 'nano-banana-pro'], [/nano banana/i, 'nano-banana-2'], [/seedream/i, 'seedream-5-pro'],
-    [/gpt image/i, 'gpt-image-2'], [/ideogram/i, 'ideogram-v3'], [/imagen/i, 'imagen4-fast'], [/flux/i, 'flux-3-klein'],
-  ];
-  for (const [re, id] of map) if (re.test(m)) return id;
-  return null;
+/** Rótulo de cada espaço de imagem por modo. */
+function slotLabel(mode: PromptMode, i: number) {
+  if (mode === 'i2v') return i === 0 ? 'Imagem inicial' : i === 1 ? 'Último frame (opcional)' : `Intermediário ${i - 1} (opcional)`;
+  if (mode === 'i2i') return i === 0 ? 'Imagem a editar' : `Referência ${i + 1} (opcional)`;
+  if (mode === 'r2v') return i === 0 ? 'Referência 1' : `Referência ${i + 1} (opcional)`;
+  return 'Referência de aparência (opcional)';
 }
+
+/** Com muitas imagens, cada uma vai menor (o pedido inteiro precisa caber no limite do servidor). */
+const sizeForSlot = (i: number) => (i < 2 ? 1280 : i < 6 ? 1024 : 768);
 
 /** Tira quadros do vídeo no navegador (início → fim) para a IA ler o movimento. */
 async function extractFrames(file: File, count = 4, max = 1024): Promise<{ frames: string[]; duration: number; width: number; height: number }> {
@@ -88,7 +72,7 @@ async function extractFrames(file: File, count = 4, max = 1024): Promise<{ frame
 }
 
 /** Reduz a imagem para no máximo 1600px (JPEG) antes de enviar: mais rápido e dentro do limite do servidor. */
-async function resizeImage(file: File, max = 1600): Promise<string> {
+async function resizeImage(file: File, max = 1280): Promise<string> {
   const url = URL.createObjectURL(file);
   try {
     const img = new Image();
@@ -127,13 +111,13 @@ export default function PromptStudioPage() {
   const [mode, setMode] = useState<PromptMode>('i2v');
   const [description, setDescription] = useState('');
   const [choices, setChoices] = useState<Choices>({});
-  const [images, setImages] = useState<Images>({});
+  const [images, setImages] = useState<Images>([]);
   const [openGroup, setOpenGroup] = useState<string | null>('Plataforma');
   const [video, setVideo] = useState<{ file: File; preview: string; frames: string[]; duration: number; width: number; height: number } | null>(null);
   const [readingVideo, setReadingVideo] = useState(false);
   const [savedId, setSavedId] = useState<string | null>(null);
   /** Entradas usadas no resultado atual (para levar à geração). */
-  const [resultInputs, setResultInputs] = useState<{ images: string[]; video: File | null; choices: Choices } | null>(null);
+  const [resultInputs, setResultInputs] = useState<{ images: Images; video: File | null; choices: Choices } | null>(null);
 
   const [loading, setLoading] = useState(false);
   const [progress, setProgress] = useState('');
@@ -159,6 +143,15 @@ export default function PromptStudioPage() {
 
   const fields = fieldsForMode(mode);
   const main = MAIN_TEXT[mode];
+  // Quantas imagens cabem: as mesmas que o modelo escolhido aceita na geração (padrão da aba, se "decidir por mim").
+  const imageTarget = promptImageTarget(mode, choices);
+  const targetName = imageTarget.modelId ? getModel(imageTarget.modelId)?.name : null;
+  const slotCount = imageTarget.max;
+  const filledImages = images.slice(0, slotCount).filter(Boolean).length;
+  // Os espaços aparecem conforme a pessoa preenche (inicial e final sempre à vista no Image to Video).
+  const visibleCount = mode === 'i2v'
+    ? Math.min(slotCount, Math.max(2, images.slice(2, slotCount).filter(Boolean).length + 3))
+    : Math.min(slotCount, Math.max(mode === 'v2v' ? 1 : 2, filledImages + 1));
 
   const loadHistory = React.useCallback(async () => {
     if (!user) return;
@@ -225,7 +218,7 @@ export default function PromptStudioPage() {
 
   const changeMode = (m: PromptMode) => {
     setMode(m);
-    setImages({});
+    setImages([]);
     if (video) URL.revokeObjectURL(video.preview);
     setVideo(null);
     setError('');
@@ -274,15 +267,15 @@ export default function PromptStudioPage() {
     setChoice(id, current.includes(option) ? current.filter(o => o !== option) : [...current, option]);
   };
 
-  const handleImage = async (role: keyof Images, file?: File) => {
+  const handleImage = async (slot: number, file?: File) => {
     if (!file) return;
     if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
       setError('Envie a imagem em JPG, PNG ou WEBP.');
       return;
     }
     try {
-      const dataUrl = await resizeImage(file);
-      setImages(prev => ({ ...prev, [role]: dataUrl }));
+      const dataUrl = await resizeImage(file, sizeForSlot(slot));
+      setImages(prev => { const next = [...prev]; next[slot] = dataUrl; return next; });
       setError('');
     } catch {
       setError('Não foi possível ler essa imagem. Tente outro arquivo.');
@@ -293,22 +286,23 @@ export default function PromptStudioPage() {
     const check = canUseTool('prompts');
     if (!check.ok) { setError(check.message!); return; }
 
-    const missingImage = IMAGE_SLOTS[mode].find(s => s.required && !images[s.role]);
-    if (missingImage) { setError(`Envie a ${missingImage.label.toLowerCase()}.`); return; }
+    if ((mode === 'i2v' || mode === 'i2i' || mode === 'r2v') && !images[0]) {
+      setError(`Envie a ${slotLabel(mode, 0).toLowerCase()}.`); return;
+    }
     if (mode === 'v2v' && !video) { setError('Envie o vídeo de entrada.'); return; }
     if (main.required && !description.trim()) { setError(`Preencha "${main.label}".`); return; }
 
     setLoading(true);
     setError('');
     setResult(null);
-    setProgress(mode === 'v2v' ? 'Lendo o vídeo e montando a ficha técnica...' : IMAGE_SLOTS[mode].length ? 'Lendo a imagem e montando a ficha técnica...' : 'Montando a ficha técnica...');
+    setProgress(mode === 'v2v' ? 'Lendo o vídeo e montando a ficha técnica...' : filledImages > 1 ? `Lendo as ${filledImages} imagens e montando a ficha técnica...` : slotCount ? 'Lendo a imagem e montando a ficha técnica...' : 'Montando a ficha técnica...');
 
     try {
       const relevantChoices = Object.fromEntries(
         Object.entries(choices).filter(([id]) => fields.some(f => f.id === id))
       );
       const text = await streamTool('/api/tools/prompt-studio', {
-        mode, description, choices: relevantChoices, images,
+        mode, description, choices: relevantChoices, images: images.slice(0, slotCount),
         // Cena da Montagem: os primeiros prompts de cada cena saem grátis.
         ...(sceneCtx?.scene ? { projectId: sceneCtx.project.id, sceneId: sceneCtx.scene.id } : {}),
         ...(mode === 'v2v' && video ? { videoFrames: video.frames, videoMeta: { duration: video.duration, width: video.width, height: video.height } } : {}),
@@ -327,8 +321,8 @@ export default function PromptStudioPage() {
       setResultMode(mode);
       setSavedId(null);
       setResultInputs({
-        images: mode === 'i2v' ? [images.inicial, images.final].filter(Boolean) as string[]
-          : mode === 'i2i' ? [images.base, images.referencia].filter(Boolean) as string[] : [],
+        // Na mesma ordem dos espaços da aba de geração (vazios ficam vazios lá também).
+        images: mode === 'i2v' || mode === 'i2i' || mode === 'r2v' ? images.slice(0, slotCount) : [],
         video: mode === 'v2v' ? video?.file || null : null,
         choices: relevantChoices,
       });
@@ -390,7 +384,7 @@ export default function PromptStudioPage() {
             )}
 
             {/* Modo */}
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-2">
+            <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 mb-2">
               {PROMPT_MODES.map(m => (
                 <button
                   key={m.id}
@@ -441,16 +435,17 @@ export default function PromptStudioPage() {
               )}
 
               {/* Imagens */}
-              {IMAGE_SLOTS[mode].length > 0 && (
-                <div className="grid grid-cols-2 gap-3">
-                  {IMAGE_SLOTS[mode].map(slot => (
-                    <div key={slot.role}>
-                      <p className="text-xs font-medium text-gray-300 mb-1.5">{slot.label}</p>
-                      {images[slot.role] ? (
+              {slotCount > 0 && (
+                <div>
+                <div className={`grid gap-3 ${visibleCount > 4 ? 'grid-cols-3 sm:grid-cols-4' : 'grid-cols-2'}`}>
+                  {Array.from({ length: visibleCount }, (_, i) => ({ i, label: slotLabel(mode, i) })).map(slot => (
+                    <div key={slot.i}>
+                      <p className="text-xs font-medium text-gray-300 mb-1.5 truncate" title={slot.label}>{slot.label}</p>
+                      {images[slot.i] ? (
                         <div className="relative rounded-xl overflow-hidden border border-white/10 aspect-[4/5] bg-black/40">
                           {/* eslint-disable-next-line @next/next/no-img-element */}
-                          <img src={images[slot.role]} alt={slot.label} className="w-full h-full object-contain" />
-                          <button type="button" onClick={() => setImages(prev => ({ ...prev, [slot.role]: undefined }))}
+                          <img src={images[slot.i]!} alt={slot.label} className="w-full h-full object-contain" />
+                          <button type="button" onClick={() => setImages(prev => { const next = [...prev]; next[slot.i] = null; return next; })}
                             className="absolute top-1.5 right-1.5 p-1 rounded-full bg-black/70 text-white hover:bg-black" aria-label="Remover imagem">
                             <X className="w-3.5 h-3.5" />
                           </button>
@@ -460,11 +455,18 @@ export default function PromptStudioPage() {
                           <ImagePlus className="w-6 h-6" />
                           <span className="text-[11px] text-center px-2">Toque para enviar</span>
                           <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                            onChange={e => { handleImage(slot.role, e.target.files?.[0]); e.target.value = ''; }} />
+                            onChange={e => { handleImage(slot.i, e.target.files?.[0]); e.target.value = ''; }} />
                         </label>
                       )}
                     </div>
                   ))}
+                </div>
+                {mode !== 'v2v' && slotCount > 1 && (
+                  <p className="text-[10px] text-gray-500 mt-2">
+                    Até {slotCount} {mode === 'i2v' ? 'frames' : 'imagens'}{targetName ? ` no ${targetName}` : ''}, as mesmas que vão anexadas na geração.
+                    {' '}O prompt cita cada uma na ordem{imageTarget.refSyntax ? ` (${imageTarget.refSyntax})` : ''}. Troque o modelo na ficha para mudar o limite.
+                  </p>
+                )}
                 </div>
               )}
 
