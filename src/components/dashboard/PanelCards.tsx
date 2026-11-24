@@ -2,17 +2,14 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import Link from 'next/link';
-import { collection, onSnapshot, query, where } from 'firebase/firestore';
 import {
   ArrowUpRight, Coins, GraduationCap, Lock, PlayCircle, ImagePlus, Film, Clapperboard, Lightbulb, Camera, Compass,
   ScanSearch, MessageSquare, Calculator, FileText, IdCard, Briefcase, Sparkles, Scissors,
   AudioLines,
 } from 'lucide-react';
-import { db } from '@/lib/firebase';
-import { useAuth } from '@/context/AuthContext';
 import { useUserProfile } from '@/context/UserProfileContext';
 import { readStudyProgress, StudyProgress } from '@/lib/client/studyProgress';
-import { GenJob, GEN_MODELS, minCredits } from '@/lib/generation';
+import { GEN_MODELS, minCredits } from '@/lib/generation';
 
 const VIDEO_MODEL_COUNT = GEN_MODELS.filter(m => m.kind === 'video').length;
 const IMAGE_MODEL_COUNT = GEN_MODELS.filter(m => m.kind === 'image').length;
@@ -181,24 +178,12 @@ const FLOAT_FRAMES = [
   { rotate: 10, x: '64%', y: '16%', delay: '2.4s', ratio: '9 / 16', w: 'w-[32%]', label: 'Cena com IA · 9:16', z: 'z-10', media: { type: 'video', src: '/media/ia/pelucia.mp4', poster: '/media/ia/pelucia.jpg' } },
 ] as const;
 
-/** Mídia de exemplo para os blocos de geração quando a pessoa ainda não gerou nada. */
-const SAMPLE_VIDEO = { url: '/media/ia/fogo.mp4', type: 'video' };
-const SAMPLE_IMAGE = { url: '/media/ia/frame-feirante.jpg', type: 'image' };
-
-/** Últimas gerações concluídas da pessoa (para dar vida ao painel). */
-export function useRecentGenerations(max = 6) {
-  const { user } = useAuth();
-  const [recent, setRecent] = useState<GenJob[]>([]);
-  useEffect(() => {
-    if (!user) return;
-    const q = query(collection(db, 'gen_jobs'), where('uid', '==', user.uid), where('status', '==', 'completed'));
-    return onSnapshot(q, snap => {
-      setRecent(snap.docs.map(d => ({ id: d.id, ...(d.data() as Omit<GenJob, 'id'>) }))
-        .sort((a, b) => b.id.localeCompare(a.id)).slice(0, max));
-    }, () => setRecent([]));
-  }, [user, max]);
-  return recent;
-}
+/**
+ * Capas fixas dos blocos de geração, iguais para todas as contas: nunca a última geração de
+ * ninguém (evita material sensível ou pessoal aparecendo no painel). Cena e frame gerados com IA.
+ */
+const COVER_VIDEO = { url: '/media/ia/fogo.mp4', type: 'video' };
+const COVER_IMAGE = { url: '/media/ia/frame-feirante.jpg', type: 'image' };
 
 export function StudioShowcase() {
 
@@ -382,12 +367,10 @@ function ToolCard({ t, locked, cost, media }: { t: ToolDef; locked: boolean; cos
   );
 }
 
-export function ToolTiles({ recent }: { recent: GenJob[] }) {
+export function ToolTiles() {
   const { hasToolAccess } = useUserProfile();
   const [cat, setCat] = useState<(typeof CATEGORIES)[number]>('Todas');
   const list = useMemo(() => TOOLS.filter(t => cat === 'Todas' || t.cat === cat), [cat]);
-  const lastVideo = recent.find(j => j.kind === 'video')?.outputs?.[0] || SAMPLE_VIDEO;
-  const lastImage = recent.find(j => j.kind === 'image')?.outputs?.[0] || SAMPLE_IMAGE;
 
   return (
     <section aria-labelledby="painel-ferramentas" className="space-y-5">
@@ -412,7 +395,7 @@ export function ToolTiles({ recent }: { recent: GenJob[] }) {
         {list.map(t => {
           const locked = t.tool ? !hasToolAccess(t.tool) : false;
           const cost = t.cost ?? (t.tool ? (TOOL_COSTS[t.tool] === 0 ? 'grátis' : `${TOOL_COSTS[t.tool]} cr`) : '');
-          const media = t.href.endsWith('/videos') ? lastVideo : t.href.endsWith('/imagens') ? lastImage : null;
+          const media = t.href.endsWith('/videos') ? COVER_VIDEO : t.href.endsWith('/imagens') ? COVER_IMAGE : null;
           return <ToolCard key={t.href} t={t} locked={locked} cost={cost} media={media} />;
         })}
       </div>
