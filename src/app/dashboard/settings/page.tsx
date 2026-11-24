@@ -12,12 +12,16 @@ import {
   CheckCircle2,
   Calendar,
   CloudUpload,
-  Phone
+  Phone,
+  LifeBuoy,
+  ArrowRight
 } from 'lucide-react';
 import { cn } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 import { db } from '@/lib/firebase';
 import { doc, updateDoc, setDoc } from 'firebase/firestore';
+
+const SUPPORT_EMAIL = 'contato@luisera.com.br';
 
 export default function SettingsPage() {
   const { user } = useAuth();
@@ -144,7 +148,7 @@ export default function SettingsPage() {
       {/* Header */}
       <div className="flex flex-col gap-2">
         <h1 className="text-3xl font-bold text-white tracking-tight">Configurações</h1>
-        <p className="text-gray-400">Personalize seu perfil, informações profissionais e conta.</p>
+        <p className="text-gray-400">Personalize seu perfil, informações profissionais e conta. Precisa de ajuda? <a href="#suporte" className="text-brand-emerald hover:underline">Fale com o suporte</a>.</p>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8 items-start">
@@ -311,6 +315,31 @@ export default function SettingsPage() {
                   Salvar Alterações
                   <CheckCircle2 className="w-4 h-4 ml-2 group-hover:scale-125 transition-transform" />
                </Button>
+            </div>
+          </GlassCard>
+
+          {/* Suporte */}
+          <GlassCard id="suporte" className="p-8 md:p-10 border-white/10 scroll-mt-24">
+            <div className="flex flex-col md:flex-row md:items-center justify-between gap-6">
+              <div className="flex items-start gap-3">
+                <div className="w-10 h-10 shrink-0 rounded-xl bg-brand-emerald/10 flex items-center justify-center text-brand-emerald border border-brand-emerald/20">
+                  <LifeBuoy className="w-5 h-5" />
+                </div>
+                <div className="space-y-1">
+                  <h2 className="text-xl font-bold text-white">Suporte</h2>
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Dúvida, problema numa geração ou na cobrança? Escreva para{' '}
+                    <span className="text-gray-300 font-medium select-all">{SUPPORT_EMAIL}</span>{' '}
+                    usando o e-mail da sua conta.
+                  </p>
+                </div>
+              </div>
+              <a
+                href={`mailto:${SUPPORT_EMAIL}?subject=${encodeURIComponent('Suporte Creator Lab')}&body=${encodeURIComponent(`Conta: ${user?.email || ''}\n\nComo posso ajudar?\n`)}`}
+                className="inline-flex items-center justify-center gap-2 h-12 px-8 rounded-xl bg-brand-emerald text-black font-bold uppercase tracking-widest text-xs hover:bg-brand-mint transition-colors shrink-0"
+              >
+                Falar com o suporte <ArrowRight className="w-4 h-4" />
+              </a>
             </div>
           </GlassCard>
         </div>
