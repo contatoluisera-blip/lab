@@ -4,7 +4,7 @@ import { errorResponse } from '@/lib/server/tool';
 import { productForPlan, stripeClient } from '@/lib/server/stripe';
 import { adminDb } from '@/lib/firebase/admin';
 import { getAccountState } from '@/lib/accountState';
-import { BILLING_CYCLES, BillingCycle, TOPUP_VALID_DAYS, isPaidPlan, topupPacksFor, topupPrice } from '@/lib/planConfig';
+import { AULA_OFFER, BILLING_CYCLES, BillingCycle, TOPUP_VALID_DAYS, isPaidPlan, topupPacksFor, topupPrice } from '@/lib/planConfig';
 import { toStored } from '@/lib/creditUnits';
 
 export const dynamic = 'force-dynamic';
@@ -60,6 +60,15 @@ export async function POST(req: Request) {
     const product = await productForPlan(plan, cycle);
     if (!product) throw new HttpError(400, 'plan_unavailable', 'Este plano não está disponível para assinatura no momento.');
 
+    // Oferta da aula: o cupom do ciclo entra direto (a Stripe não aceita cupom e campo de código juntos).
+    const offer = body.offer === AULA_OFFER.id ? AULA_OFFER.cycles[cycle] : null;
+    if (offer) {
+      if (!AULA_OFFER.plans.includes(plan)) throw new HttpError(400, 'offer_plan', 'A condição da aula vale para os planos Start, Pro e Elite.');
+      if (getAccountState(profile).status === 'active') {
+        throw new HttpError(409, 'offer_has_plan', 'Sua conta já tem uma assinatura ativa. A condição da aula é para novas assinaturas.');
+      }
+    }
+
     // Consentimento e origem do visitante seguem com o pagamento (atribuição da venda e API de Conversões).
     const mkt = body.marketing || {};
     const last = mkt.attribution?.last || mkt.attribution?.first || {};
@@ -75,11 +84,11 @@ export async function POST(req: Request) {
       mode: 'subscription',
       ...customer,
       client_reference_id: user.uid,
-      allow_promotion_codes: true,
-      metadata: { planName: plan, cycle, interval: cycle, ...marketingMeta },
+      ...(offer ? { discounts: [{ coupon: offer.coupon }] } : { allow_promotion_codes: true }),
+      metadata: { planName: plan, cycle, interval: cycle, ...(offer ? { offer: AULA_OFFER.id } : {}), ...marketingMeta },
       line_items: [{ price: product.priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${origin}/dashboard/billing?checkout_canceled=true`,
+      cancel_url: offer ? `${origin}/aula?checkout_canceled=true#oferta` : `${origin}/dashboard/billing?checkout_canceled=true`,
     });
 
     return NextResponse.json({ url: session.url });

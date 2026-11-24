@@ -9,6 +9,13 @@ import { auth } from '@/lib/firebase';
 import { useRouter } from 'next/navigation';
 import { useAuth } from '@/context/AuthContext';
 
+/** Volta para a página de origem (?next=/aula), só caminhos internos; senão, o painel. */
+function nextPath() {
+  if (typeof window === 'undefined') return '/dashboard';
+  const next = new URLSearchParams(window.location.search).get('next') || '';
+  return next.startsWith('/') && !next.startsWith('//') ? next : '/dashboard';
+}
+
 export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -23,7 +30,7 @@ export default function LoginPage() {
   // (nunca chamar router.push diretamente durante o render)
   useEffect(() => {
     if (!loading && user) {
-      router.push('/dashboard');
+      router.push(nextPath());
     }
   }, [user, loading, router]);
 
@@ -42,7 +49,7 @@ export default function LoginPage() {
 
     try {
       await signInWithEmailAndPassword(auth, email, password);
-      router.push('/dashboard');
+      router.push(nextPath());
     } catch (err: any) {
       console.error(err);
       setError(`Erro Firebase: ${err.message}`);

@@ -119,6 +119,25 @@ export const cycleDiscount = (plan: PlanId, cycle: BillingCycle) =>
 export const cycleTotal = (plan: PlanId, cycle: BillingCycle) =>
   Math.round(PLAN_PRICES[plan][cycle] * BILLING_CYCLES[cycle].months * 100) / 100;
 
+// ── Oferta da aula (/aula) ───────────────────────────────────────────────────
+// Quem chega pela aula do Instagram assina Start, Pro ou Elite com desconto no começo.
+// O cupom de cada ciclo é aplicado pelo servidor no checkout (sem código para digitar):
+// mensal 50% nas 3 primeiras cobranças, trimestral 50% na primeira, anual 12,5% na primeira
+// (o mesmo que 3 dos 12 meses pela metade). Cupons criados por scripts/stripe-offer-aula.ts.
+export const AULA_OFFER = {
+  id: 'aula50',
+  plans: ['start', 'pro', 'elite'] as PlanId[],
+  cycles: {
+    monthly: { coupon: 'AULA50_MENSAL', percentOff: 50, invoices: 3 },
+    quarterly: { coupon: 'AULA50_TRIMESTRAL', percentOff: 50, invoices: 1 },
+    annual: { coupon: 'AULA50_ANUAL', percentOff: 12.5, invoices: 1 },
+  } satisfies Record<BillingCycle, { coupon: string; percentOff: number; invoices: number }>,
+} as const;
+
+/** Valor de cada uma das cobranças com desconto da oferta da aula (as primeiras `invoices`). */
+export const aulaOfferCharge = (plan: PlanId, cycle: BillingCycle) =>
+  Math.round(cycleTotal(plan, cycle) * (1 - AULA_OFFER.cycles[cycle].percentOff / 100) * 100) / 100;
+
 export const formatBRL = (v: number) => v.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL', minimumFractionDigits: v % 1 ? 2 : 0 });
 
 // ── Recarga avulsa ───────────────────────────────────────────────────────────
