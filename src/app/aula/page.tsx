@@ -6,9 +6,12 @@ import { ArrowDown, ArrowRight, BadgePercent, CheckCircle2, Gift, HelpCircle, Pl
 import PricingSection from '@/app/PricingSection';
 import { FeedbackMarquee } from '@/components/landing/FeedbackMarquee';
 import { Eyebrow, HowItWorksSection, OneAppSection, SectionTitle } from '@/components/landing/sections';
+import { AulaGate } from './AulaGate';
+import { AulaGuide } from './AulaGuide';
 
 // Página da aula: quem comenta a palavra-chave no Instagram recebe este link.
-// Aula no Panda Vídeo + condição exclusiva (planConfig.ts, AULA_OFFER). Fora do Google.
+// Antes da aula, nome, e-mail e aceite (AulaGate, guia em AulaGuide); depois, a aula no Panda Vídeo
+// e a condição exclusiva (planConfig.ts, AULA_OFFER). Fora do Google.
 
 export const metadata: Metadata = {
   title: 'Aula + condição exclusiva · Creator Lab',
@@ -60,6 +63,7 @@ export default function AulaPage() {
         <Link href={`/login?next=${encodeURIComponent('/aula#oferta')}`} className="px-4 py-2 rounded-full bg-white/[0.06] border border-white/10 text-sm text-white hover:border-brand-emerald/50 transition-colors">Entrar</Link>
       </header>
 
+      <AulaGate guide={<AulaGuide />}>
       <main className="relative z-10 max-w-6xl mx-auto px-5 md:px-6 pt-10 md:pt-14 pb-24 space-y-24 md:space-y-32">
 
         {/* 1. Aula */}
@@ -187,6 +191,7 @@ export default function AulaPage() {
           </div>
         </section>
       </main>
+      </AulaGate>
 
       <footer className="border-t border-white/5 py-10 bg-[#050505] relative z-10">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4 text-xs text-gray-600">
