@@ -51,6 +51,7 @@ export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreato
               <li style={listItem}><strong>Kling, Seedance, Veo, Nano Banana e GPT Image</strong> no mesmo saldo, em reais, sem assinatura em dólar.</li>
               <li style={listItem}><strong>Roteiro, imagem, vídeo, voz e montagem</strong> no mesmo fluxo.</li>
               <li style={listItem}><strong>Orçamento e proposta</strong> para cobrar melhor pelo que você entrega.</li>
+              <li style={listItem}><strong>Treinamentos de criação mobile e criação com IA</strong> com Luisera, no plano Elite.</li>
               <li style={listItem}><strong>Sem fidelidade:</strong> cancela quando quiser, pela própria plataforma.</li>
             </ul>
 

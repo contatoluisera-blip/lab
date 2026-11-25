@@ -32,7 +32,7 @@ export const AulaWelcome = ({ firstName = 'Creator', aulaUrl = 'https://labcreat
             </Section>
 
             <Text style={paragraph}>
-              E fica de olho no seu e-mail: por aqui você vai receber mais materiais, como uma <strong>aula mostrando como eu crio personagens com IA</strong> dentro da Creator Lab.
+              E fica de olho no seu e-mail: por aqui você vai receber mais materiais, como <strong>aulas extras</strong> e <strong>condições especiais</strong> para usar a Creator Lab.
             </Text>
 
             <Text style={paragraph}>Enquanto isso, um resumo do que dá para fazer lá dentro:</Text>
