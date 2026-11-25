@@ -71,10 +71,10 @@ export default function AulaPage() {
           <div className="text-center space-y-4 max-w-3xl mx-auto">
             <Eyebrow><PlayCircle className="w-3.5 h-3.5" /> Aula completa · 13 minutos</Eyebrow>
             <h1 className="text-3xl md:text-5xl font-extrabold text-white tracking-tight leading-[1.08] text-balance">
-              A aula que você pediu <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">nos comentários.</span>
+              Domine a criação com IA <span className="text-transparent bg-clip-text bg-gradient-to-r from-brand-mint to-brand-emerald">em poucos minutos.</span>
             </h1>
             <p className="text-base md:text-lg text-gray-400 leading-relaxed">
-              Aperte o play e assista até o fim. Logo abaixo tem uma condição que só quem chegou por aqui recebe.
+              Veja na prática como uma ideia simples vira uma cena com qualidade de entrega, sem saber prompt técnico e sem depender de dez ferramentas. Assista até o fim: logo abaixo tem uma condição que só quem viu a aula recebe.
             </p>
           </div>
           <div className="relative max-w-4xl mx-auto group">
