@@ -53,7 +53,8 @@ export async function upsertLead(input: LeadInput) {
     ...(input.tool ? { tools: union(input.tool) } : {}),
     ...(input.attribution ? { lastAttribution: input.attribution } : {}),
     ...(existed ? {} : { firstSource: input.source, firstKeyword: input.keyword?.toUpperCase() || null, createdAt: now, attribution: input.attribution ?? null }),
-    ...(input.marketingConsent ? { marketingConsentAt: now } : {}),
+    // Aceite novo vale mais que um descadastro antigo.
+    ...(input.marketingConsent ? { marketingConsentAt: now, marketingOptOutAt: null } : {}),
     lastSeenAt: now,
   }, { merge: true });
 

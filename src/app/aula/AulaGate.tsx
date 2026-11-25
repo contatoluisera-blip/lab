@@ -9,6 +9,8 @@ import { marketingContext, track } from '@/lib/client/tracking';
 const UNLOCK_KEY = 'cl_aula_liberada';
 
 function readUnlocked() {
+  // Links dos e-mails da aula (?acesso=email): a pessoa já deixou o e-mail, talvez em outro aparelho.
+  if (new URLSearchParams(window.location.search).get('acesso') === 'email') return true;
   try { return window.localStorage.getItem(UNLOCK_KEY) === '1'; } catch { return false; }
 }
 function saveUnlocked() {

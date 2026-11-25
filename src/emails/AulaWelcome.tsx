@@ -1,18 +1,19 @@
-import { Body, Button, Container, Head, Heading, Hr, Html, Img, Preview, Section, Text } from '@react-email/components';
+import { Body, Button, Container, Head, Heading, Hr, Html, Img, Link, Preview, Section, Text } from '@react-email/components';
 import * as React from 'react';
 
 interface AulaWelcomeProps {
   firstName: string;
   aulaUrl: string;
+  unsubscribeUrl?: string;
 }
 
 /** Enviado quando a pessoa libera a aula em /aula: link de volta e aviso da aula de personagens. */
-export const AulaWelcome = ({ firstName = 'Creator', aulaUrl = 'https://labcreator.com.br/aula' }: AulaWelcomeProps) => {
+export const AulaWelcome = ({ firstName = 'Creator', aulaUrl = 'https://labcreator.com.br/aula', unsubscribeUrl }: AulaWelcomeProps) => {
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://labcreator.com.br';
   return (
     <Html>
       <Head />
-      <Preview>Sua aula está liberada. E vem mais uma por aí.</Preview>
+      <Preview>Sua aula está liberada. O link fica aqui para quando quiser.</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -31,7 +32,7 @@ export const AulaWelcome = ({ firstName = 'Creator', aulaUrl = 'https://labcreat
             </Section>
 
             <Text style={paragraph}>
-              E tem mais: nos próximos dias você recebe aqui no e-mail uma <strong>aula mostrando como eu crio personagens com IA</strong> dentro da Creator Lab, do primeiro frame ao vídeo pronto.
+              E fica de olho no seu e-mail: por aqui você vai receber mais materiais, como uma <strong>aula mostrando como eu crio personagens com IA</strong> dentro da Creator Lab.
             </Text>
 
             <Text style={paragraph}>Enquanto isso, um resumo do que dá para fazer lá dentro:</Text>
@@ -53,6 +54,7 @@ export const AulaWelcome = ({ firstName = 'Creator', aulaUrl = 'https://labcreat
           <Section style={footer}>
             <Text style={footerText}>© 2026 Creator Lab. Todos os direitos reservados.</Text>
             <Text style={footerText}>Você está recebendo este e-mail porque liberou a aula em labcreator.com.br e aceitou receber nossos materiais.</Text>
+            {unsubscribeUrl && <Text style={footerText}><Link href={unsubscribeUrl} style={{ color: '#6b7280', textDecoration: 'underline' }}>Não quero mais receber estes e-mails</Link></Text>}
           </Section>
         </Container>
       </Body>
