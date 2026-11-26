@@ -35,14 +35,14 @@ export const PROMPT_MODES: { id: PromptMode; label: string; description: string 
 export const PROMPT_FIELDS: PromptField[] = [
   // Plataforma
   { id: 'modelo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['i2v'], kind: 'select',
-    options: ['Seedance 2.5 (KIE AI)', 'Seedance 2.5 Flash', 'Seedance 2 Fast', 'Veo 3', 'Kling 4.0', 'Kling 4.0 Flash', 'Kling', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'Hailuo 2.3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
+    options: ['Seedance 2.5', 'Seedance 2.5 Flash', 'Seedance 2 Fast', 'Veo 3', 'Kling 4.0', 'Kling 4.0 Flash', 'Kling', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'Hailuo 2.3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
   { id: 'modeloRef', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['r2v'], kind: 'select',
-    options: ['Seedance 2.5 (KIE AI)', 'Seedance 2.5 Flash', 'Kling 4.0', 'Kling 4.0 Flash', 'Veo 3', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6'],
+    options: ['Seedance 2.5', 'Seedance 2.5 Flash', 'Kling 4.0', 'Kling 4.0 Flash', 'Veo 3', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6'],
     help: 'Define quantas referências cabem e como o prompt cita cada uma.' },
   { id: 'modeloVideo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['v2v'], kind: 'select',
-    options: ['Wan 2.6 (KIE AI)', 'Kling 3.0 Omni', 'Seedance 2 (vídeo de referência)', 'Luma Modify', 'Runway'] },
+    options: ['Wan 2.6', 'Kling 3.0 Omni', 'Seedance 2 (vídeo de referência)', 'Luma Modify', 'Runway'] },
   { id: 'modeloImagem', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['t2i', 'i2i'], kind: 'select',
-    options: ['GPT Image 2.6', 'GPT Image 2.6 Flare', 'GPT Image 2', 'Nano Banana 2.1', 'Nano Banana 2 (KIE AI)', 'Nano Banana Pro', 'Seedream 5.5', 'Seedream 5 Pro (KIE AI)', 'Ideogram V3', 'Imagen 4', 'Midjourney', 'Flux'] },
+    options: ['GPT Image 2.6', 'GPT Image 2.6 Flare', 'GPT Image 2', 'Nano Banana 2.1', 'Nano Banana 2', 'Nano Banana Pro', 'Seedream 5.5', 'Seedream 5 Pro', 'Ideogram V3', 'Imagen 4', 'Midjourney', 'Flux'] },
   { id: 'proporcao', label: 'Proporção', group: 'Plataforma', modes: ['i2v', 'v2v', 't2i', 'i2i'], kind: 'select',
     options: ['9:16 (vertical)', '16:9 (horizontal)', '1:1 (quadrado)', '4:5 (feed)', '3:4', '21:9 (cinema)'],
     help: 'Com imagem ou vídeo de entrada, "Decidir por mim" herda a proporção do original.' },

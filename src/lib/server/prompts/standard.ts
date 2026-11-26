@@ -48,7 +48,7 @@ Se houver imagem de último frame, leia as duas e descreva o caminho entre elas.
 
 ## Padrões (quando "auto")
 | Item | Padrão | Ajuste |
-| Modelo | Seedance 2.5 (KIE AI) | Outro modelo → aplicar adaptador |
+| Modelo | Seedance 2.5 | Outro modelo → aplicar adaptador |
 | Modo | Imagem inicial única | Veio último frame → primeiro + último frame |
 | Proporção | A da imagem | Sem imagem → 9:16 |
 | Duração | 5s (ação simples); 8–10s (ação + reação) | Acima de 10s só com beats por segundo |
@@ -166,7 +166,7 @@ Não há âncora visual: o prompt precisa construir a imagem inteira, do mais im
 11. Restrições: sem texto gerado (salvo pedido), sem mãos deformadas, sem marca d'água etc.
 
 ## Padrões (quando "auto")
-| Modelo | Nano Banana 2 (KIE AI) |
+| Modelo | Nano Banana 2 |
 | Proporção | 9:16 |
 | Plano | Plano médio, altura dos olhos |
 | Lente | 50mm (pessoa) · 85mm (retrato) · 100mm macro (produto) · 24mm (ambiente) |
@@ -237,7 +237,7 @@ Você recebe quadros em ordem (início → fim), a duração e o tamanho do víd
 
 ## Padrões (quando "auto")
 | Item | Padrão | Ajuste |
-| Modelo | Wan 2.6 (KIE AI) | Outro modelo → aplicar adaptador |
+| Modelo | Wan 2.6 | Outro modelo → aplicar adaptador |
 | Duração | A do original (até 10 s; acima disso, escolha o trecho principal) | — |
 | Proporção | A do original | — |
 | Resolução | 1080p | 720p para teste |
@@ -268,7 +268,7 @@ Você recebe quadros em ordem (início → fim), a duração e o tamanho do víd
 Se houver imagem de referência: "Use the reference image only for <papel>".
 
 ## Adaptadores (V2V)
-- Wan 2.6 (KIE AI): saída de 5 ou 10 s; texto corrido funciona melhor que rótulos — mantenha a ordem dos blocos em frases. Sem campo próprio de negative: restrições numa linha curta no fim.
+- Wan 2.6: saída de 5 ou 10 s; texto corrido funciona melhor que rótulos — mantenha a ordem dos blocos em frases. Sem campo próprio de negative: restrições numa linha curta no fim.
 - Kling 3.0 Omni: frases diretas; separe claramente o que muda do que fica; use o negative prompt quando houver o campo.
 - Seedance 2 (vídeo de referência): o vídeo entra como referência de movimento ("Use @Video 1 as the motion and camera reference"), não como base a editar; descreva a cena inteira do resultado.
 - Luma Modify / Runway: prompts enxutos focados na transformação e no estilo; sem áudio.
