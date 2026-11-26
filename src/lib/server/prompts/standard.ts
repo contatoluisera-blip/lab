@@ -127,6 +127,11 @@ Os rótulos só organizam; se o modelo escolhido responde melhor a texto corrido
 - Runway / Luma: prompts enxutos focados em movimento e câmera; sem áudio.
 - Hailuo 2.3: forte em movimento de pessoas e expressões; descreva a ação corporal e o gesto com clareza, câmera simples; sem áudio.
 - Wan 2.7: aceita negative prompt e primeiro + último frame; frases diretas, uma ação principal por clipe.
+- Wan 3.0: até 30 s com áudio, primeiro + último frame e até 10 referências (Image1, Image2…); para clipes longos, escreva uma linha do tempo em segundos com no máximo 3 momentos.
+- Seedance 2.5 Flash: mesmas regras do Seedance 2.5, até 720p; prefira cenas simples e uma linha do tempo curta.
+- Kling 4.0 Flash: até 20 s em 720p; com imagem, só o primeiro frame (@first_frame), sem intermediários nem final.
+- MiniMax H3: sucessor do Hailuo, com áudio nativo; forte em pessoas e expressões; primeiro + último frame ou até 9 referências.
+- HappyHorse 1.1: movimento natural em 1080p; prompts descritivos e diretos, uma ação principal por clipe.
 - Grok Imagine / PixVerse V6: prompts curtos e visuais, uma ideia por clipe; descreva o som em uma frase se o áudio estiver ligado.
 - Frames intermediários (Kling 4.0): além do inicial e do final, até 8 imagens no meio, em ordem. Descreva o caminho de uma para a outra e cite cada frame pelo nome que o modelo usa (@first_frame, @keyframe_1, @keyframe_2…, @last_frame); cite só frames enviados.
 
@@ -137,7 +142,7 @@ Não há frame inicial: as imagens são referências de identidade (personagem, 
 
 ## Regras
 - Use todas as imagens enviadas e dê um papel explícito a cada uma, pela ordem: quem é a pessoa, qual é o produto, onde é a cena, de onde vem o estilo.
-- Cite as imagens com a sintaxe do modelo: Kling 4.0 @image_1, @image_2…; Grok Imagine @image1, @image2…; PixVerse V6 @img1, @img2…; Veo 3, Seedance e Wan 2.7 por extenso ("image 1", "the woman from image 1").
+- Cite as imagens com a sintaxe do modelo: Kling 4.0 e 4.0 Flash @image_1, @image_2…; Grok Imagine @image1, @image2…; PixVerse V6 @img1, @img2…; Seedance 2.5, Seedance 2.5 Flash e Wan 3.0 Image1, Image2…; HappyHorse 1.1 [Image 1], [Image 2]…; Veo 3, MiniMax H3 e Wan 2.7 por extenso ("image 1", "the woman from image 1").
 - Trave a identidade: rosto, roupa, cores e formato do produto e logos devem seguir a referência exatamente.
 - A ação, a câmera, a luz e o som seguem o formato I2V ([SHOT], [ACTION], [ENVIRONMENT], [LENS & LOOK], [LIGHT], [AUDIO], [CONTINUITY]).
 - Veo 3 com referências: só 8 s. Escreva uma ação curta.
@@ -174,7 +179,7 @@ Não há âncora visual: o prompt precisa construir a imagem inteira, do mais im
 
 ## Formato do prompt (T2I) — em inglês
 Texto corrido em parágrafo único, nesta ordem: sujeito e ação → composição e enquadramento → cenário → lente e óptica → luz → estilo, cor e textura → restrições positivas ("clean background without text").
-- Nano Banana / GPT Image / Seedream: linguagem natural descritiva, frases completas; textos que devem aparecer na imagem vão entre aspas, com fonte e posição.
+- Nano Banana / GPT Image (2, 2.6, 2.6 Flare) / Seedream: linguagem natural descritiva, frases completas; textos que devem aparecer na imagem vão entre aspas, com fonte e posição.
 - Ideogram V3: o melhor para texto na imagem; escreva o texto exato entre aspas e diga estilo tipográfico, posição e hierarquia; use o negative prompt.
 - Imagen 4: descrição fotográfica objetiva (sujeito, luz, lente, ambiente); aceita negative prompt.
 - Midjourney: frase descritiva enxuta seguida de parâmetros (--ar <proporção> --style raw --v 7); negativos em --no.

@@ -130,6 +130,126 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
           resolution: config.resolution || '2K',
         },
       };
+    case 'gpt-image-26':
+    case 'gpt-image-26-flare': {
+      const v = modelId === 'gpt-image-26' ? 'sunburst' : 'flare';
+      const refs = mode === 'i2i' ? inputs.imageUrls.slice(0, 16) : [];
+      return {
+        model: `gpt-image-2-6/${v}-${refs.length ? 'image-to-image' : 'text-to-image'}`,
+        input: {
+          prompt,
+          ...(refs.length ? { input_urls: refs } : {}),
+          aspect_ratio: config.aspect || '9:16',
+          resolution: config.resolution || '2K',
+          quality: config.quality || 'medium',
+          output_format: 'png',
+        },
+      };
+    }
+    case 'gpt-image-26-economy': {
+      const refs = mode === 'i2i' ? inputs.imageUrls.slice(0, 16) : [];
+      return {
+        model: `gpt-image-2-6/economy-${refs.length ? 'image-to-image' : 'text-to-image'}`,
+        input: { prompt, ...(refs.length ? { input_urls: refs } : {}), aspect_ratio: config.aspect || '9:16', output_format: 'png' },
+      };
+    }
+    case 'nano-banana-21':
+      return {
+        model: 'nano-banana-2-1',
+        input: {
+          prompt,
+          ...(mode === 'i2i' && inputs.imageUrls.length ? { image_input: inputs.imageUrls.slice(0, 10) } : {}),
+          aspect_ratio: config.aspect || '9:16',
+          resolution: config.resolution || '2K',
+          output_format: 'png',
+        },
+      };
+    case 'seedream-55': {
+      const refs = mode === 'i2i' ? inputs.imageUrls.slice(0, 10) : [];
+      return {
+        model: refs.length ? 'seedream/5-5-image-to-image' : 'seedream/5-5-text-to-image',
+        input: { prompt, ...(refs.length ? { image_urls: refs } : {}), aspect_ratio: config.aspect || '9:16', size: config.resolution || '2K', output_format: 'png' },
+      };
+    }
+    case 'seedance-25':
+    case 'seedance-25-flash': {
+      const { first, last } = f;
+      // Referências não se misturam com primeiro e último frame; com frame o formato é sempre o da imagem.
+      const refs = mode === 'r2v' ? inputs.imageUrls.slice(0, modelId === 'seedance-25' ? 16 : 10) : [];
+      const res = modelId === 'seedance-25'
+        ? (['480p', '720p', '1080p'].includes(config.resolution || '') ? config.resolution : '720p')
+        : config.resolution === '480p' ? '480p' : '720p';
+      return {
+        model: modelId === 'seedance-25' ? 'bytedance/seedance-2-5' : 'bytedance/seedance-2-5-flash',
+        input: {
+          prompt,
+          ...(first ? { first_frame_url: first } : {}),
+          ...(last ? { last_frame_url: last } : {}),
+          ...(refs.length ? { reference_image_urls: refs } : {}),
+          aspect_ratio: first ? 'adaptive' : config.aspect || '9:16',
+          resolution: res,
+          duration: [5, 10, 15].includes(config.duration || 0) ? config.duration : 5,
+          generate_audio: true,
+        },
+      };
+    }
+    case 'kling-4-flash': {
+      const duration = [5, 10, 15, 20].includes(config.duration || 0) ? config.duration : 5;
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'kling-4.0/flash-reference-to-video',
+          input: { prompt, image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution: '720p', duration },
+        };
+      }
+      return {
+        model: 'kling-4.0/flash-keyframe-to-video',
+        input: { prompt, ...(f.first ? { first_frame_url: f.first } : { aspect_ratio: config.aspect || '9:16' }), resolution: '720p', duration },
+      };
+    }
+    case 'wan-30': {
+      const { first, last } = f;
+      const refs = mode === 'r2v' ? inputs.imageUrls.slice(0, 10) : [];
+      return {
+        model: 'wan/3-0-video',
+        input: {
+          prompt,
+          ...(first ? { first_frame_url: first } : {}),
+          ...(last ? { last_frame_url: last } : {}),
+          ...(refs.length ? { reference_image_urls: refs } : {}),
+          resolution: ['480P', '720P', '1080P'].includes(config.resolution || '') ? config.resolution : '1080P',
+          aspect_ratio: first ? 'adaptive' : config.aspect || '9:16',
+          duration: [5, 10, 15, 30].includes(config.duration || 0) ? config.duration : 5,
+          audio: config.audio !== false,
+        },
+      };
+    }
+    case 'minimax-h3': {
+      const { first, last } = f;
+      const duration = [6, 10, 15].includes(config.duration || 0) ? config.duration : 6;
+      const resolution = config.resolution === '768P' ? '768P' : '2K';
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'minimax-h3/reference-to-video',
+          input: { prompt, reference_image_urls: inputs.imageUrls.slice(0, 9), aspect_ratio: config.aspect || '9:16', duration, resolution },
+        };
+      }
+      if (first) {
+        return { model: 'minimax-h3/image-to-video', input: { prompt, first_frame_url: first, ...(last ? { last_frame_url: last } : {}), duration, resolution } };
+      }
+      return { model: 'minimax-h3/text-to-video', input: { prompt, aspect_ratio: config.aspect || '9:16', duration, resolution } };
+    }
+    case 'happyhorse-11': {
+      const duration = [5, 10, 15].includes(config.duration || 0) ? config.duration : 5;
+      const resolution = config.resolution === '720p' ? '720p' : '1080p';
+      if (mode === 'r2v' && inputs.imageUrls.length) {
+        return {
+          model: 'happyhorse-1-1/reference-to-video',
+          input: { prompt, reference_image: inputs.imageUrls.slice(0, 9), aspect_ratio: config.aspect || '9:16', resolution, duration },
+        };
+      }
+      if (f.first) return { model: 'happyhorse-1-1/image-to-video', input: { prompt, image_urls: [f.first], resolution, duration } };
+      return { model: 'happyhorse-1-1/text-to-video', input: { prompt, aspect_ratio: config.aspect || '9:16', resolution, duration } };
+    }
     case 'seedream-5-pro':
       return {
         model: mode === 'i2i' && inputs.imageUrls.length ? 'seedream/5-pro-image-to-image' : 'seedream/5-pro-text-to-image',

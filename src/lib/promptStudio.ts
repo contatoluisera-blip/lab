@@ -35,14 +35,14 @@ export const PROMPT_MODES: { id: PromptMode; label: string; description: string 
 export const PROMPT_FIELDS: PromptField[] = [
   // Plataforma
   { id: 'modelo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['i2v'], kind: 'select',
-    options: ['Seedance 2.5 (KIE AI)', 'Veo 3', 'Kling', 'Kling 4.0', 'Hailuo 2.3', 'Wan 2.7', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
+    options: ['Seedance 2.5 (KIE AI)', 'Seedance 2.5 Flash', 'Seedance 2 Fast', 'Veo 3', 'Kling 4.0', 'Kling 4.0 Flash', 'Kling', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'Hailuo 2.3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6', 'Runway', 'Luma'] },
   { id: 'modeloRef', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['r2v'], kind: 'select',
-    options: ['Veo 3', 'Kling 4.0', 'Seedance 2.5 (KIE AI)', 'Grok Imagine', 'PixVerse V6', 'Wan 2.7'],
+    options: ['Seedance 2.5 (KIE AI)', 'Seedance 2.5 Flash', 'Kling 4.0', 'Kling 4.0 Flash', 'Veo 3', 'Wan 3.0', 'Wan 2.7', 'MiniMax H3', 'HappyHorse 1.1', 'Grok Imagine', 'PixVerse V6'],
     help: 'Define quantas referências cabem e como o prompt cita cada uma.' },
   { id: 'modeloVideo', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['v2v'], kind: 'select',
     options: ['Wan 2.6 (KIE AI)', 'Kling 3.0 Omni', 'Seedance 2 (vídeo de referência)', 'Luma Modify', 'Runway'] },
   { id: 'modeloImagem', label: 'Modelo / plataforma', group: 'Plataforma', modes: ['t2i', 'i2i'], kind: 'select',
-    options: ['Nano Banana 2 (KIE AI)', 'Nano Banana Pro', 'Seedream (KIE AI)', 'GPT Image', 'Ideogram V3', 'Imagen 4', 'Midjourney', 'Flux'] },
+    options: ['GPT Image 2.6', 'GPT Image 2.6 Flare', 'GPT Image 2', 'Nano Banana 2.1', 'Nano Banana 2 (KIE AI)', 'Nano Banana Pro', 'Seedream 5.5', 'Seedream 5 Pro (KIE AI)', 'Ideogram V3', 'Imagen 4', 'Midjourney', 'Flux'] },
   { id: 'proporcao', label: 'Proporção', group: 'Plataforma', modes: ['i2v', 'v2v', 't2i', 'i2i'], kind: 'select',
     options: ['9:16 (vertical)', '16:9 (horizontal)', '1:1 (quadrado)', '4:5 (feed)', '3:4', '21:9 (cinema)'],
     help: 'Com imagem ou vídeo de entrada, "Decidir por mim" herda a proporção do original.' },
@@ -137,10 +137,15 @@ export function genModelFromChoices(mode: PromptMode, choices: Record<string, st
   const m = String(choices.modelo || choices.modeloRef || choices.modeloImagem || choices.modeloVideo || '');
   if (mode === 'v2v') return 'wan-v2v';
   const map: [RegExp, string][] = [
-    [/kling 4/i, 'kling-4'], [/kling/i, 'kling-3'], [/veo/i, 'veo-fast'], [/seedance/i, 'seedance-fast'],
-    [/hailuo/i, 'hailuo-23-std'], [/wan/i, 'wan-27'], [/grok/i, 'grok-imagine'], [/pixverse/i, 'pixverse-v6'], [/runway/i, 'runway'],
-    [/nano banana pro/i, 'nano-banana-pro'], [/nano banana/i, 'nano-banana-2'], [/seedream/i, 'seedream-5-pro'],
-    [/gpt image/i, 'gpt-image-2'], [/ideogram/i, 'ideogram-v3'], [/imagen/i, 'imagen4-fast'], [/flux/i, 'flux-3-klein'],
+    // Os mais específicos primeiro (versão e variante antes do nome da família).
+    [/kling 4(\.0)? flash/i, 'kling-4-flash'], [/kling 4/i, 'kling-4'], [/kling/i, 'kling-3'], [/veo/i, 'veo-fast'],
+    [/seedance 2\.5 flash/i, 'seedance-25-flash'], [/seedance 2\.5/i, 'seedance-25'], [/seedance/i, 'seedance-fast'],
+    [/minimax|h3/i, 'minimax-h3'], [/hailuo/i, 'hailuo-23-std'], [/happyhorse/i, 'happyhorse-11'],
+    [/wan 3/i, 'wan-30'], [/wan/i, 'wan-27'], [/grok/i, 'grok-imagine'], [/pixverse/i, 'pixverse-v6'], [/runway/i, 'runway'],
+    [/nano banana pro/i, 'nano-banana-pro'], [/nano banana 2\.1/i, 'nano-banana-21'], [/nano banana/i, 'nano-banana-2'],
+    [/seedream 5\.5/i, 'seedream-55'], [/seedream/i, 'seedream-5-pro'],
+    [/gpt image 2\.6 flare/i, 'gpt-image-26-flare'], [/gpt image 2\.6/i, 'gpt-image-26'], [/gpt image/i, 'gpt-image-2'],
+    [/ideogram/i, 'ideogram-v3'], [/imagen/i, 'imagen4-fast'], [/flux/i, 'flux-3-klein'],
   ];
   for (const [re, id] of map) if (re.test(m)) return id;
   return null;

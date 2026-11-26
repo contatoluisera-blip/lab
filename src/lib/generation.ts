@@ -229,6 +229,28 @@ const perSec = (table: Record<string, number>, key: string | undefined, fallback
   (table[key || fallback] ?? table[fallback]) * seconds;
 
 const DUR_5_10: GenOption<number>[] = [{ value: 5, label: '5 s' }, { value: 10, label: '10 s' }];
+const DUR_5_15: GenOption<number>[] = [...DUR_5_10, { value: 15, label: '15 s' }];
+
+/** GPT Image 2.6 (Flare e Sunburst): formatos aceitos e níveis de qualidade da KIE. */
+const GPT26_ASPECTS: GenOption[] = IMAGE_ASPECTS.concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }, { value: '2:3', label: '2:3', hint: 'Retrato' }]);
+const GPT26_QUALITIES: GenOption[] = [
+  { value: 'low', label: 'Rascunho' }, { value: 'medium', label: 'Padrão' }, { value: 'high', label: 'Alta' },
+  { value: 'xhigh', label: 'Máxima' }, { value: 'max', label: 'Ultra', hint: 'Mais caro' },
+];
+/**
+ * O GPT Image 2.6 é cobrado por tokens. Valores de referência da KIE por imagem (kie.ai/gpt-image-2-6, 26/11/2026),
+ * por qualidade em 1K / 2K / 4K, com 10% de folga para formatos verticais. Com referências, + ~US$ 0,011 por imagem:
+ * cobramos 8 (US$ 0,09) no modo com referência.
+ */
+const GPT26_TABLE: Record<string, [number, number, number]> = {
+  low: [0.0222, 0.045, 0.0747], medium: [0.0391, 0.0795, 0.1321], high: [0.0474, 0.0963, 0.1601],
+  xhigh: [0.0843, 0.1713, 0.2846], max: [0.1896, 0.3853, 0.6404],
+};
+const gpt26Price = (c: GenConfig, mode?: GenMode) => {
+  const row = GPT26_TABLE[c.quality || 'medium'] ?? GPT26_TABLE.medium;
+  const base = row[c.resolution === '1K' ? 0 : c.resolution === '4K' ? 2 : 1];
+  return base * 1.1 + (mode === 'i2i' ? 0.09 : 0);
+};
 
 /**
  * Motores adicionais da KIE (preço e campos conferidos em docs.kie.ai e nas páginas de preço, nov/2026).
@@ -248,6 +270,72 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2i: 16 },
     defaults: { aspect: '9:16', resolution: '2K' },
     priceUsd: (c) => ({ '1K': 0.03, '2K': 0.05, '4K': 0.08 } as Record<string, number>)[c.resolution || '2K'] ?? 0.08,
+  },
+  {
+    id: 'gpt-image-26', kind: 'image', family: 'OpenAI', featured: true, highlight: 'Mais novo',
+    name: 'GPT Image 2.6',
+    tagline: 'A versão Sunburst do GPT Image 2.6: imagem refinada e edições consistentes, a mais nova da OpenAI.',
+    badges: ['Edição consistente', 'Até 16 referências', 'Até 4K'],
+    modes: ['t2i', 'i2i'],
+    aspects: GPT26_ASPECTS,
+    resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '4K', label: '4K', hint: 'Impressão' }],
+    qualities: GPT26_QUALITIES,
+    maxImages: { i2i: 16 },
+    defaults: { aspect: '9:16', resolution: '2K', quality: 'medium' },
+    priceUsd: gpt26Price,
+  },
+  {
+    id: 'gpt-image-26-flare', kind: 'image', family: 'OpenAI',
+    name: 'GPT Image 2.6 Flare',
+    tagline: 'A versão rápida do GPT Image 2.6, com layout melhor para pôster, produto e peças com texto.',
+    badges: ['Rápido', 'Layout e texto', 'Até 16 referências'],
+    modes: ['t2i', 'i2i'],
+    aspects: GPT26_ASPECTS,
+    resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '4K', label: '4K', hint: 'Impressão' }],
+    qualities: GPT26_QUALITIES,
+    maxImages: { i2i: 16 },
+    defaults: { aspect: '9:16', resolution: '2K', quality: 'medium' },
+    priceUsd: gpt26Price,
+  },
+  {
+    id: 'gpt-image-26-economy', kind: 'image', family: 'OpenAI', highlight: 'Rascunho',
+    name: 'GPT Image 2.6 Economy',
+    tagline: 'O GPT Image 2.6 em 1K pelo menor custo: para testar a ideia antes da versão final.',
+    badges: ['1K', 'Até 16 referências'],
+    modes: ['t2i', 'i2i'],
+    aspects: [
+      { value: '9:16', label: '9:16', hint: 'Reels e Stories' }, { value: '1:1', label: '1:1', hint: 'Quadrado' },
+      { value: '16:9', label: '16:9', hint: 'Horizontal' }, { value: '2:3', label: '2:3', hint: 'Retrato' },
+      { value: '4:3', label: '4:3', hint: 'Clássico' }, { value: '21:9', label: '21:9', hint: 'Cinema' },
+    ],
+    maxImages: { i2i: 16 },
+    defaults: { aspect: '9:16' },
+    priceUsd: () => 0.025,
+    minCredits: () => 5, // rascunho
+  },
+  {
+    id: 'nano-banana-21', kind: 'image', family: 'Google', featured: true, highlight: 'Mais novo',
+    name: 'Nano Banana 2.1',
+    tagline: 'A nova versão do Nano Banana 2: mais fiel ao prompt e às referências, pelo mesmo custo baixo.',
+    badges: ['Até 4K', 'Até 10 referências'],
+    modes: ['t2i', 'i2i'],
+    aspects: IMAGE_ASPECTS,
+    resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '4K', label: '4K', hint: 'Impressão' }],
+    maxImages: { i2i: 10 },
+    defaults: { aspect: '9:16', resolution: '2K' },
+    priceUsd: (c) => ({ '1K': 0.02, '2K': 0.03, '4K': 0.045 } as Record<string, number>)[c.resolution || '2K'] ?? 0.045,
+  },
+  {
+    id: 'seedream-55', kind: 'image', family: 'ByteDance', highlight: 'Mais novo',
+    name: 'Seedream 5.5',
+    tagline: 'O Seedream mais novo: fotorrealismo e edição em várias etapas sem perder o que já estava certo.',
+    badges: ['Fotorrealismo', 'Até 10 referências', 'Até 3K'],
+    modes: ['t2i', 'i2i'],
+    aspects: IMAGE_ASPECTS.filter(a => a.value !== '4:5').concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }]),
+    resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '3K', label: '3K', hint: 'Alta' }],
+    maxImages: { i2i: 10 },
+    defaults: { aspect: '9:16', resolution: '2K' },
+    priceUsd: (c) => ({ '1K': 0.018, '2K': 0.0315, '3K': 0.071 } as Record<string, number>)[c.resolution || '2K'] ?? 0.071,
   },
   {
     id: 'seedream-5-pro', kind: 'image', family: 'ByteDance', featured: true,
@@ -364,6 +452,98 @@ const EXTRA_MODELS: GenModel[] = [
     maxImages: { i2v: 2, r2v: 9 },
     defaults: { aspect: '9:16', resolution: '720p', duration: 5 },
     priceUsd: (c) => perSec({ '480p': 0.059, '720p': 0.124 }, c.resolution, '720p', c.duration === 10 ? 10 : 5),
+  },
+  {
+    id: 'seedance-25', kind: 'video', family: 'ByteDance', featured: true, highlight: 'Mais novo',
+    name: 'Seedance 2.5',
+    tagline: 'O Seedance mais novo: até 1080p, cenas mais longas e até 16 imagens de referência na mesma cena.',
+    badges: ['Áudio nativo', 'Até 16 referências', 'Até 1080p', 'Até 15 s'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: VIDEO_ASPECTS,
+    resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
+    durations: DUR_5_15,
+    nativeAudio: true,
+    // A KIE aceita até 30 referências; a plataforma envia até 16 (MAX_INPUT_IMAGES).
+    maxImages: { i2v: 2, r2v: 16 },
+    refSyntax: { r2v: 'Image1, Image2… (dê um papel a cada uma)' },
+    defaults: { aspect: '9:16', resolution: '720p', duration: 5 },
+    // Sem vídeo de entrada (kie.ai/seedance-2-5). O 4K sai em HEVC, que nem todo navegador toca: fica de fora.
+    priceUsd: (c) => perSec({ '480p': 0.14, '720p': 0.315, '1080p': 0.79 }, c.resolution, '720p', c.duration || 5),
+  },
+  {
+    id: 'seedance-25-flash', kind: 'video', family: 'ByteDance',
+    name: 'Seedance 2.5 Flash',
+    tagline: 'O Seedance 2.5 mais rápido e mais barato, em até 720p, com áudio e referências.',
+    badges: ['Áudio nativo', 'Até 10 referências', 'Até 15 s'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: VIDEO_ASPECTS,
+    resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Entrega' }],
+    durations: DUR_5_15,
+    nativeAudio: true,
+    maxImages: { i2v: 2, r2v: 10 },
+    refSyntax: { r2v: 'Image1, Image2… (dê um papel a cada uma)' },
+    defaults: { aspect: '9:16', resolution: '720p', duration: 5 },
+    priceUsd: (c) => perSec({ '480p': 0.0925, '720p': 0.205 }, c.resolution, '720p', c.duration || 5),
+  },
+  {
+    id: 'kling-4-flash', kind: 'video', family: 'Kling',
+    name: 'Kling 4.0 Flash',
+    tagline: 'O Kling 4.0 rápido e mais barato, em 720p, com cenas de até 20 s.',
+    badges: ['720p', 'Até 20 s', 'Até 10 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: VIDEO_ASPECTS,
+    durations: [{ value: 5, label: '5 s' }, { value: 10, label: '10 s' }, { value: 15, label: '15 s' }, { value: 20, label: '20 s' }],
+    // Imagem → vídeo só com o primeiro frame (a versão Flash não aceita intermediários nem final).
+    maxImages: { i2v: 1, r2v: 10 },
+    refSyntax: { i2v: '@first_frame', r2v: '@image_1, @image_2…' },
+    defaults: { aspect: '9:16', duration: 5 },
+    priceUsd: (c) => 0.085 * (c.duration || 5),
+  },
+  {
+    id: 'wan-30', kind: 'video', family: 'Alibaba', highlight: 'Mais novo',
+    name: 'Wan 3.0',
+    tagline: 'O Wan mais novo: áudio, cenas de até 30 s, primeiro e último frame e até 10 referências.',
+    badges: ['Áudio opcional', 'Até 30 s', 'Até 10 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: [...VIDEO_ASPECTS, { value: '3:4', label: '3:4', hint: 'Retrato' }, { value: '4:3', label: '4:3', hint: 'Clássico' }],
+    resolutions: [{ value: '480P', label: '480p', hint: 'Rascunho' }, { value: '720P', label: '720p', hint: 'Teste' }, { value: '1080P', label: '1080p', hint: 'Entrega' }],
+    durations: [...DUR_5_15, { value: 30, label: '30 s' }],
+    audioToggle: true,
+    maxImages: { i2v: 2, r2v: 10 },
+    refSyntax: { r2v: 'Image1, Image2…' },
+    defaults: { aspect: '9:16', resolution: '1080P', duration: 5, audio: true },
+    // Mesmo preço com ou sem áudio (kie.ai/wan3.0-video).
+    priceUsd: (c) => perSec({ '480P': 0.04, '720P': 0.08, '1080P': 0.16 }, c.resolution, '1080P', c.duration || 5),
+  },
+  {
+    id: 'minimax-h3', kind: 'video', family: 'MiniMax', highlight: 'Mais novo',
+    name: 'MiniMax H3',
+    tagline: 'O sucessor do Hailuo: vídeo em 2K com áudio, primeiro e último frame e até 9 referências.',
+    badges: ['Áudio nativo', 'Até 2K', 'Até 15 s'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: VIDEO_ASPECTS,
+    resolutions: [{ value: '768P', label: '768p', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }],
+    durations: [{ value: 6, label: '6 s' }, { value: 10, label: '10 s' }, { value: 15, label: '15 s' }],
+    nativeAudio: true,
+    maxImages: { i2v: 2, r2v: 9 },
+    defaults: { aspect: '9:16', resolution: '2K', duration: 6 },
+    // + US$ 0,02 por imagem de entrada: até 2 frames ou 9 referências, cobrados pelo máximo do modo.
+    priceUsd: (c, mode) => perSec({ '768P': 0.04, '2K': 0.065 }, c.resolution, '2K', c.duration || 6)
+      + (mode === 'r2v' ? 0.18 : mode === 'i2v' ? 0.04 : 0),
+  },
+  {
+    id: 'happyhorse-11', kind: 'video', family: 'Alibaba',
+    name: 'HappyHorse 1.1',
+    tagline: 'Vídeo da Alibaba com movimento natural, em 1080p, a partir de texto, imagem ou referências.',
+    badges: ['Até 1080p', 'Até 15 s', 'Até 9 referências'],
+    modes: ['t2v', 'i2v', 'r2v'],
+    aspects: [...VIDEO_ASPECTS, { value: '4:5', label: '4:5', hint: 'Feed' }],
+    resolutions: [{ value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
+    durations: DUR_5_15,
+    maxImages: { i2v: 1, r2v: 9 },
+    refSyntax: { r2v: '[Image 1], [Image 2]…' },
+    defaults: { aspect: '9:16', resolution: '1080p', duration: 5 },
+    priceUsd: (c) => perSec({ '720p': 0.1125, '1080p': 0.145 }, c.resolution, '1080p', c.duration || 5),
   },
   {
     id: 'grok-imagine', kind: 'video', family: 'xAI', highlight: 'Mais barato',
