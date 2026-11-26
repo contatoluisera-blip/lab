@@ -62,6 +62,8 @@ export async function POST(req: Request) {
 
     // Oferta da aula: o cupom do ciclo entra direto (a Stripe não aceita cupom e campo de código juntos).
     const offer = body.offer === AULA_OFFER.id ? AULA_OFFER.cycles[cycle] : null;
+    // Página da oferta para onde a pessoa volta se cancelar (a aula ou um kit).
+    const offerBack = typeof body.returnPath === 'string' && /^\/(aula|kit\/[a-z0-9-]+)$/.test(body.returnPath) ? body.returnPath : '/aula';
     if (offer) {
       if (!AULA_OFFER.plans.includes(plan)) throw new HttpError(400, 'offer_plan', 'A condição da aula vale para os planos Start, Pro e Elite.');
       if (getAccountState(profile).status === 'active') {
@@ -88,7 +90,7 @@ export async function POST(req: Request) {
       metadata: { planName: plan, cycle, interval: cycle, ...(offer ? { offer: AULA_OFFER.id } : {}), ...marketingMeta },
       line_items: [{ price: product.priceId, quantity: 1 }],
       success_url: `${origin}/dashboard?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: offer ? `${origin}/aula?checkout_canceled=true#oferta` : `${origin}/dashboard/billing?checkout_canceled=true`,
+      cancel_url: offer ? `${origin}${offerBack}?checkout_canceled=true#oferta` : `${origin}/dashboard/billing?checkout_canceled=true`,
     });
 
     return NextResponse.json({ url: session.url });

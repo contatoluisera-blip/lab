@@ -188,7 +188,7 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
           ...(refs.length ? { reference_image_urls: refs } : {}),
           aspect_ratio: first ? 'adaptive' : config.aspect || '9:16',
           resolution: res,
-          duration: [5, 10, 15].includes(config.duration || 0) ? config.duration : 5,
+          duration: [4, 5, 6, 8, 10, 12, 15].includes(config.duration || 0) ? config.duration : 5,
           generate_audio: true,
         },
       };

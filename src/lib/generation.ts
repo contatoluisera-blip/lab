@@ -230,6 +230,8 @@ const perSec = (table: Record<string, number>, key: string | undefined, fallback
 
 const DUR_5_10: GenOption<number>[] = [{ value: 5, label: '5 s' }, { value: 10, label: '10 s' }];
 const DUR_5_15: GenOption<number>[] = [...DUR_5_10, { value: 15, label: '15 s' }];
+/** Seedance 2.5 aceita de 4 a 30 s; estas são as durações oferecidas. */
+const SEEDANCE25_DURS: GenOption<number>[] = [4, 5, 6, 8, 10, 12, 15].map(v => ({ value: v, label: `${v} s` }));
 
 /** GPT Image 2.6 (Flare e Sunburst): formatos aceitos e níveis de qualidade da KIE. */
 const GPT26_ASPECTS: GenOption[] = IMAGE_ASPECTS.concat([{ value: '4:3', label: '4:3', hint: 'Clássico' }, { value: '2:3', label: '2:3', hint: 'Retrato' }]);
@@ -457,11 +459,11 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'seedance-25', kind: 'video', family: 'ByteDance', featured: true, highlight: 'Mais novo',
     name: 'Seedance 2.5',
     tagline: 'O Seedance mais novo: até 1080p, cenas mais longas e até 16 imagens de referência na mesma cena.',
-    badges: ['Áudio nativo', 'Até 16 referências', 'Até 1080p', 'Até 15 s'],
+    badges: ['Áudio nativo', 'Até 16 referências', 'Até 1080p', '4 a 15 s'],
     modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Teste' }, { value: '1080p', label: '1080p', hint: 'Entrega' }],
-    durations: DUR_5_15,
+    durations: SEEDANCE25_DURS,
     nativeAudio: true,
     // A KIE aceita até 30 referências; a plataforma envia até 16 (MAX_INPUT_IMAGES).
     maxImages: { i2v: 2, r2v: 16 },
@@ -474,11 +476,11 @@ const EXTRA_MODELS: GenModel[] = [
     id: 'seedance-25-flash', kind: 'video', family: 'ByteDance',
     name: 'Seedance 2.5 Flash',
     tagline: 'O Seedance 2.5 mais rápido e mais barato, em até 720p, com áudio e referências.',
-    badges: ['Áudio nativo', 'Até 10 referências', 'Até 15 s'],
+    badges: ['Áudio nativo', 'Até 10 referências', '4 a 15 s'],
     modes: ['t2v', 'i2v', 'r2v'],
     aspects: VIDEO_ASPECTS,
     resolutions: [{ value: '480p', label: '480p', hint: 'Rascunho' }, { value: '720p', label: '720p', hint: 'Entrega' }],
-    durations: DUR_5_15,
+    durations: SEEDANCE25_DURS,
     nativeAudio: true,
     maxImages: { i2v: 2, r2v: 10 },
     refSyntax: { r2v: 'Image1, Image2… (dê um papel a cada uma)' },

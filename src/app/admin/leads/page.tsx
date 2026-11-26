@@ -10,7 +10,7 @@ type Lead = {
 };
 
 const SOURCE_LABEL: Record<string, string> = {
-  pre_lista: 'Pré-lista', manychat: 'ManyChat', isca: 'Isca', aula: 'Aula', lista_antiga: 'Lista antiga', manual: 'Manual',
+  pre_lista: 'Pré-lista', manychat: 'ManyChat', isca: 'Isca', aula: 'Aula', kit: 'Kit', lista_antiga: 'Lista antiga', manual: 'Manual',
 };
 const sourceLabel = (s: string) => SOURCE_LABEL[s] || s;
 const PAGE = 100;

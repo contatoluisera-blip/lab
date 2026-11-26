@@ -7,7 +7,7 @@ import { adminDb } from '@/lib/firebase/admin';
  * Lead único por e-mail (coleção `leads`), com todas as origens e palavras-chave que já o trouxeram.
  * Também entra no segmento de leads do Resend (RESEND_SEGMENT_LEADS), que cuida do descadastro (LGPD).
  */
-export type LeadSource = 'manychat' | 'pre_lista' | 'isca' | 'aula' | 'lista_antiga' | 'manual';
+export type LeadSource = 'manychat' | 'pre_lista' | 'isca' | 'aula' | 'kit' | 'lista_antiga' | 'manual';
 
 export interface LeadInput {
   email: string;

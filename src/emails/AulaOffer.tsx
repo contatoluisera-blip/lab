@@ -6,15 +6,18 @@ interface AulaOfferProps {
   firstName: string;
   offerUrl: string;
   unsubscribeUrl?: string;
+  /** De onde o lead veio: a aula ou um kit de prompts. Muda só as frases de origem. */
+  origin?: 'aula' | 'kit';
 }
 
 /** Segundo e-mail do lead da aula: lembra a condição exclusiva (50% nos 3 primeiros meses) com um mini pitch. */
-export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreator.com.br/aula#oferta', unsubscribeUrl }: AulaOfferProps) => {
+export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreator.com.br/aula#oferta', unsubscribeUrl, origin = 'aula' }: AulaOfferProps) => {
+  const kit = origin === 'kit';
   const appUrl = process.env.NEXT_PUBLIC_APP_URL || 'https://labcreator.com.br';
   return (
     <Html>
       <Head />
-      <Preview>50% de desconto nos 3 primeiros meses: a condição de quem assistiu à aula.</Preview>
+      <Preview>{`50% de desconto nos 3 primeiros meses: a condição de quem ${kit ? 'pegou o kit' : 'assistiu à aula'}.`}</Preview>
       <Body style={main}>
         <Container style={container}>
           <Section style={header}>
@@ -22,14 +25,14 @@ export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreato
           </Section>
 
           <Section style={content}>
-            <Heading style={heading}>{firstName}, agora é a hora de colocar a aula em prática.</Heading>
+            <Heading style={heading}>{firstName}, agora é a hora de colocar {kit ? 'o kit' : 'a aula'} em prática.</Heading>
 
             <Text style={paragraph}>
-              Você viu na aula o que dá para fazer. A diferença entre assistir e entregar é ter as ferramentas certas na mão. E este é o momento mais barato para começar.
+              Você viu {kit ? 'no kit' : 'na aula'} o que dá para fazer. A diferença entre assistir e entregar é ter as ferramentas certas na mão. E este é o momento mais barato para começar.
             </Text>
 
             <Section style={offerBox}>
-              <Text style={offerTag}>Condição de quem assistiu à aula</Text>
+              <Text style={offerTag}>Condição de quem {kit ? 'pegou o kit' : 'assistiu à aula'}</Text>
               <Text style={offerTitle}>50% de desconto nos 3 primeiros meses</Text>
               {AULA_OFFER.plans.map(id => (
                 <Text key={id} style={offerRow}>
@@ -56,7 +59,7 @@ export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreato
             </ul>
 
             <Text style={paragraph}>
-              Essa condição é só para quem veio da aula: ela não aparece na página principal. Quanto antes você começar, mais rápido a sua primeira entrega com IA sai do papel.
+              Essa condição é só para quem veio {kit ? 'do kit' : 'da aula'}: ela não aparece na página principal. Quanto antes você começar, mais rápido a sua primeira entrega com IA sai do papel.
             </Text>
 
             <Text style={signature}>
@@ -73,7 +76,7 @@ export const AulaOffer = ({ firstName = 'Creator', offerUrl = 'https://labcreato
 
           <Section style={footer}>
             <Text style={footerText}>© 2026 Creator Lab. Todos os direitos reservados.</Text>
-            <Text style={footerText}>Você está recebendo este e-mail porque liberou a aula em labcreator.com.br e aceitou receber nossos materiais.</Text>
+            <Text style={footerText}>Você está recebendo este e-mail porque liberou {kit ? 'um kit' : 'a aula'} em labcreator.com.br e aceitou receber nossos materiais.</Text>
             {unsubscribeUrl && <Text style={footerText}><Link href={unsubscribeUrl} style={{ color: '#6b7280', textDecoration: 'underline' }}>Não quero mais receber estes e-mails</Link></Text>}
           </Section>
         </Container>

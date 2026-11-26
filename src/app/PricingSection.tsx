@@ -19,7 +19,7 @@ const OFFER_TAB: Record<BillingCycle, string> = { monthly: '50% por 3 meses', qu
  * Vitrine de planos com cadastro e checkout. `offer` liga a condição da aula (/aula):
  * só Start, Pro e Elite, preço com desconto e o cupom aplicado pelo servidor.
  */
-export default function PricingSection({ offer = false }: { offer?: boolean }) {
+export default function PricingSection({ offer = false, returnPath = '/aula' }: { offer?: boolean; returnPath?: string }) {
   const [isCheckoutOpen, setIsCheckoutOpen] = useState(false);
   const [selectedPlan, setSelectedPlan] = useState<any>(null);
   const [isProcessing, setIsProcessing] = useState(false);
@@ -103,7 +103,7 @@ export default function PricingSection({ offer = false }: { offer?: boolean }) {
     const response = await fetch('/api/stripe/checkout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token}` },
-      body: JSON.stringify({ planName: plan.id, cycle, marketing: marketingContext(), ...(offer ? { offer: AULA_OFFER.id } : {}) }),
+      body: JSON.stringify({ planName: plan.id, cycle, marketing: marketingContext(), ...(offer ? { offer: AULA_OFFER.id, returnPath } : {}) }),
     });
     const resData = await response.json();
     if (!response.ok || !resData.url) throw new Error(resData.error || 'Erro ao iniciar o Stripe Checkout.');
@@ -325,7 +325,7 @@ export default function PricingSection({ offer = false }: { offer?: boolean }) {
                 <div className="p-3.5 rounded-xl bg-red-500/10 border border-red-500/20 text-red-400 text-xs space-y-2">
                   <p>{checkoutError}</p>
                   {offer && (
-                    <a href={`/login?next=${encodeURIComponent('/aula#oferta')}`} className="inline-block font-semibold text-brand-mint hover:underline">Entrar na minha conta</a>
+                    <a href={`/login?next=${encodeURIComponent(`${returnPath}#oferta`)}`} className="inline-block font-semibold text-brand-mint hover:underline">Entrar na minha conta</a>
                   )}
                 </div>
               )}
