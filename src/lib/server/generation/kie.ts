@@ -35,6 +35,16 @@ export function framesOf(inputs: Pick<KieInputs, 'imageUrls' | 'lastFrame'>) {
   };
 }
 
+/**
+ * Kling 4.0: cada imagem enviada precisa ser citada no prompt (@first_frame, @keyframe_1, @last_frame,
+ * @image_1…). Sem a citação a KIE devolve "Internal Error". Quem escreve o prompt à mão costuma esquecer,
+ * então as que faltarem entram numa linha de referências no fim.
+ */
+export function citeKling(prompt: string, tags: string[]) {
+  const missing = tags.filter(t => !new RegExp(`${t}(?![0-9_a-z])`, 'i').test(prompt));
+  return missing.length ? `${prompt}\nREFERENCES: ${missing.join(', ')}.` : prompt;
+}
+
 /** Corpo do createTask para cada modelo do catálogo. */
 export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfig, inputs: KieInputs) {
   // Modelos sem campo de negative prompt recebem as restrições numa linha curta no fim.
@@ -198,12 +208,12 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
       if (mode === 'r2v' && inputs.imageUrls.length) {
         return {
           model: 'kling-4.0/flash-reference-to-video',
-          input: { prompt, image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution: '720p', duration },
+          input: { prompt: citeKling(prompt, inputs.imageUrls.slice(0, 10).map((_, i) => `@image_${i + 1}`)), image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution: '720p', duration },
         };
       }
       return {
         model: 'kling-4.0/flash-keyframe-to-video',
-        input: { prompt, ...(f.first ? { first_frame_url: f.first } : { aspect_ratio: config.aspect || '9:16' }), resolution: '720p', duration },
+        input: { prompt: f.first ? citeKling(prompt, ['@first_frame']) : prompt, ...(f.first ? { first_frame_url: f.first } : { aspect_ratio: config.aspect || '9:16' }), resolution: '720p', duration },
       };
     }
     case 'wan-30': {
@@ -315,7 +325,7 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
       if (mode === 'r2v' && inputs.imageUrls.length) {
         return {
           model: 'kling-4.0/reference-to-video',
-          input: { prompt, image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution, duration },
+          input: { prompt: citeKling(prompt, inputs.imageUrls.slice(0, 10).map((_, i) => `@image_${i + 1}`)), image_urls: inputs.imageUrls.slice(0, 10), aspect_ratio: config.aspect || '9:16', resolution, duration },
         };
       }
       // Frames: inicial + intermediários (@keyframe_N, até 8) + final, no máximo 6 em 5 s e 10 em 10 s.
@@ -324,7 +334,11 @@ export function buildKiePayload(modelId: string, mode: GenMode, config: GenConfi
       return {
         model: 'kling-4.0/keyframe-to-video',
         input: {
-          prompt,
+          prompt: citeKling(prompt, [
+            ...(f.first ? ['@first_frame'] : []),
+            ...middle.map((_, i) => `@keyframe_${i + 1}`),
+            ...(f.last ? ['@last_frame'] : []),
+          ]),
           ...(f.first ? { first_frame_url: f.first } : { aspect_ratio: config.aspect || '9:16' }),
           ...(middle.length ? { keyframe_urls: middle } : {}),
           ...(f.last ? { last_frame_url: f.last } : {}),

@@ -337,7 +337,9 @@ const EXTRA_MODELS: GenModel[] = [
     resolutions: [{ value: '1K', label: '1K', hint: 'Teste' }, { value: '2K', label: '2K', hint: 'Entrega' }, { value: '3K', label: '3K', hint: 'Alta' }],
     maxImages: { i2i: 10 },
     defaults: { aspect: '9:16', resolution: '2K' },
-    priceUsd: (c) => ({ '1K': 0.018, '2K': 0.0315, '3K': 0.071 } as Record<string, number>)[c.resolution || '2K'] ?? 0.071,
+    // Na edição, cada imagem de entrada é cobrada à parte (~US$ 0,0072 cada, medido em 26/11/2026).
+    // O preço não sabe quantas vieram, então conta o máximo (10) para nunca ficar abaixo do custo.
+    priceUsd: (c, mode) => (({ '1K': 0.018, '2K': 0.0315, '3K': 0.071 } as Record<string, number>)[c.resolution || '2K'] ?? 0.071) + (mode === 'i2i' ? 0.072 : 0),
   },
   {
     id: 'seedream-5-pro', kind: 'image', family: 'ByteDance', featured: true,
