@@ -23,6 +23,7 @@ import {
 } from '@/lib/generation';
 import { PROMPT_MODES, PromptMode } from '@/lib/promptStudio';
 import { AspectGlyph, Chip, ImageSlot, InputSlotState, ModelCard, StepHeader, VideoSlot } from './parts';
+import { planMultiPick, skippedNotice } from '@/lib/client/multiPick';
 import { Viewfinder } from './Viewfinder';
 import { TermsModal } from './TermsModal';
 import { PromptImport, SavedPrompt } from './PromptImport';
@@ -274,16 +275,24 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
     setShowImport(false);
   };
 
-  const pickImage = async (index: number, file?: File) => {
-    if (!file) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) { setError('Envie a imagem em JPG, PNG ou WEBP.'); return; }
+  const pickImages = async (index: number, files: File[]) => {
+    const valid = files.filter(f => /^image\/(jpeg|png|webp)$/.test(f.type));
+    if (!valid.length) { setError('Envie a imagem em JPG, PNG ou WEBP.'); return; }
+    const { assignments, skipped } = planMultiPick({
+      files: valid, start: index, max: slotDefs.length, isFilled: i => !!slots[i], frames: mode === 'i2v',
+    });
     setBusy(index);
     try {
-      const dataUrl = await toJpeg(file);
-      setSlots(prev => { const next = [...prev]; next[index] = { preview: dataUrl, dataUrl }; return next; });
-      setError('');
+      const done = await Promise.all(assignments.map(async a => ({ index: a.index, dataUrl: await toJpeg(a.file) })));
+      setSlots(prev => {
+        const next = [...prev];
+        for (const d of done) next[d.index] = { preview: d.dataUrl, dataUrl: d.dataUrl };
+        return next;
+      });
+      const notes = [valid.length < files.length ? 'Só JPG, PNG ou WEBP entram; os outros arquivos ficaram de fora.' : '', skippedNotice(skipped, slotDefs.length)].filter(Boolean);
+      setError(notes.join(' '));
     } catch {
-      setError('Não foi possível ler essa imagem. Tente outro arquivo.');
+      setError('Não foi possível ler uma das imagens. Tente outro arquivo.');
     } finally {
       setBusy(null);
     }
@@ -498,7 +507,7 @@ export function GenerationStudio({ kind }: { kind: StudioKind }) {
                 <div className={`grid gap-3 ${visibleSlots.length > 6 ? 'grid-cols-4' : visibleSlots.length > 2 ? 'grid-cols-3' : 'grid-cols-2'}`}>
                   {visibleSlots.map((d, i) => (
                     <ImageSlot key={i} label={d.label} required={d.required} value={slots[i]} busy={busy === i}
-                      onPick={f => pickImage(i, f)}
+                      multiple={slotDefs.length > 1} onPick={f => pickImages(i, f)}
                       onClear={() => setSlots(prev => { const next = [...prev]; next[i] = null; return next; })} />
                   ))}
                 </div>

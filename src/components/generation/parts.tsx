@@ -94,9 +94,11 @@ export interface InputSlotState {
   path?: string;
 }
 
-export function ImageSlot({ label, required, value, onPick, onClear, busy }: {
+export function ImageSlot({ label, required, value, onPick, onClear, busy, multiple }: {
   label: string; required?: boolean; value?: InputSlotState | null; busy?: boolean;
-  onPick: (file?: File) => void; onClear: () => void;
+  /** Com `multiple`, a pessoa escolhe várias de uma vez e elas ocupam os espaços seguintes. */
+  multiple?: boolean;
+  onPick: (files: File[]) => void; onClear: () => void;
 }) {
   return (
     <div className="min-w-0">
@@ -115,9 +117,9 @@ export function ImageSlot({ label, required, value, onPick, onClear, busy }: {
       ) : (
         <label className="flex flex-col items-center justify-center gap-1.5 aspect-[4/5] rounded-xl border border-dashed border-white/15 bg-black/20 text-gray-500 hover:border-brand-emerald/50 hover:text-brand-mint cursor-pointer transition-colors">
           {busy ? <Loader2 className="w-5 h-5 animate-spin" /> : <ImagePlus className="w-5 h-5" />}
-          <span className="text-[10px] text-center px-2">JPG ou PNG</span>
-          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-            onChange={e => { onPick(e.target.files?.[0]); e.target.value = ''; }} />
+          <span className="text-[10px] text-center px-2">{multiple ? 'Uma ou várias' : 'JPG ou PNG'}</span>
+          <input type="file" accept="image/jpeg,image/png,image/webp" multiple={multiple} className="hidden"
+            onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) onPick(files); }} />
         </label>
       )}
     </div>

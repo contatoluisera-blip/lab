@@ -5,6 +5,7 @@ import { GlassCard } from '@/components/ui/GlassCard';
 import { Button } from '@/components/ui/Button';
 import { Clapperboard, Sparkles, Copy, Check, ImagePlus, X, Wand2, ListChecks, HelpCircle, LifeBuoy, ScanEye, ChevronDown, History, Film, Image as ImageIcon, ArrowRight } from 'lucide-react';
 import { useRouter } from 'next/navigation';
+import { planMultiPick, skippedNotice } from '@/lib/client/multiPick';
 import { setGenHandoff } from '@/lib/client/handoff';
 import { useProjectContext, withProject } from '@/lib/client/project';
 import { ProjectBar } from '@/components/montagem/ProjectBar';
@@ -267,18 +268,19 @@ export default function PromptStudioPage() {
     setChoice(id, current.includes(option) ? current.filter(o => o !== option) : [...current, option]);
   };
 
-  const handleImage = async (slot: number, file?: File) => {
-    if (!file) return;
-    if (!/^image\/(jpeg|png|webp)$/.test(file.type)) {
-      setError('Envie a imagem em JPG, PNG ou WEBP.');
-      return;
-    }
+  const handleImages = async (slot: number, files: File[]) => {
+    const valid = files.filter(f => /^image\/(jpeg|png|webp)$/.test(f.type));
+    if (!valid.length) { setError('Envie a imagem em JPG, PNG ou WEBP.'); return; }
+    const { assignments, skipped } = planMultiPick({
+      files: valid, start: slot, max: slotCount, isFilled: i => !!images[i], frames: mode === 'i2v',
+    });
     try {
-      const dataUrl = await resizeImage(file, sizeForSlot(slot));
-      setImages(prev => { const next = [...prev]; next[slot] = dataUrl; return next; });
-      setError('');
+      const done = await Promise.all(assignments.map(async a => ({ index: a.index, dataUrl: await resizeImage(a.file, sizeForSlot(a.index)) })));
+      setImages(prev => { const next = [...prev]; for (const d of done) next[d.index] = d.dataUrl; return next; });
+      const notes = [valid.length < files.length ? 'Só JPG, PNG ou WEBP entram; os outros arquivos ficaram de fora.' : '', skippedNotice(skipped, slotCount)].filter(Boolean);
+      setError(notes.join(' '));
     } catch {
-      setError('Não foi possível ler essa imagem. Tente outro arquivo.');
+      setError('Não foi possível ler uma das imagens. Tente outro arquivo.');
     }
   };
 
@@ -453,9 +455,9 @@ export default function PromptStudioPage() {
                       ) : (
                         <label className="flex flex-col items-center justify-center gap-1.5 aspect-[4/5] rounded-xl border border-dashed border-white/15 bg-black/20 text-gray-500 hover:border-brand-jade/50 hover:text-brand-mint cursor-pointer transition-colors">
                           <ImagePlus className="w-6 h-6" />
-                          <span className="text-[11px] text-center px-2">Toque para enviar</span>
-                          <input type="file" accept="image/jpeg,image/png,image/webp" className="hidden"
-                            onChange={e => { handleImage(slot.i, e.target.files?.[0]); e.target.value = ''; }} />
+                          <span className="text-[11px] text-center px-2">{slotCount > 1 ? 'Toque para enviar uma ou várias' : 'Toque para enviar'}</span>
+                          <input type="file" accept="image/jpeg,image/png,image/webp" multiple={slotCount > 1} className="hidden"
+                            onChange={e => { const files = Array.from(e.target.files || []); e.target.value = ''; if (files.length) handleImages(slot.i, files); }} />
                         </label>
                       )}
                     </div>
